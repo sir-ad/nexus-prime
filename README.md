@@ -1,280 +1,188 @@
-# 🧬 Nexus Prime
+# Nexus Prime
 
-> The Self-Evolving Agent Operating System
+> Distributed Agent Orchestration Framework
 
-**Version:** 0.1.0 (Seed)
-**Philosophy:** Physics-first, biology-inspired, mathematics-grounded
-
----
-
-## What is Nexus Prime?
-
-Nexus Prime is not a framework. It's a **living intelligence layer** that:
-
-- 🔄 Evolves by itself through agent usage
-- 🌊 Emerges its own grammar and vocabulary
-- 🔗 Works with ANY agent, ANY model, ANY system
-- ⚡ Optimizes itself continuously
-- ☢️ Compounds knowledge through fission
-
-**The vision:** The TCP/IP of AI intelligence — but alive.
+**Version:** 0.1.0  
+**License:** MIT  
+**Status:** Alpha
 
 ---
 
-## Quick Start
+## Overview
 
-```bash
-# Install
-npm install nexus-prime
+Nexus Prime is a distributed agent orchestration framework designed for building scalable, self-organizing multi-agent systems. It provides a unified layer for coordinating agents across different platforms, with built-in support for swarm topologies, consensus protocols, and adaptive resource allocation.
 
-# Initialize
-npx nexus-prime init
+## Features
 
-# Start the network
-npx nexus-prime start
+### Multi-Agent Coordination
 
-# Add an adapter
-npx nexus-prime adapter add openclaw
-npx nexus-prime adapter add claude-code
-npx nexus-prime adapter add ruflo
-```
+- **Swarm Topologies**: Peer-to-peer, hierarchical, ring, and star configurations
+- **Consensus Protocols**: Raft, Byzantine Fault Tolerant (BFT), Gossip, and CRDT support
+- **Dynamic Scaling**: Add or remove agents without system disruption
 
----
+### Memory System
+
+- **Three-Tier Architecture**: Working, episodic, and semantic memory layers
+- **Vector Storage**: HNSW-based similarity search for fast retrieval
+- **Persistent Storage**: SQLite and PostgreSQL backends
+
+### Optimization
+
+- **Token Economics**: Intelligent token allocation based on task complexity
+- **Context Management**: Efficient context window utilization
+- **Cost Routing**: Automatically routes to most cost-effective handler
+
+### Integration
+
+- **Unified Adapters**: OpenClaw, Claude Code, Ruflo, and custom platforms
+- **Extensible**: Plugin architecture for new adapters and capabilities
 
 ## Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    NEXUS PRIME LAYER                             │
+│                        NEXUS PRIME                              │
 │  ┌───────────────────────────────────────────────────────────┐  │
-│  │              META-EVOLUTION LAYER                          │  │
-│  │  • Evolves the evolution strategy itself                  │  │
-│  │  • Phase transition detection                             │  │
+│  │              Coordination Layer                              │  │
+│  │  • Swarm Management  • Consensus  • Message Routing        │  │
 │  └───────────────────────────────────────────────────────────┘  │
 │                              │                                  │
 │  ┌───────────────────────────────────────────────────────────┐  │
-│  │              NEXUS LANGUAGE ENGINE                         │  │
-│  │  • EmergentGrammar: Grammar evolves from usage            │  │
-│  │  • WavePattern: Oscillatory communication                 │  │
-│  │  • FissionProtocol: Knowledge propagation                 │  │
+│  │              Memory Layer                                   │  │
+│  │  • Working  • Episodic  • Semantic                        │  │
 │  └───────────────────────────────────────────────────────────┘  │
 │                              │                                  │
 │  ┌───────────────────────────────────────────────────────────┐  │
-│  │              MEMORY HIERARCHY                              │  │
-│  │  CORTEX ← HIPPOCAMPUS ← PREFRONTAL                       │  │
-│  │  (Long)    (Medium)     (Working)                         │  │
+│  │              Optimization Layer                             │  │
+│  │  • Token Allocation  • Context  • Cost Routing            │  │
 │  └───────────────────────────────────────────────────────────┘  │
 │                              │                                  │
 │  ┌───────────────────────────────────────────────────────────┐  │
-│  │              ATTENTION ECONOMICS                            │  │
-│  │  • TokenOptimizer  • InfiniteContext  • NexusBoost       │  │
-│  └───────────────────────────────────────────────────────────┘  │
-│                              │                                  │
-│  ┌───────────────────────────────────────────────────────────┐  │
-│  │              AGENT COORDINATION                            │  │
-│  │  • Peer  • Hierarchical  • Ring  • Star                 │  │
-│  │  • Raft  • BFT  • Gossip  • CRDT                       │  │
+│  │              Adapter Layer                                  │  │
+│  │  • OpenClaw  • Claude Code  • Ruflo  • Custom            │  │
 │  └───────────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
----
-
-## Key Features
-
-### 🧠 Self-Evolving Language
-
-No pre-defined grammar. Agents discover what works through evolution:
-
-```typescript
-// Agents figure out communication patterns
-// Successful patterns become conventions
-// Grammar emerges naturally
-```
-
-### 🌊 Wave-Pattern Communication
-
-Instead of discrete tokens, agents communicate through oscillatory patterns:
-
-```typescript
-// amplitude = importance
-// phase = emotional context
-// frequency = urgency
-// wavelength = semantic depth
-```
-
-### ☢️ Fission Protocol
-
-When an agent discovers something valuable, it propagates to the network:
-
-```typescript
-// Chain reaction of knowledge
-// Neighbors receive, integrate, may extend
-// Value compounds exponentially
-```
-
-### 💾 Brain-Inspired Memory
-
-Three-tier memory like the human brain:
-
-```typescript
-// CORTEX: Long-term, persistent, semantic graph
-// HIPPOCAMPUS: Recent 24-48hr, temporary bindings
-// PREFRONTAL: Working, ~7 items (Miller's Law)
-```
-
-### ⚡ Attention Economics
-
-Intelligent token allocation:
-
-```typescript
-// Compress familiar patterns (10x)
-// Expand novel situations (2x)
-// Infinite context via indexing
-```
-
----
-
-## Adapters
-
-Nexus Prime works with any agent system:
-
-| Adapter | Status | Description |
-|---------|--------|-------------|
-| OpenClaw | ✅ Ready | This platform! |
-| Claude Code | ✅ Ready | Anthropic's CLI |
-| Ruflo | ✅ Ready | Multi-agent orchestration |
-| LangChain | 🔄 Soon | Python agents |
-| AutoGen | 🔄 Soon | Microsoft agents |
-| CrewAI | 🔄 Soon | Python multi-agent |
-
----
-
-## CLI Commands
+## Installation
 
 ```bash
-# Initialize a new Nexus network
-nexus-prime init
-
-# Start the daemon
-nexus-prime start
-
-# Add an agent adapter
-nexus-prime adapter add <name>
-
-# List available agents
-nexus-prime agents list
-
-# Spawn an agent
-nexus-prime spawn <type> --task "<description>"
-
-# Query memory
-nexus-prime memory search "<query>"
-
-# Check network status
-nexus-prime status
-
-# View evolution metrics
-nexus-prime evolution stats
+npm install nexus-prime
 ```
 
----
-
-## API Usage
+## Quick Start
 
 ```typescript
-import { NexusPrime } from 'nexus-prime';
+import { createNexusPrime } from 'nexus-prime';
 
-// Initialize
-const nexus = new NexusPrime({
+const nexus = createNexusPrime({
   adapters: ['openclaw', 'claude-code'],
-  memory: {
-    cortex: { enabled: true },
-    hippocampus: { window: '48h' },
-    prefrontal: { items: 7 }
+  network: {
+    consensus: 'raft'
   }
 });
 
-// Start the network
 await nexus.start();
 
-// Create an agent
-const agent = await nexus.createAgent('researcher', {
-  capabilities: ['search', 'read', 'summarize']
-});
+// Create agents
+const researcher = await nexus.createAgent('researcher');
+const coder = await nexus.createAgent('coder');
 
-// Agent works
-const result = await agent.execute('Research quantum computing breakthroughs');
-
-// System learns automatically
-// Language evolves automatically
-// Knowledge fission propagates automatically
+// Execute tasks
+const result = await nexus.execute(researcher.id, 'Research distributed systems');
 ```
 
----
+## CLI Usage
+
+```bash
+# Start the daemon
+nexus-prime start
+
+# Create an agent
+nexus-prime agents spawn researcher --task "Research AI"
+
+# Check status
+nexus-prime status
+```
 
 ## Configuration
 
 ```typescript
-// nexus.config.ts
-export default {
+const nexus = createNexusPrime({
   network: {
     port: 3000,
-    peers: [],
     consensus: 'raft' // raft | bft | gossip | crdt
   },
-  
   memory: {
     cortex: {
       enabled: true,
-      storage: 'postgresql',
+      storage: 'sqlite',
       vector: 'hnsw'
     },
     hippocampus: {
-      window: '48h',
-      consolidation: '6h'
+      window: '48h'
     },
     prefrontal: {
       items: 7
     }
   },
-  
-  evolution: {
-    mutationRate: 0.01,
-    selectionPressure: 0.9,
-    coherenceThreshold: 0.8
-  },
-  
-  adapters: ['openclaw', 'claude-code', 'ruflo']
-};
+  adapters: ['openclaw', 'claude-code']
+});
 ```
 
----
+## Supported Agents
 
-## Research Foundation
+| Type | Capabilities |
+|------|--------------|
+| `researcher` | search, read, summarize, hypothesize |
+| `coder` | write, edit, refactor, debug |
+| `reviewer` | analyze, critique, suggest |
+| `tester` | test, validate, verify |
+| `architect` | design, plan, evaluate |
+| `planner` | plan, schedule, coordinate |
+| `executor` | run, execute, deploy |
 
-Nexus Prime is built on cutting-edge research:
+## Consensus Protocols
 
-### Neuroscience
-- Hebbian Learning (1949)
-- Spike-Timing-Dependent Plasticity
-- Systems Consolidation
-- Neural Oscillations (Buzsáki)
+- **Raft**: Leader-based, simple deployments
+- **BFT**: Byzantine fault tolerance, adversarial environments
+- **Gossip**: Epidemic propagation, eventual consistency
+- **CRDT**: Conflict-free, highly available
 
-### AI/ML
-- Attention Is All You Need
-- Toolformer
-- Reflexion
-- Self-Refine
+## Swarm Topologies
 
-### Physics/Math
-- Information Theory (Shannon)
-- Statistical Mechanics
-- Phase Transitions
+```typescript
+// Hierarchical (default)
+coordinator.setTopology('hierarchical');
 
----
+// Peer-to-peer mesh
+coordinator.setTopology('peer');
 
-## Contributing
+// Ring passing
+coordinator.setTopology('ring');
+
+// Star hub-and-spoke
+coordinator.setTopology('star');
+```
+
+## API
+
+### NexusPrime
+
+```typescript
+class NexusPrime {
+  start(): Promise<void>
+  stop(): Promise<void>
+  createAgent(type: AgentType, options?: AgentOptions): Promise<Agent>
+  execute(agentId: string, task: string): Promise<ExecutionResult>
+  coordinate(task: string, agentIds?: string[]): Promise<CoordinationResult>
+  achieveConsensus(proposal: string, agentIds?: string[]): Promise<ConsensusResult>
+  recall(agentId: string, query: number[]): Pattern[]
+  searchMemory(query: string): string[]
+}
+```
+
+## Development
 
 ```bash
 # Clone
@@ -289,32 +197,13 @@ npm run build
 
 # Test
 npm test
-
-# Develop
-npm run dev
 ```
-
----
 
 ## Roadmap
 
-### Phase 1: Seed (v0.1)
-- [x] Core primitives
-- [x] Basic memory
-- [x] Simple adapter
-- [ ] Initial release
-
-### Phase 2: Emergence (v0.2)
-- [ ] Emergent grammar
-- [ ] Fission protocol
-- [ ] Self-learning
-
-### Phase 3: Explosion (v1.0)
-- [ ] Production ready
-- [ ] Multiple adapters
-- [ ] Community adoption
-
----
+- [ ] v0.2: Enhanced consensus protocols
+- [ ] v0.3: Learning and adaptation layer
+- [ ] v1.0: Production release
 
 ## License
 
@@ -322,14 +211,4 @@ MIT
 
 ---
 
-## Credits
-
-Built with inspiration from:
-- [Ruflo](https://github.com/ruvnet/ruflo) - Multi-agent orchestration
-- [OpenClaw](https://github.com/openclaw/openclaw) - This platform!
-- Neuroscience research from Buzsáki, Friston, Hebb
-- AI research from Vaswani, DeepMind, Anthropic
-
----
-
-*The first line of code is just the beginning. The rest will write itself.*
+Built with ⚡ by [sir-ad](https://github.com/sir-ad)
