@@ -2,7 +2,7 @@
 
 > Distributed Agent Orchestration Framework
 
-**Version:** 0.1.0  
+**Version:** 0.2.0 (Enhanced)  
 **License:** MIT  
 **Status:** Alpha
 
@@ -10,59 +10,24 @@
 
 ## Overview
 
-Nexus Prime is a distributed agent orchestration framework designed for building scalable, self-organizing multi-agent systems. It provides a unified layer for coordinating agents across different platforms, with built-in support for swarm topologies, consensus protocols, and adaptive resource allocation.
+Nexus Prime is a distributed agent orchestration framework with integrated engines for token optimization, context management, memory, and orchestration.
 
 ## Features
 
-### Multi-Agent Coordination
+### Core Features
 
-- **Swarm Topologies**: Peer-to-peer, hierarchical, ring, and star configurations
-- **Consensus Protocols**: Raft, Byzantine Fault Tolerant (BFT), Gossip, and CRDT support
-- **Dynamic Scaling**: Add or remove agents without system disruption
+- **Multi-Agent Coordination**: Peer-to-peer, hierarchical, ring, and star topologies
+- **Consensus Protocols**: Raft, Byzantine Fault Tolerant, Gossip, CRDT
+- **Three-Tier Memory**: Prefrontal, Hippocampus, Cortex
 
-### Memory System
+### Enhanced Engines (v0.2.0)
 
-- **Three-Tier Architecture**: Working, episodic, and semantic memory layers
-- **Vector Storage**: HNSW-based similarity search for fast retrieval
-- **Persistent Storage**: SQLite and PostgreSQL backends
-
-### Optimization
-
-- **Token Economics**: Intelligent token allocation based on task complexity
-- **Context Management**: Efficient context window utilization
-- **Cost Routing**: Automatically routes to most cost-effective handler
-
-### Integration
-
-- **Unified Adapters**: OpenClaw, Claude Code, Ruflo, and custom platforms
-- **Extensible**: Plugin architecture for new adapters and capabilities
-
-## Architecture
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        NEXUS PRIME                              │
-│  ┌───────────────────────────────────────────────────────────┐  │
-│  │              Coordination Layer                              │  │
-│  │  • Swarm Management  • Consensus  • Message Routing        │  │
-│  └───────────────────────────────────────────────────────────┘  │
-│                              │                                  │
-│  ┌───────────────────────────────────────────────────────────┐  │
-│  │              Memory Layer                                   │  │
-│  │  • Working  • Episodic  • Semantic                        │  │
-│  └───────────────────────────────────────────────────────────┘  │
-│                              │                                  │
-│  ┌───────────────────────────────────────────────────────────┐  │
-│  │              Optimization Layer                             │  │
-│  │  • Token Allocation  • Context  • Cost Routing            │  │
-│  └───────────────────────────────────────────────────────────┘  │
-│                              │                                  │
-│  ┌───────────────────────────────────────────────────────────┐  │
-│  │              Adapter Layer                                  │  │
-│  │  • OpenClaw  • Claude Code  • Ruflo  • Custom            │  │
-│  └───────────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────┘
-```
+| Engine | Purpose |
+|--------|---------|
+| **Token Optimizer** | Adaptive compression (3x-8x), complexity assessment |
+| **Context Engine** | Working context, auto-compression, retrieval |
+| **Memory Engine** | Priority-based storage, tag grouping, recall |
+| **Orchestrator** | Task decomposition, agent spawning, consensus |
 
 ## Installation
 
@@ -76,139 +41,103 @@ npm install nexus-prime
 import { createNexusPrime } from 'nexus-prime';
 
 const nexus = createNexusPrime({
-  adapters: ['openclaw', 'claude-code'],
-  network: {
-    consensus: 'raft'
-  }
+  adapters: ['openclaw'],
+  network: { consensus: 'raft' }
 });
 
 await nexus.start();
 
-// Create agents
-const researcher = await nexus.createAgent('researcher');
-const coder = await nexus.createAgent('coder');
+// Use enhanced engines
+const tokenPlan = nexus.optimizeTokens("build a website");
+nexus.addContext("User wants an e-commerce site");
+nexus.storeMemory("Previous project details", 0.8, ['project']);
+const relevant = nexus.recallMemory("e-commerce");
 
-// Execute tasks
-const result = await nexus.execute(researcher.id, 'Research distributed systems');
+// Or orchestrate complex tasks
+const result = await nexus.orchestrate("Research X, then build Y");
 ```
 
-## CLI Usage
+## Architecture
 
-```bash
-# Start the daemon
-nexus-prime start
-
-# Create an agent
-nexus-prime agents spawn researcher --task "Research AI"
-
-# Check status
-nexus-prime status
 ```
-
-## Configuration
-
-```typescript
-const nexus = createNexusPrime({
-  network: {
-    port: 3000,
-    consensus: 'raft' // raft | bft | gossip | crdt
-  },
-  memory: {
-    cortex: {
-      enabled: true,
-      storage: 'sqlite',
-      vector: 'hnsw'
-    },
-    hippocampus: {
-      window: '48h'
-    },
-    prefrontal: {
-      items: 7
-    }
-  },
-  adapters: ['openclaw', 'claude-code']
-});
-```
-
-## Supported Agents
-
-| Type | Capabilities |
-|------|--------------|
-| `researcher` | search, read, summarize, hypothesize |
-| `coder` | write, edit, refactor, debug |
-| `reviewer` | analyze, critique, suggest |
-| `tester` | test, validate, verify |
-| `architect` | design, plan, evaluate |
-| `planner` | plan, schedule, coordinate |
-| `executor` | run, execute, deploy |
-
-## Consensus Protocols
-
-- **Raft**: Leader-based, simple deployments
-- **BFT**: Byzantine fault tolerance, adversarial environments
-- **Gossip**: Epidemic propagation, eventual consistency
-- **CRDT**: Conflict-free, highly available
-
-## Swarm Topologies
-
-```typescript
-// Hierarchical (default)
-coordinator.setTopology('hierarchical');
-
-// Peer-to-peer mesh
-coordinator.setTopology('peer');
-
-// Ring passing
-coordinator.setTopology('ring');
-
-// Star hub-and-spoke
-coordinator.setTopology('star');
+┌─────────────────────────────────────────────────────────────────┐
+│                        NEXUS PRIME                              │
+│  ┌───────────────────────────────────────────────────────────┐  │
+│  │              Token Optimizer Engine                        │  │
+│  │  • Complexity assessment  • Adaptive compression        │  │
+│  │  • Strategy selection      • Quality tracking            │  │
+│  └───────────────────────────────────────────────────────────┘  │
+│  ┌───────────────────────────────────────────────────────────┐  │
+│  │              Context Engine                                 │  │
+│  │  • Working context       • Auto-compression              │  │
+│  │  • Similarity retrieval  • Token management              │  │
+│  └───────────────────────────────────────────────────────────┘  │
+│  ┌───────────────────────────────────────────────────────────┐  │
+│  │              Memory Engine                                 │  │
+│  │  • Three-tier memory      • Priority storage             │  │
+│  │  • Tag grouping          • Similarity recall             │  │
+│  └───────────────────────────────────────────────────────────┘  │
+│  ┌───────────────────────────────────────────────────────────┐  │
+│  │              Orchestrator Engine                            │  │
+│  │  • Task decomposition    • Agent spawning                │  │
+│  │  • Consensus checking    • Result aggregation            │  │
+│  └───────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 ## API
 
-### NexusPrime
+### Token Optimizer
 
 ```typescript
-class NexusPrime {
-  start(): Promise<void>
-  stop(): Promise<void>
-  createAgent(type: AgentType, options?: AgentOptions): Promise<Agent>
-  execute(agentId: string, task: string): Promise<ExecutionResult>
-  coordinate(task: string, agentIds?: string[]): Promise<CoordinationResult>
-  achieveConsensus(proposal: string, agentIds?: string[]): Promise<ConsensusResult>
-  recall(agentId: string, query: number[]): Pattern[]
-  searchMemory(query: string): string[]
+nexus.optimizeTokens(task: string): {
+  tokens: number;
+  ratio: number;
+  strategy: string;
 }
+```
+
+### Context Engine
+
+```typescript
+nexus.addContext(content: string): void
+nexus.getContext(query: string): string[]
+```
+
+### Memory Engine
+
+```typescript
+nexus.storeMemory(content: string, priority: number, tags: string[]): void
+nexus.recallMemory(query: string, k: number): string[]
+nexus.getMemoryStats(): { prefrontal, hippocampus, cortex }
+```
+
+### Orchestrator
+
+```typescript
+nexus.orchestrate(task: string): Promise<{
+  result: string;
+  agents: Agent[];
+  consensus: boolean;
+}>
+```
+
+## CLI
+
+```bash
+nexus-prime start
+nexus-prime agents spawn researcher --task "Research AI"
+nexus-prime status
 ```
 
 ## Development
 
 ```bash
-# Clone
-git clone https://github.com/sir-ad/nexus-prime.git
-cd nexus-prime
-
-# Install
 npm install
-
-# Build
 npm run build
-
-# Test
 npm test
 ```
-
-## Roadmap
-
-- [ ] v0.2: Enhanced consensus protocols
-- [ ] v0.3: Learning and adaptation layer
-- [ ] v1.0: Production release
 
 ## License
 
 MIT
-
----
-
-Built with ⚡ by [sir-ad](https://github.com/sir-ad)

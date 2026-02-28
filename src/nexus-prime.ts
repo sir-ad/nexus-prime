@@ -15,4 +15,4 @@ export * from './agents/adapters.js';
 export * from './config.js';
 
 // Re-export CLI as well
-export { default as cli } from './cli.js';
+export { default as cli } from './cli';

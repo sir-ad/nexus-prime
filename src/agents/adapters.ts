@@ -2,8 +2,9 @@
  * Adapters for different agent platforms
  */
 
-import { Adapter, NetworkMessage, Agent } from './core/types.js';
+import { Adapter, NetworkMessage, Agent } from './core/types';
 
+export { Adapter } from './core/types';
 export class OpenClawAdapter implements Adapter {
   name = 'openclaw';
   type = 'openclaw' as const;

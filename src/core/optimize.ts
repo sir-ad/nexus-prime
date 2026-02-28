@@ -268,7 +268,7 @@ export class InfiniteContext {
   /**
    * Index content for retrieval
    */
-  index(key: string, content: string[]): void {
+  indexContent(key: string, content: string[]): void {
     this.index.set(key, content);
   }
 

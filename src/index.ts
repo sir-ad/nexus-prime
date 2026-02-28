@@ -1,27 +1,36 @@
 /**
- * Main Nexus Prime Class
+ * Nexus Prime - Enhanced with Engines
  * 
- * The self-evolving agent operating system.
+ * The Self-Evolving Agent Operating System
  */
 
 import { v4 as uuidv4 } from 'uuid';
-import { Agent, AgentType, NexusConfig, Experience, Pattern, NetworkMessage } from './core/types.js';
+import { NexusConfig, Experience, Pattern, NetworkMessage, Agent, AgentType } from './core/types.js';
 import { MemorySystem, createMemory } from './core/memory.js';
 import { EvolutionEngine, FissionProtocol, createEvolutionEngine, createFissionProtocol } from './core/evolution.js';
 import { AttentionEconomics, TokenOptimizer, InfiniteContext, createAttentionEconomics, createTokenOptimizer, createInfiniteContext } from './core/optimize.js';
 import { AgentCoordinator, createCoordinator, Topology, Consensus } from './agents/coordinator.js';
 import { Adapter, createAdapter, AdapterType } from './agents/adapters.js';
 
+// Import engines
+import { createTokenOptimizer, createContextEngine, createMemoryEngine, createOrchestrator } from './engines/index.js';
+
 export class NexusPrime {
   private config: NexusConfig;
   private adapters: Map<string, Adapter> = new Map();
   private agents: Map<string, Agent> = new Map();
   private memories: Map<string, MemorySystem> = new Map();
+  
+  // NEW: Enhanced Engines
+  private tokenOptimizer: TokenOptimizer;
+  private contextEngine: any;
+  private memoryEngine: any;
+  private orchestrator: any;
+  
   private coordinator: AgentCoordinator;
   private evolution: EvolutionEngine;
   private fission: FissionProtocol;
   private attention: AttentionEconomics;
-  private tokens: TokenOptimizer;
   private context: InfiniteContext;
   private running = false;
 
@@ -54,33 +63,34 @@ export class NexusPrime {
       adapters: config?.adapters ?? []
     };
 
-    // Initialize systems
+    // Initialize legacy systems
     this.coordinator = createCoordinator('hierarchical', this.config.network.consensus);
     this.evolution = createEvolutionEngine(this.config.evolution);
     this.fission = createFissionProtocol();
     this.attention = createAttentionEconomics();
-    this.tokens = createTokenOptimizer();
     this.context = createInfiniteContext();
+    
+    // Initialize NEW engines
+    this.tokenOptimizer = createTokenOptimizer(this.config.memory.cortex.enabled ? 128000 : 64000);
+    this.contextEngine = createContextEngine();
+    this.memoryEngine = createMemoryEngine();
+    this.orchestrator = createOrchestrator();
   }
 
-  // ==================== LIFECYCLE ====================
-
   async start(): Promise<void> {
-    console.log('🧬 Nexus Prime starting...');
+    console.log('🧬 Nexus Prime (Enhanced) starting...');
     
-    // Connect adapters
     for (const adapterType of this.config.adapters) {
       await this.addAdapter(adapterType as AdapterType);
     }
 
     this.running = true;
-    console.log('✅ Nexus Prime running');
+    console.log('✅ Nexus Prime running with engines!');
   }
 
   async stop(): Promise<void> {
     console.log('🧬 Nexus Prime stopping...');
     
-    // Disconnect adapters
     for (const [, adapter] of this.adapters) {
       await adapter.disconnect();
     }
@@ -93,32 +103,11 @@ export class NexusPrime {
     return this.running;
   }
 
-  // ==================== ADAPTERS ====================
-
   async addAdapter(type: AdapterType, customName?: string): Promise<void> {
     const adapter = createAdapter(type, customName);
     await adapter.connect();
     this.adapters.set(adapter.name, adapter);
-    console.log(`📦 Added adapter: ${adapter.name}`);
   }
-
-  removeAdapter(name: string): void {
-    const adapter = this.adapters.get(name);
-    if (adapter) {
-      adapter.disconnect();
-      this.adapters.delete(name);
-    }
-  }
-
-  getAdapter(name: string): Adapter | undefined {
-    return this.adapters.get(name);
-  }
-
-  getAdapters(): Adapter[] {
-    return Array.from(this.adapters.values());
-  }
-
-  // ==================== AGENTS ====================
 
   async createAgent(
     type: AgentType,
@@ -134,7 +123,7 @@ export class NexusPrime {
       id,
       type,
       capabilities: options?.capabilities ?? this.getDefaultCapabilities(type),
-      memory: null as unknown as any, // Set below
+      memory: null as any,
       attention: 0.1,
       state: {
         current: 'idle',
@@ -142,7 +131,6 @@ export class NexusPrime {
       }
     };
 
-    // Create memory for agent
     const memory = createMemory({
       hippocampusWindowHours: 48,
       prefrontalMaxItems: 7
@@ -150,7 +138,6 @@ export class NexusPrime {
     this.memories.set(id, memory);
     (agent as any).memory = memory;
 
-    // Register with coordinator
     this.coordinator.register(agent);
     this.agents.set(id, agent);
 
@@ -167,11 +154,59 @@ export class NexusPrime {
     return Array.from(this.agents.values());
   }
 
-  getAgentsByType(type: AgentType): Agent[] {
-    return Array.from(this.agents.values()).filter(a => a.type === type);
+  // ===== NEW ENGINE METHODS =====
+
+  /**
+   * Optimize tokens using TokenOptimizer
+   */
+  optimizeTokens(task: string): any {
+    const context = this.contextEngine.getAll();
+    return this.tokenOptimizer.optimize(context, task);
   }
 
-  // ==================== EXECUTION ====================
+  /**
+   * Add to context
+   */
+  addContext(content: string): void {
+    this.contextEngine.add(content);
+  }
+
+  /**
+   * Get relevant context
+   */
+  getContext(query: string): string[] {
+    return this.contextEngine.getContext(query);
+  }
+
+  /**
+   * Store in memory
+   */
+  storeMemory(content: string, priority: number = 1.0, tags: string[] = []): void {
+    this.memoryEngine.store(content, priority, tags);
+  }
+
+  /**
+   * Recall from memory
+   */
+  recallMemory(query: string, k: number = 5): string[] {
+    return this.memoryEngine.recall(query, k);
+  }
+
+  /**
+   * Execute via orchestrator
+   */
+  async orchestrate(task: string): Promise<any> {
+    return this.orchestrator.execute(task);
+  }
+
+  /**
+   * Get memory stats
+   */
+  getMemoryStats(): any {
+    return this.memoryEngine.getStats();
+  }
+
+  // ===== EXECUTE (Enhanced) =====
 
   async execute(
     agentId: string,
@@ -182,22 +217,17 @@ export class NexusPrime {
       throw new Error(`Agent not found: ${agentId}`);
     }
 
-    // Update state
+    // Use NEW engines
+    const tokenPlan = this.optimizeTokens(task);
+    const context = this.getContext(task);
+    
     agent.state.current = 'working';
     agent.state.history.push(task);
 
-    // Optimize tokens
-    const memory = this.memories.get(agentId);
-    const working = memory?.getWorking() ?? [];
-    const tokenPlan = this.tokens.optimize(task, working);
-
     // Simulate execution
     const result = `Executed: ${task}`;
-
-    // Calculate value (simplified)
     const value = Math.random();
 
-    // Create experience
     const experience: Experience = {
       agentId,
       action: task,
@@ -206,13 +236,18 @@ export class NexusPrime {
       timestamp: Date.now()
     };
 
-    // Learn
+    // Learn (using legacy system)
+    const memory = this.memories.get(agentId);
     if (memory) {
       memory.learn(experience);
     }
 
-    // Update attention
-    this.attention.recordPerformance(agentId, value);
+    // Also store in new memory engine
+    this.storeMemory(
+      `Agent ${agentId} executed: ${task} → ${result}`,
+      value,
+      [agent.type, 'execution']
+    );
 
     // Check for fission
     if (value > 0.9) {
@@ -236,60 +271,19 @@ export class NexusPrime {
       }
     }
 
-    // Update state
     agent.state.current = 'idle';
-
-    // Add to working memory
-    memory?.addToWorking(task);
 
     return { result, experience };
   }
 
-  // ==================== COORDINATION ====================
-
-  async coordinate(
-    task: string,
-    agentIds?: string[]
-  ): Promise<Array<{ agentId: string; result: unknown }>> {
-    const agents = agentIds ?? Array.from(this.agents.keys());
-    return this.coordinator.coordinate(task, agents);
-  }
-
-  async achieveConsensus(
-    proposal: string,
-    agentIds?: string[]
-  ): Promise<{ decided: boolean; result?: string }> {
-    const agents = agentIds ?? Array.from(this.agents.keys());
-    return this.coordinator.consensusDecide(proposal, agents);
-  }
-
-  // ==================== MEMORY ====================
-
-  recall(agentId: string, query: number[], k: number = 5): Array<{ pattern: Pattern; score: number }> {
-    const memory = this.memories.get(agentId);
-    if (!memory) return [];
-    return memory.recall(query, k);
-  }
-
-  searchMemory(query: string, k: number = 10): string[] {
-    return this.context.think(query, k);
-  }
-
-  // ==================== EVOLUTION ====================
-
   evolve(): void {
-    const health = {
-      coherence: 0.8, // Simplified
-      stagnation: 0.2
-    };
+    const health = { coherence: 0.8, stagnation: 0.2 };
     this.evolution.govern(health);
   }
 
   getGrammar() {
     return this.evolution.getGrammar();
   }
-
-  // ==================== NETWORK ====================
 
   async broadcast(message: Omit<NetworkMessage, 'id' | 'timestamp'>): Promise<void> {
     const fullMessage: NetworkMessage = {
@@ -305,7 +299,20 @@ export class NexusPrime {
     }
   }
 
-  // ==================== HELPERS ====================
+  getConfig(): NexusConfig {
+    return { ...this.config };
+  }
+
+  getStats(): any {
+    return {
+      agents: this.agents.size,
+      adapters: this.adapters.size,
+      grammarRules: this.evolution.getGrammar().length,
+      running: this.running,
+      memory: this.getMemoryStats(),
+      tokens: this.optimizeTokens('status check')
+    };
+  }
 
   private getDefaultCapabilities(type: AgentType): string[] {
     const capabilities: Record<AgentType, string[]> = {
@@ -320,29 +327,7 @@ export class NexusPrime {
     };
     return capabilities[type] ?? capabilities.general;
   }
-
-  // ==================== STATE ====================
-
-  getConfig(): NexusConfig {
-    return { ...this.config };
-  }
-
-  getStats(): {
-    agents: number;
-    adapters: number;
-    grammarRules: number;
-    running: boolean;
-  } {
-    return {
-      agents: this.agents.size,
-      adapters: this.adapters.size,
-      grammarRules: this.evolution.getGrammar().length,
-      running: this.running
-    };
-  }
 }
-
-// ==================== FACTORY ====================
 
 export const createNexusPrime = (config?: Partial<NexusConfig>) => 
   new NexusPrime(config);
