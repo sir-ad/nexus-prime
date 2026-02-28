@@ -18,3 +18,9 @@ export {
   createTokenRetention,
   CompressionFeatures
 } from './meta-learner.js';
+export { 
+  BenchmarkSuite, 
+  createBenchmarkSuite,
+  EXPECTED_RESULTS,
+  BenchmarkResult 
+} from './benchmark.js';
