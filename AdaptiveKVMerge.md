@@ -463,3 +463,165 @@ class NexusPrime:
 ---
 
 *This document guides the implementation of AdaptiveKVMerge for Nexus Prime*
+
+---
+
+## Detailed Multi-Agent Cache Manager
+
+### Cache Structure
+
+```typescript
+interface SharedCache {
+  // Compressed representations
+  directions: Float32Array[];  // E - normalized direction vectors
+  magnitudes: Float32Array[];   // X - magnitude scalars
+  retained: Map<number, Float32Array>;  // R - retained tokens
+  indices: number[];           // I - position indices
+  
+  // Per-agent deltas
+  agentDeltas: Map<string, Float32Array[]>;
+  
+  // Sync protocol
+  version: number;
+  locks: Map<string, 'none' | 'read' | 'write'>;
+}
+```
+
+### Algorithm 1: Meta-Learned Prefill
+
+```python
+def adaptive_prefill(kv_cache, task_query, meta_learner):
+    """
+    Fast adaptation with MAML-style meta-learning
+    """
+    # Extract support set (first 10 examples)
+    support_set = extract_first_10_examples(task_query)
+    
+    # Meta-learner adaptation: ~0.5s overhead
+    meta_learner.adapt(support_set, steps=10)
+    
+    S = len(layers) // 2  # Start from middle layer
+    
+    for l in range(S, len(layers), 2):
+        # Extract 388-dim feature vector
+        features = compute_features(
+            attention_entropy=H(attention_matrix),
+            task_embedding=BERT_encode(task_query),  # 384 dims
+            layer_depth=l/L,
+            magnitude_ratio=x^l / x^{l-1},
+            cosine_similarity=cos(θ^{l,l-1})
+        )
+        
+        # Meta-learner predicts: [merge?, t, γ]
+        should_merge, t, gamma = meta_learner.predict(features)
+        
+        if should_merge:
+            # SLERP merge with adaptive t
+            merged_direction = slerp_merge(x^l, x^{l-1}, t)
+            
+            # Store magnitudes for restoration
+            mag_curr, mag_prev = x^l, x^{l-1}
+            
+            # Retain highly distinct tokens (learned γ)
+            retention_mask = angular_distance < threshold(gamma)
+            retained_curr, retained_prev = x^l[mask], x^{l-1}[mask]
+            
+            # Compressed cache
+            shared_cache[l] = (
+                merged_direction,
+                mag_curr, mag_prev,
+                retained_curr, retained_prev,
+                mask
+            )
+            
+            # Free previous layer memory
+            del kv_cache[l-1]
+```
+
+### Algorithm 2: Multi-Agent Decode
+
+```python
+def multi_agent_decode(agent_id, new_tokens, shared_cache):
+    """
+    Multi-agent decoding with shared cache
+    """
+    for layer_idx in compressed_layers:
+        # Acquire read lock (non-blocking)
+        with shared_cache.read_lock(layer_idx):
+            cache_entry = shared_cache[layer_idx]
+            agent_delta = agent_deltas[agent_id][layer_idx]
+        
+        # Restore: shared + delta
+        merged_dir, mag_curr, retained = cache_entry
+        x_restored = merged_dir * mag_curr
+        
+        # Rescale magnitude
+        x_restored[retention_mask] = retained
+        
+        # Insert kept tokens
+        x_restored += agent_delta
+        
+        # Standard attention
+        output = attention(
+            query,
+            x_restored.keys,
+            x_restored.values
+        )
+        
+        # Update agent delta
+        new_delta = output.kv_cache - merged_dir * mag_curr
+        agent_deltas[agent_id][layer_idx] += new_delta
+        
+        # Periodic sync (every 50 tokens)
+        if token_count % 50 == 0:
+            with shared_cache.write_lock(layer_idx):
+                if new_delta > 0.1 * merged_dir:
+                    shared_cache[layer_idx] = update_shared(
+                        cache_entry, new_delta
+                    )
+                    agent_deltas[agent_id][layer_idx] = 0
+```
+
+### Mathematical Foundations
+
+#### SLERP Interpolation (from MiniCache)
+
+```
+e^{l,l-1} = sin((1-t)Ω)/sin(Ω) · x^{l-1}/|x^{l-1}| + sin(tΩ)/sin(Ω) · x^l/|x^l|
+
+where Ω = arccos( x^l · x^{l-1} / (|x^l| |x^{l-1}|) )
+```
+
+#### Feature Vector (388 dimensions)
+
+| Feature | Dimensions | Description |
+|---------|------------|-------------|
+| Attention Entropy | 1 | H(attention_matrix) |
+| Task Embedding | 384 | BERT_encode(task_query) |
+| Layer Depth | 1 | l/L |
+| Magnitude Ratio | 1 | x^l / x^{l-1} |
+| Cosine Similarity | 1 | cos(θ^{l,l-1}) |
+
+#### Meta-Learner Architecture
+
+```
+Input: 388 dims
+↓ 
+2-layer MLP (388→256→256→3)
+↓
+Output: [merge_decision, t, γ]
+```
+
+---
+
+## Implementation Priority
+
+1. ✅ Token Optimizer (basic)
+2. ✅ Context Engine (basic)
+3. ✅ Memory Engine (basic)
+4. ✅ Orchestrator (basic)
+5. ⏳ SLERP merge
+6. ⏳ Meta-learner integration
+7. ⏳ Multi-agent cache sharing
+8. ⏳ Byzantine consensus
+
