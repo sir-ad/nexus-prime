@@ -115,7 +115,7 @@ export class CustomAdapter implements Adapter {
   type = 'custom' as const;
   connected = false;
   agents: string[] = [];
-  
+
   private sendHandler?: (message: NetworkMessage) => Promise<void>;
   private receiveHandler?: (message: NetworkMessage) => void;
 
@@ -163,9 +163,11 @@ export class CustomAdapter implements Adapter {
   }
 }
 
+import { MCPAdapter } from './adapters/mcp.js';
+
 // ==================== ADAPTER FACTORY ====================
 
-export type AdapterType = 'openclaw' | 'claude-code' | 'ruflo' | 'langchain' | 'autogen' | 'custom';
+export type AdapterType = 'openclaw' | 'claude-code' | 'ruflo' | 'langchain' | 'autogen' | 'custom' | 'mcp';
 
 export function createAdapter(type: AdapterType, customName?: string): Adapter {
   switch (type) {
@@ -175,6 +177,8 @@ export function createAdapter(type: AdapterType, customName?: string): Adapter {
       return new ClaudeCodeAdapter();
     case 'ruflo':
       return new RufloAdapter();
+    case 'mcp':
+      return new MCPAdapter();
     case 'custom':
       return new CustomAdapter(customName ?? 'custom');
     default:

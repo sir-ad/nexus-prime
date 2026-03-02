@@ -7,6 +7,14 @@
 import { Command } from 'commander';
 import { createNexusPrime, NexusPrime } from './index.js';
 import { AdapterType } from './agents/adapters.js';
+import {
+  TokenSupremacyEngine,
+  formatReadingPlan
+} from './engines/token-supremacy.js';
+import { statSync } from 'fs';
+
+
+const tokenEngine = new TokenSupremacyEngine();
 
 const program = new Command();
 
@@ -38,7 +46,7 @@ program
     await nexus.start();
     console.log('✅ Nexus Prime running on port 3000');
     console.log('Press Ctrl+C to stop');
-    
+
     // Keep running
     process.on('SIGINT', async () => {
       if (nexus) {
@@ -58,6 +66,75 @@ program
     } else {
       console.log('⚠️  Nexus Prime not running');
     }
+  });
+
+program
+  .command('install')
+  .description('Install Nexus Prime into your environment')
+  .action(() => {
+    console.log(`
+🚀 Nexus Prime Meta-Framework Installation
+========================================
+
+To give your agents (AntiGravity, Cursor, Claude Code) superpowers, add Nexus Prime as an MCP Server in their configuration file.
+
+For Claude Desktop / AntiGravity:
+Add this to your "mcpServers" configuration:
+
+"nexus-prime": {
+  "command": "npx",
+  "args": [
+    "nexus-prime",
+    "mcp"
+  ]
+}
+
+Restart your agent to complete the installation.
+    `);
+  });
+
+program
+  .command('mcp')
+  .description('Start Nexus Prime as an MCP Server over stdio')
+  .action(async () => {
+    // stdio transport requires strict JSON-RPC on stdout — no console.log here.
+    console.error('Starting Nexus Prime MCP Server...');
+    nexus = createNexusPrime({
+      adapters: ['mcp']
+    });
+    await nexus.start();
+    console.error('✅ Nexus Prime MCP Server running on stdio');
+    console.error('Memory persistence: active (~/.nexus-prime/memory.db)');
+
+    // Graceful shutdown: flush memory to SQLite before exit
+    const shutdown = async () => {
+      console.error('Flushing memory to disk...');
+      nexus?.flushMemory();
+      if (nexus) await nexus.stop();
+      process.exit(0);
+    };
+
+    process.on('SIGINT', shutdown);
+    process.on('SIGTERM', shutdown);
+  });
+
+program
+  .command('optimize')
+  .description('Generate a token-efficient reading plan for a task')
+  .argument('<task>', 'Task description')
+  .option('-f, --files <files...>', 'File paths to evaluate')
+  .action((task: string, options: { files?: string[] }) => {
+    const files = (options.files ?? []).map((p: string) => {
+      try {
+        const stat = statSync(p);
+        return { path: p, sizeBytes: stat.size, lastModified: stat.mtimeMs };
+      } catch {
+        return { path: p, sizeBytes: 0 };
+      }
+    });
+
+    const plan = tokenEngine.plan(task, files);
+    console.log(formatReadingPlan(plan));
   });
 
 program
@@ -118,7 +195,7 @@ program
         }
         const agent = await nexus.createAgent(type as any);
         console.log(`✅ Spawned agent: ${agent.id}`);
-        
+
         if (options.task) {
           const result = await nexus.execute(agent.id, options.task);
           console.log(`📝 Result: ${result.result}`);
@@ -153,7 +230,7 @@ program
           console.log('⚠️  Nexus Prime not running. Run "nexus-prime start" first.');
           return;
         }
-        const results = nexus.searchMemory(query, parseInt(options.top));
+        const results = nexus.recallMemory(query, parseInt(options.top));
         console.log('🔍 Results:');
         results.forEach(r => console.log(`  - ${r}`));
       })

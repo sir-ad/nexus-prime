@@ -38,3 +38,11 @@ coverage/
 tmp/
 temp/
 *.tmp
+
+# Research & Session Metadata
+Research_user.md
+GEMINI.md
+test-run/
+dev-orchestrator.mjs
+my-nexus.mjs
+.gemini/

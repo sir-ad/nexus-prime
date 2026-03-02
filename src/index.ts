@@ -8,7 +8,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { NexusConfig, Experience, Pattern, NetworkMessage, Agent, AgentType } from './core/types.js';
 import { MemorySystem, createMemory } from './core/memory.js';
 import { EvolutionEngine, FissionProtocol, createEvolutionEngine, createFissionProtocol } from './core/evolution.js';
-import { AttentionEconomics, TokenOptimizer, InfiniteContext, createAttentionEconomics, createTokenOptimizer, createInfiniteContext } from './core/optimize.js';
+import { AttentionEconomics, TokenOptimizer, InfiniteContext, createAttentionEconomics, createInfiniteContext } from './core/optimize.js';
 import { AgentCoordinator, createCoordinator, Topology, Consensus } from './agents/coordinator.js';
 import { Adapter, createAdapter, AdapterType } from './agents/adapters.js';
 
@@ -20,13 +20,13 @@ export class NexusPrime {
   private adapters: Map<string, Adapter> = new Map();
   private agents: Map<string, Agent> = new Map();
   private memories: Map<string, MemorySystem> = new Map();
-  
+
   // NEW: Enhanced Engines
-  private tokenOptimizer: TokenOptimizer;
+  private tokenOptimizer: any;
   private contextEngine: any;
   private memoryEngine: any;
   private orchestrator: any;
-  
+
   private coordinator: AgentCoordinator;
   private evolution: EvolutionEngine;
   private fission: FissionProtocol;
@@ -69,7 +69,7 @@ export class NexusPrime {
     this.fission = createFissionProtocol();
     this.attention = createAttentionEconomics();
     this.context = createInfiniteContext();
-    
+
     // Initialize NEW engines
     this.tokenOptimizer = createTokenOptimizer(this.config.memory.cortex.enabled ? 128000 : 64000);
     this.contextEngine = createContextEngine();
@@ -78,33 +78,63 @@ export class NexusPrime {
   }
 
   async start(): Promise<void> {
-    console.log('🧬 Nexus Prime (Enhanced) starting...');
-    
+    console.error('🧬 Nexus Prime (Enhanced) starting...');
+
     for (const adapterType of this.config.adapters) {
       await this.addAdapter(adapterType as AdapterType);
     }
 
     this.running = true;
-    console.log('✅ Nexus Prime running with engines!');
+    console.error('✅ Nexus Prime running with engines!');
   }
 
   async stop(): Promise<void> {
-    console.log('🧬 Nexus Prime stopping...');
-    
+    console.error('🧬 Nexus Prime stopping...');
+
     for (const [, adapter] of this.adapters) {
       await adapter.disconnect();
     }
 
     this.running = false;
-    console.log('✅ Nexus Prime stopped');
+    console.error('✅ Nexus Prime stopped');
   }
 
-  isRunning(): boolean {
-    return this.running;
+  /** Flush memory engine to SQLite (call before process exit) */
+  flushMemory(): void {
+    if (this.memoryEngine && typeof this.memoryEngine.flush === 'function') {
+      this.memoryEngine.flush();
+    }
   }
+
+  /** Load memory from SQLite (call on startup) */
+  loadMemory(): void {
+    if (this.memoryEngine && typeof this.memoryEngine.load === 'function') {
+      this.memoryEngine.load();
+    }
+  }
+
+  /** Get memory tier stats (used by nexus_memory_stats MCP tool) */
+  getMemoryStats(): {
+    prefrontal: number;
+    hippocampus: number;
+    cortex: number;
+    totalLinks: number;
+    oldestEntry: number | null;
+    topTags: string[];
+  } {
+    if (this.memoryEngine && typeof this.memoryEngine.getStats === 'function') {
+      return this.memoryEngine.getStats();
+    }
+    return { prefrontal: 0, hippocampus: 0, cortex: 0, totalLinks: 0, oldestEntry: null, topTags: [] };
+  }
+
+
 
   async addAdapter(type: AdapterType, customName?: string): Promise<void> {
     const adapter = createAdapter(type, customName);
+    if (adapter.type === 'mcp') {
+      (adapter as any).setNexusRef(this);
+    }
     await adapter.connect();
     this.adapters.set(adapter.name, adapter);
   }
@@ -141,7 +171,7 @@ export class NexusPrime {
     this.coordinator.register(agent);
     this.agents.set(id, agent);
 
-    console.log(`🤖 Created agent: ${id} (${type})`);
+    console.error(`🤖 Created agent: ${id} (${type})`);
 
     return agent;
   }
@@ -154,6 +184,10 @@ export class NexusPrime {
     return Array.from(this.agents.values());
   }
 
+  getAdapters(): Adapter[] {
+    return Array.from(this.adapters.values());
+  }
+
   // ===== NEW ENGINE METHODS =====
 
   /**
@@ -161,7 +195,7 @@ export class NexusPrime {
    */
   optimizeTokens(task: string): any {
     const context = this.contextEngine.getAll();
-    return this.tokenOptimizer.optimize(context, task);
+    return this.tokenOptimizer.optimize(Array.isArray(context) ? context : [context], task);
   }
 
   /**
@@ -199,12 +233,6 @@ export class NexusPrime {
     return this.orchestrator.execute(task);
   }
 
-  /**
-   * Get memory stats
-   */
-  getMemoryStats(): any {
-    return this.memoryEngine.getStats();
-  }
 
   // ===== EXECUTE (Enhanced) =====
 
@@ -220,7 +248,7 @@ export class NexusPrime {
     // Use NEW engines
     const tokenPlan = this.optimizeTokens(task);
     const context = this.getContext(task);
-    
+
     agent.state.current = 'working';
     agent.state.history.push(task);
 
@@ -329,5 +357,5 @@ export class NexusPrime {
   }
 }
 
-export const createNexusPrime = (config?: Partial<NexusConfig>) => 
+export const createNexusPrime = (config?: Partial<NexusConfig>) =>
   new NexusPrime(config);

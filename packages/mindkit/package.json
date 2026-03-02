@@ -1,0 +1,43 @@
+{
+    "name": "mindkit",
+    "version": "0.1.0",
+    "description": "Universal agent guardrails, skills, and workflow enforcement runtime with MCP server",
+    "type": "module",
+    "main": "./dist/index.js",
+    "exports": {
+        ".": "./dist/index.js",
+        "./mcp": "./dist/mcp.js"
+    },
+    "bin": {
+        "mindkit": "./dist/cli.js"
+    },
+    "scripts": {
+        "build": "tsc",
+        "dev": "tsc --watch",
+        "start:mcp": "node dist/cli.js mcp"
+    },
+    "dependencies": {
+        "@modelcontextprotocol/sdk": "^1.5.0",
+        "commander": "^13.0.0"
+    },
+    "devDependencies": {
+        "typescript": "^5.7.0",
+        "@types/node": "^22.0.0"
+    },
+    "engines": {
+        "node": ">=18.0.0"
+    },
+    "keywords": [
+        "agent",
+        "guardrails",
+        "mcp",
+        "ai",
+        "tools"
+    ],
+    "author": "sir-ad",
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/sir-ad/mindkit"
+    }
+}

@@ -11,8 +11,5 @@ export * from './core/memory.js';
 export * from './core/evolution.js';
 export * from './core/optimize.js';
 export * from './agents/coordinator.js';
-export * from './agents/adapters.js';
+export { AdapterType, createAdapter } from './agents/adapters.js';
 export * from './config.js';
-
-// Re-export CLI as well
-export { default as cli } from './cli';

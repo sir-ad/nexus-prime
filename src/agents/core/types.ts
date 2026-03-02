@@ -28,7 +28,7 @@ export interface Agent {
   state: AgentState;
 }
 
-export type AgentType = 
+export type AgentType =
   | 'researcher'
   | 'coder'
   | 'reviewer'
@@ -179,9 +179,11 @@ export interface EvolutionConfig {
 
 export interface Adapter {
   name: string;
-  type: 'openclaw' | 'claude-code' | 'ruflo' | 'langchain' | 'autogen' | 'custom';
+  type: 'openclaw' | 'claude-code' | 'ruflo' | 'langchain' | 'autogen' | 'custom' | 'mcp';
   connected: boolean;
   agents: string[];
+  connect(): Promise<void>;
+  disconnect(): Promise<void>;
   send(message: NetworkMessage): Promise<void>;
   receive(message: NetworkMessage): void;
 }

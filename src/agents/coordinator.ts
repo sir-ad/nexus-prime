@@ -4,7 +4,7 @@
  * Swarm topologies and consensus protocols for multi-agent coordination.
  */
 
-import { Agent, NetworkMessage, ConsensusState, NodeState } from './types.js';
+import { Agent, NetworkMessage, ConsensusState, NodeState } from '../core/types.js';
 
 export type Topology = 'peer' | 'hierarchical' | 'ring' | 'star';
 export type Consensus = 'raft' | 'bft' | 'gossip' | 'crdt';
@@ -35,7 +35,7 @@ export class AgentCoordinator {
    */
   register(agent: Agent): void {
     this.agents.set(agent.id, agent);
-    
+
     // Add to consensus
     this.consensusState.nodes.set(agent.id, {
       id: agent.id,
@@ -111,7 +111,7 @@ export class AgentCoordinator {
   private getRingNeighbors(agentId: string): string[] {
     const ids = Array.from(this.agents.keys());
     const idx = ids.indexOf(agentId);
-    
+
     if (idx === -1) return [];
 
     // Previous and next in ring
@@ -124,12 +124,12 @@ export class AgentCoordinator {
   private getStarNeighbors(agentId: string): string[] {
     const ids = Array.from(this.agents.keys());
     const hub = ids[0]; // First agent is hub
-    
+
     if (agentId === hub) {
       // Hub sees all spokes
       return ids.slice(1);
     }
-    
+
     // Spoke sees only hub
     return [hub];
   }
@@ -177,7 +177,7 @@ export class AgentCoordinator {
 
     // Coordinator distributes work
     const workChunks = this.distributeWork(task, workers.length);
-    
+
     // Workers execute in parallel
     const workerResults = await Promise.all(
       workers.map((worker, i) => this.simulateWork(worker, workChunks[i]))
@@ -195,7 +195,7 @@ export class AgentCoordinator {
     agents: string[]
   ): Promise<Array<{ agentId: string; result: unknown }>> {
     const workChunks = this.distributeWork(task, agents.length);
-    
+
     return Promise.all(
       agents.map((agent, i) => this.simulateWork(agent, workChunks[i]))
     );
@@ -226,7 +226,7 @@ export class AgentCoordinator {
 
     // Hub distributes to spokes
     const workChunks = this.distributeWork(task, spokes.length);
-    
+
     const spokeResults = await Promise.all(
       spokes.map((spoke, i) => this.simulateWork(spoke, workChunks[i]))
     );
@@ -242,7 +242,7 @@ export class AgentCoordinator {
     // Simple distribution: split by words
     const words = task.split(/\s+/);
     const chunkSize = Math.ceil(words.length / numChunks);
-    
+
     const chunks: string[] = [];
     for (let i = 0; i < numChunks; i++) {
       const start = i * chunkSize;
@@ -293,10 +293,10 @@ export class AgentCoordinator {
   ): Promise<{ decided: boolean; result?: string }> {
     // Simple leader-based consensus
     const leader = this.consensusState.leader ?? agents[0];
-    
+
     // Leader proposes
     const votes = await this.requestVotes(leader, proposal, agents);
-    
+
     // Majority wins
     const majority = Math.ceil(agents.length / 2);
     const agree = votes.filter(v => v).length;
@@ -314,7 +314,7 @@ export class AgentCoordinator {
   ): Promise<{ decided: boolean; result?: string }> {
     // Byzantine fault-tolerant: need 2/3 agreement
     const votes = await this.requestVotes('leader', proposal, agents);
-    
+
     const byzantineThreshold = Math.ceil(agents.length * 2 / 3);
     const agree = votes.filter(v => v).length;
 
@@ -331,7 +331,7 @@ export class AgentCoordinator {
   ): Promise<{ decided: boolean; result?: string }> {
     // Gossip until convergence
     let values = new Set([proposal]);
-    
+
     for (let round = 0; round < 5; round++) {
       // Each agent gossips with random neighbor
       for (const agent of agents) {

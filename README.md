@@ -1,143 +1,229 @@
-# Nexus Prime
+# 🧬 Nexus Prime
 
-> Distributed Agent Orchestration Framework
+**The AI meta-framework that makes agents smarter about themselves.**
 
-**Version:** 0.2.0 (Enhanced)  
-**License:** MIT  
-**Status:** Alpha
+Nexus Prime is an MCP server that gives AI coding agents cross-session memory, token optimization, parallel sub-agent orchestration, and machine-checked guardrails — running as a background process that any agent can call as native tools.
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Node.js](https://img.shields.io/badge/Node.js-18%2B-green.svg)](https://nodejs.org)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue.svg)](https://typescriptlang.org)
 
 ---
 
-## Overview
+## Why?
 
-Nexus Prime is a distributed agent orchestration framework with integrated engines for token optimization, context management, memory, and orchestration.
+Every AI coding session starts cold. The agent re-reads the same files, re-discovers the same patterns, makes the same mistakes. Nexus Prime fixes this:
 
-## Features
+- **Memory persists between sessions** — findings survive restarts
+- **Token usage is optimized** — agents read only what they need
+- **Parallel sub-agents** explore multiple solutions simultaneously
+- **Guardrails prevent mistakes** before code is written
 
-### Core Features
-
-- **Multi-Agent Coordination**: Peer-to-peer, hierarchical, ring, and star topologies
-- **Consensus Protocols**: Raft, Byzantine Fault Tolerant, Gossip, CRDT
-- **Three-Tier Memory**: Prefrontal, Hippocampus, Cortex
-
-### Enhanced Engines (v0.2.0)
-
-| Engine | Purpose |
-|--------|---------|
-| **Token Optimizer** | Adaptive compression (3x-8x), complexity assessment |
-| **Context Engine** | Working context, auto-compression, retrieval |
-| **Memory Engine** | Priority-based storage, tag grouping, recall |
-| **Orchestrator** | Task decomposition, agent spawning, consensus |
-
-## Installation
-
-```bash
-npm install nexus-prime
-```
-
-## Quick Start
-
-```typescript
-import { createNexusPrime } from 'nexus-prime';
-
-const nexus = createNexusPrime({
-  adapters: ['openclaw'],
-  network: { consensus: 'raft' }
-});
-
-await nexus.start();
-
-// Use enhanced engines
-const tokenPlan = nexus.optimizeTokens("build a website");
-nexus.addContext("User wants an e-commerce site");
-nexus.storeMemory("Previous project details", 0.8, ['project']);
-const relevant = nexus.recallMemory("e-commerce");
-
-// Or orchestrate complex tasks
-const result = await nexus.orchestrate("Research X, then build Y");
-```
+---
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                        NEXUS PRIME                              │
-│  ┌───────────────────────────────────────────────────────────┐  │
-│  │              Token Optimizer Engine                        │  │
-│  │  • Complexity assessment  • Adaptive compression        │  │
-│  │  • Strategy selection      • Quality tracking            │  │
-│  └───────────────────────────────────────────────────────────┘  │
-│  ┌───────────────────────────────────────────────────────────┐  │
-│  │              Context Engine                                 │  │
-│  │  • Working context       • Auto-compression              │  │
-│  │  • Similarity retrieval  • Token management              │  │
-│  └───────────────────────────────────────────────────────────┘  │
-│  ┌───────────────────────────────────────────────────────────┐  │
-│  │              Memory Engine                                 │  │
-│  │  • Three-tier memory      • Priority storage             │  │
-│  │  • Tag grouping          • Similarity recall             │  │
-│  └───────────────────────────────────────────────────────────┘  │
-│  ┌───────────────────────────────────────────────────────────┐  │
-│  │              Orchestrator Engine                            │  │
-│  │  • Task decomposition    • Agent spawning                │  │
-│  │  • Consensus checking    • Result aggregation            │  │
-│  └───────────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────┐
+│                   AI Agent (Claude / Gemini / GPT)   │
+│                                                       │
+│  Session Start         During Work          Shutdown  │
+│  nexus_recall_memory   nexus_store_memory   store     │
+│  nexus_memory_stats    nexus_optimize_tokens summary  │
+│  nexus_mindkit_check   nexus_ghost_pass              │
+└────────────────────────┬────────────────────────────┘
+                         │ MCP (stdio)
+┌────────────────────────▼────────────────────────────┐
+│                   NEXUS PRIME MCP SERVER             │
+│                                                       │
+│  MemoryEngine          TokenSupremacyEngine           │
+│  ├─ Prefrontal (7)     ├─ FileScorer                  │
+│  ├─ Hippocampus (200)  ├─ BudgetAllocator             │
+│  └─ Cortex (∞, SQLite) └─ DifferentialContext        │
+│                                                       │
+│  PhantomWorkers        GuardrailEngine                │
+│  ├─ GhostPass          ├─ TokenBudget                 │
+│  ├─ PhantomWorker      ├─ DestructiveGuard            │
+│  └─ MergeOracle        └─ MemoryFirst                 │
+│                                                       │
+│  Embedder (TF-IDF 128-dim + optional OpenAI API)     │
+└─────────────────────────────────────────────────────┘
+         │
+         ▼
+    ~/.nexus-prime/memory.db  (SQLite, survives restarts)
 ```
 
-## API
+---
 
-### Token Optimizer
+## Quick Start
 
-```typescript
-nexus.optimizeTokens(task: string): {
-  tokens: number;
-  ratio: number;
-  strategy: string;
+```bash
+# Clone and install
+git clone https://github.com/sir-ad/nexus-prime
+cd nexus-prime
+npm install
+npm run build
+
+# Start MCP server (connects to your AI agent)
+node dist/cli.js mcp
+```
+
+### Wire into AntiGravity / Claude Desktop
+
+```json
+{
+  "mcpServers": {
+    "nexus-prime": {
+      "command": "node",
+      "args": ["/path/to/nexus-prime/dist/cli.js", "mcp"]
+    }
+  }
 }
 ```
 
-### Context Engine
+---
+
+## The 6 MCP Tools
+
+### Memory
 
 ```typescript
-nexus.addContext(content: string): void
-nexus.getContext(query: string): string[]
+nexus_store_memory(content: string, priority?: number, tags?: string[])
+// Store a finding. priority: 0-1. High-priority items auto-fission to long-term.
+
+nexus_recall_memory(query: string, k?: number)
+// Semantic recall. Returns top-k memories matching the query.
+
+nexus_memory_stats()
+// Shows memory tier counts, top tags, Zettelkasten link graph stats.
 ```
 
-### Memory Engine
+### Intelligence
 
 ```typescript
-nexus.storeMemory(content: string, priority: number, tags: string[]): void
-nexus.recallMemory(query: string, k: number): string[]
-nexus.getMemoryStats(): { prefrontal, hippocampus, cortex }
+nexus_optimize_tokens(task: string, files?: string[], budget?: number)
+// Pre-flight reading plan. Returns: which files to read fully/outline/skip.
+// Saves avg 55% token usage.
+
+nexus_ghost_pass(goal: string, files?: string[])
+// Read-only pre-flight analysis. Returns risk areas + worker approaches.
+
+nexus_mindkit_check(action: string, tokenCount?: number, filesToModify?: string[], isDestructive?: boolean)
+// Guardrail check. Returns PASS/FAIL, score 0-100, violations + suggestions.
 ```
 
-### Orchestrator
+---
+
+## Memory System
+
+Three-tier architecture modelled on human memory:
+
+| Tier | Size | Backed by | Purpose |
+|------|------|-----------|---------|
+| **Prefrontal** | 7 items | RAM | Active working set |
+| **Hippocampus** | 200 items | RAM | Recent session context |
+| **Cortex** | Unlimited | SQLite | Long-term persistence |
+
+**Recall** uses hybrid scoring: vector similarity (TF-IDF, 128-dim) + priority + recency + access count.
+
+---
+
+## Phantom Workers
+
+Parallel sub-agent framework using real git worktrees:
+
+```
+GhostPass (read-only analysis)
+  → N PhantomWorkers (parallel, isolated git worktrees)
+    → MergeOracle (Byzantine vote, confidence-weighted merge)
+      → Apply winning diff to main branch
+```
+
+Each worker gets an isolated copy of the repo to experiment in.  
+The `MergeOracle` evaluates outcomes by confidence score and approach quality.
 
 ```typescript
-nexus.orchestrate(task: string): Promise<{
-  result: string;
-  agents: Agent[];
-  consensus: boolean;
-}>
+// Spawn 2 workers in parallel to implement the same feature 2 ways
+const [resultA, resultB] = await Promise.all([
+  new PhantomWorker(REPO_ROOT).spawn(taskA, workerAExecutor),
+  new PhantomWorker(REPO_ROOT).spawn(taskB, workerBExecutor),
+]);
+const decision = await oracle.merge([resultA, resultB]);
+// → decision.action: 'apply' | 'synthesize' | 'reject'
 ```
 
-## CLI
+---
+
+## Guardrails (Mindkit)
+
+6 machine-checked rules that run before any significant operation:
+
+| Rule | Trigger | Action |
+|------|---------|--------|
+| `TOKEN_BUDGET` | Context > 100k tokens | 🚫 Block |
+| `TOKEN_WARN` | Context > 70k tokens | ⚠️ Warn |
+| `DESTRUCTIVE_GUARD` | `isDestructive: true` | 🚫 Block |
+| `BULK_FILE_GUARD` | > 10 files modified | ⚠️ Warn |
+| `NO_PROD_WRITES` | `/etc`, `/usr`, `/bin` | 🚫 Block |
+| `MEMORY_FIRST` | "research" / "look up" | ℹ️ Remind |
+
+---
+
+## Project Structure
+
+```
+nexus-prime/
+├── src/
+│   ├── index.ts                    # NexusPrime main class
+│   ├── cli.ts                      # CLI entry (node dist/cli.js mcp)
+│   ├── agents/adapters/mcp.ts      # MCP server, 6 tools
+│   ├── engines/
+│   │   ├── memory.ts               # Three-tier memory system
+│   │   ├── embedder.ts             # TF-IDF + optional OpenAI embeddings
+│   │   ├── token-supremacy.ts      # Token optimization engine
+│   │   └── guardrails-bridge.ts    # 6-rule GuardrailEngine
+│   └── phantom/
+│       ├── index.ts                # GhostPass, PhantomWorker, MergeOracle
+│       └── phase4-orchestrator.ts  # Example: Phase 4 built by itself
+├── packages/
+│   └── mindkit/                    # Standalone npm package (guardrails + MCP)
+├── test/
+│   ├── phantom.test.ts             # 19/19 E2E Phantom Workers test
+│   └── memory.test.ts              # Semantic recall test
+├── AGENTS.md                       # ← Read this first (AI agent protocol)
+├── NEXUS.md                        # Nexus Prime language specification
+└── GEMINI.md                       # Session protocol for AntiGravity
+```
+
+---
+
+## Configuration
+
+| Env Var | Default | Description |
+|---------|---------|-------------|
+| `NEXUS_EMBED_MODE` | `local` | `local` (TF-IDF) or `api` (OpenAI-compatible) |
+| `NEXUS_EMBED_URL` | — | API endpoint when mode=api |
+| `NEXUS_EMBED_KEY` | — | API key when mode=api |
+| `NEXUS_EMBED_MODEL` | — | Model name when mode=api |
+
+---
+
+## Mindkit Package
+
+A standalone npm package that any project can use:
 
 ```bash
-nexus-prime start
-nexus-prime agents spawn researcher --task "Research AI"
-nexus-prime status
+cd packages/mindkit && npm install && npm run build
+
+mindkit init          # Scaffold .agent/ into your project
+mindkit check "..."   # CLI guardrail check
+mindkit mcp           # Start Mindkit MCP server (3 tools)
+mindkit skills        # List available skills
+mindkit workflows     # List slash commands
 ```
 
-## Development
-
-```bash
-npm install
-npm run build
-npm test
-```
+---
 
 ## License
 
-MIT
+MIT — [sir-ad](https://github.com/sir-ad)

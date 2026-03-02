@@ -1,6 +1,6 @@
 // KAAL's Personal Nexus Prime Instance
 
-import { createNexusPrime } from '../src/index.js';
+import { createNexusPrime } from './dist/index.js';
 
 console.log("🧬 Initializing KAAL's Nexus Prime...\n");
 
