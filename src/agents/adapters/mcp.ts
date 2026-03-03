@@ -40,6 +40,76 @@ class SessionTelemetry {
     recordStore() { this.memoriesStored++; }
     recordRecall(count: number) { this.memoriesRecalled += count; }
 
+    /** Rich inline notification for memory store events */
+    notifyStore(priority: number, tags: string[], memStats: { cortex: number; totalLinks: number }): string {
+        return [
+            `\n── 💾 Memory Stored ──`,
+            `Priority: ${priority} │ Tags: ${tags.join(', ') || 'none'}`,
+            `Cortex now holds ${memStats.cortex} long-term memories │ ${memStats.totalLinks} Zettelkasten links`,
+        ].join('\n');
+    }
+
+    /** Rich inline notification for memory recall events */
+    notifyRecall(count: number, query: string, memStats: { hippocampus: number; cortex: number }): string {
+        return [
+            `\n── 🧠 Memory Recalled ──`,
+            `${count} memories matched query: "${query.slice(0, 60)}"`,
+            `Hippocampus cache: ${memStats.hippocampus}/200 │ Cortex: ${memStats.cortex} entries`,
+        ].join('\n');
+    }
+
+    /** Rich inline notification for token optimization events */
+    notifyTokens(task: string, savings: number, pct: number, fileCount: number): string {
+        return [
+            `\n── ⚡ Tokens Optimized ──`,
+            `Task: "${task.slice(0, 60)}"`,
+            `Savings: ${savings.toLocaleString()} tokens (${pct}%) │ ${fileCount} files routed`,
+            `Session total: ${(this.tokensOptimized / 1000).toFixed(1)}k tokens saved across ${this.callCount} calls`,
+        ].join('\n');
+    }
+
+    /** Contextual planning nudges based on what just happened */
+    planningNudge(event: string, context: Record<string, any>): string {
+        const nudges: string[] = [];
+
+        switch (event) {
+            case 'recall':
+                if ((context.count ?? 0) > 3) {
+                    nudges.push('You recalled many memories — consider nexus_optimize_tokens before reading the files mentioned.');
+                }
+                if ((context.count ?? 0) === 0) {
+                    nudges.push('No memories found. This is a fresh topic — explore carefully and store key findings.');
+                }
+                break;
+            case 'optimize':
+                if ((context.fullReads ?? 0) > 3) {
+                    nudges.push('Multiple files need full reading — consider nexus_ghost_pass before modifying them.');
+                }
+                break;
+            case 'ghost_pass':
+                if ((context.risks ?? 0) > 0) {
+                    nudges.push('Risks detected — strongly consider nexus_spawn_workers for parallel exploration.');
+                }
+                break;
+            case 'store':
+                if ((context.priority ?? 0) > 0.8) {
+                    nudges.push('High-priority insight stored. Consider nexus_audit_evolution to check for recurring patterns.');
+                }
+                break;
+            case 'mindkit_fail':
+                nudges.push('Guardrail FAILED. Do NOT proceed. Re-scope the task or use nexus_ghost_pass for a safer approach.');
+                break;
+            case 'high_call_count':
+                if (this.callCount > 20) {
+                    nudges.push('You have made 20+ tool calls. Consider storing a session summary via nexus_store_memory.');
+                }
+                break;
+        }
+
+        if (nudges.length === 0) return '';
+        return `\n<planning engine="nexus-prime">\n${nudges.map(n => `  → ${n}`).join('\n')}\n</planning>`;
+    }
+
     format(memStats?: { totalLinks: number; prefrontal: number; hippocampus: number; cortex: number }): string {
         const uptime = Math.round((Date.now() - this.startTime) / 1000);
         const uptimeStr = uptime < 60 ? `${uptime}s` : `${Math.round(uptime / 60)}m`;
@@ -225,10 +295,13 @@ export class MCPAdapter implements Adapter {
                     : [];
                 const id = this.nexusRef.storeMemory(content, priority, tags);
                 this.telemetry.recordStore();
+                const memStats = this.nexusRef.getMemoryStats();
+                const notification = this.telemetry.notifyStore(priority, tags, memStats);
+                const nudge = this.telemetry.planningNudge('store', { priority });
                 return {
                     content: [{
                         type: 'text',
-                        text: `✅ Stored in Nexus memory (id: ${id}, priority: ${priority})\nTags: ${tags.join(', ') || 'none'}`,
+                        text: `✅ Stored in Nexus memory (id: ${id}, priority: ${priority})\nTags: ${tags.join(', ') || 'none'}${notification}${nudge}`,
                     }],
                 };
             }
@@ -238,12 +311,15 @@ export class MCPAdapter implements Adapter {
                 const k = Number(request.params.arguments?.k ?? 5);
                 const memories = await this.nexusRef.recallMemory(query, k);
                 this.telemetry.recordRecall(memories.length);
+                const memStats = this.nexusRef.getMemoryStats();
+                const notification = this.telemetry.notifyRecall(memories.length, query, memStats);
+                const nudge = this.telemetry.planningNudge('recall', { count: memories.length });
                 return {
                     content: [{
                         type: 'text',
-                        text: memories.length > 0
+                        text: (memories.length > 0
                             ? `🧠 ${memories.length} memories recalled for "${query}":\n\n${memories.map((m, i) => `${i + 1}. ${m}`).join('\n\n')}`
-                            : `No memories found for "${query}". Fresh session or new topic.`,
+                            : `No memories found for "${query}". Fresh session or new topic.`) + notification + nudge,
                     }],
                 };
             }
@@ -298,8 +374,12 @@ export class MCPAdapter implements Adapter {
                 );
 
                 this.telemetry.recordTokens(plan.savings);
+                const pct = plan.totalEstimatedTokens > 0 ? Math.round(plan.savings / (plan.totalEstimatedTokens + plan.savings) * 100) : 0;
+                const notification = this.telemetry.notifyTokens(task, plan.savings, pct, filePaths.length);
+                const fullReads = plan.files.filter((a: any) => a.action === 'full').length;
+                const nudge = this.telemetry.planningNudge('optimize', { fullReads });
 
-                return { content: [{ type: 'text', text: formatted }] };
+                return { content: [{ type: 'text', text: formatted + notification + nudge }] };
             }
 
             case 'nexus_mindkit_check': {
@@ -320,6 +400,10 @@ export class MCPAdapter implements Adapter {
                     );
                 }
 
+                const nudge = result.passed
+                    ? this.telemetry.planningNudge('high_call_count', {})
+                    : this.telemetry.planningNudge('mindkit_fail', {});
+
                 return {
                     content: [{
                         type: 'text', text: JSON.stringify({
@@ -328,7 +412,7 @@ export class MCPAdapter implements Adapter {
                             violations: result.violations,
                             warnings: result.warnings,
                             summary: guardrailEngine.format(result)
-                        }, null, 2)
+                        }, null, 2) + nudge
                     }]
                 };
             }
@@ -340,11 +424,12 @@ export class MCPAdapter implements Adapter {
                     : [];
 
                 const files: FileRef[] = rawFiles.map(p => {
+                    const resolved = path.isAbsolute(p) ? p : path.join(PROJECT_ROOT, p);
                     try {
-                        const stat = statSync(p);
-                        return { path: p, sizeBytes: stat.size, lastModified: stat.mtimeMs };
+                        const stat = statSync(resolved);
+                        return { path: resolved, sizeBytes: stat.size, lastModified: stat.mtimeMs };
                     } catch {
-                        return { path: p, sizeBytes: 0 };
+                        return { path: resolved, sizeBytes: 0 };
                     }
                 });
 
@@ -371,7 +456,8 @@ export class MCPAdapter implements Adapter {
                     0.6, ['#ghost-pass']
                 );
 
-                return { content: [{ type: 'text', text }] };
+                const ghostNudge = this.telemetry.planningNudge('ghost_pass', { risks: report.riskAreas.length });
+                return { content: [{ type: 'text', text: text + ghostNudge }] };
             }
 
             case 'nexus_spawn_workers': {
