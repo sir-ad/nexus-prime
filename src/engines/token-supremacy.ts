@@ -10,6 +10,7 @@
 import * as os from 'os';
 import * as path from 'path';
 import * as fs from 'fs';
+import { ContextAssembler, type AssemblyResult, type BudgetConfig } from './context-assembler.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -73,11 +74,13 @@ export class TokenSupremacyEngine {
     // Per-session learned relevance: task keyword → file paths that helped
     private relevanceCache: Map<string, Map<string, number>> = new Map();
     private relevanceCachePath: string;
+    private contextAssembler: ContextAssembler;
 
     constructor(sessionBudget: number = 200_000) {
         this.sessionBudget = sessionBudget;
         this.sessionPath = path.join(os.homedir(), '.nexus-prime', 'sessions');
         this.relevanceCachePath = path.join(os.homedir(), '.nexus-prime', 'relevance.json');
+        this.contextAssembler = new ContextAssembler();
 
         fs.mkdirSync(this.sessionPath, { recursive: true });
         if (!fs.existsSync(path.dirname(this.relevanceCachePath))) {
@@ -463,6 +466,108 @@ export class TokenSupremacyEngine {
         if (this.sessionBudget !== originalBudget) {
             console.error(`[Token Engine] Hypertuned: budget ${originalBudget.toLocaleString()} → ${this.sessionBudget.toLocaleString()} tokens (${isComplex ? 'complex' : 'simple'} task detected)`);
         }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // HyperTune Max: Mathematical context-token optimization
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * HyperTune Max — Mathematical context assembly using greedy knapsack.
+     * Chunks all files at function/class boundaries, scores each chunk
+     * by relevance/recency/connectivity/novelty, and selects the optimal
+     * combination that maximizes quality within the token budget.
+     */
+    hypertuneMax(
+        task: string,
+        files: FileRef[],
+        graphConnectivity?: (chunk: { source: string; label: string }) => number
+    ): { plan: ReadingPlan; assembly: AssemblyResult; budgetConfig: BudgetConfig } {
+        // 1. Compute adaptive budget
+        const budgetConfig = this.contextAssembler.computeBudget(task, this.sessionBudget);
+
+        // 2. Chunk all candidate files
+        const allChunks = files.flatMap(f => {
+            const resolved = path.isAbsolute(f.path) ? f.path : path.join(process.cwd(), f.path);
+            return this.contextAssembler.chunkFile(resolved);
+        });
+
+        // 3. Optionally score connectivity from graph (Phase 8D)
+        if (graphConnectivity) {
+            for (const chunk of allChunks) {
+                chunk.quality = graphConnectivity({ source: chunk.source, label: chunk.label });
+            }
+        }
+
+        // 4. Greedy knapsack selection
+        const assembly = this.contextAssembler.assemble(task, allChunks, budgetConfig.effectiveBudget);
+
+        // 5. Convert to ReadingPlan format for backward compatibility
+        const fileMap = new Map<string, { chunks: typeof assembly.selected; file: FileRef }>();
+        for (const file of files) {
+            const resolved = path.isAbsolute(file.path) ? file.path : path.join(process.cwd(), file.path);
+            fileMap.set(resolved, { chunks: [], file });
+        }
+        for (const chunk of assembly.selected) {
+            const entry = fileMap.get(chunk.source);
+            if (entry) entry.chunks.push(chunk);
+        }
+
+        const plans: FileReadPlan[] = [];
+        let totalTokens = 0;
+        let fullReadTokens = 0;
+
+        for (const [filePath, { chunks, file }] of fileMap) {
+            const estFull = Math.ceil(file.sizeBytes / 4);
+            fullReadTokens += estFull;
+
+            if (chunks.length === 0) {
+                plans.push({
+                    file,
+                    action: 'skip',
+                    reason: 'below quality threshold',
+                    estimatedTokens: 0,
+                });
+            } else {
+                // Check if all lines are covered
+                const totalLines = Math.ceil(file.sizeBytes / 80);
+                const coveredLines = chunks.reduce((s, c) => s + (c.endLine - c.startLine + 1), 0);
+                const coverage = coveredLines / Math.max(totalLines, 1);
+
+                if (coverage > 0.7) {
+                    plans.push({
+                        file,
+                        action: 'full',
+                        reason: `${(coverage * 100).toFixed(0)}% coverage — read fully (q=${chunks.reduce((s, c) => s + c.quality, 0).toFixed(2)})`,
+                        estimatedTokens: estFull,
+                    });
+                    totalTokens += estFull;
+                } else {
+                    // Take the highest-quality chunk's range
+                    const best = chunks.sort((a, b) => b.quality - a.quality)[0];
+                    const chunkTokens = chunks.reduce((s, c) => s + c.tokens, 0);
+                    plans.push({
+                        file,
+                        action: 'partial',
+                        startLine: best.startLine,
+                        endLine: best.endLine,
+                        reason: `${chunks.length} chunk(s) selected (q=${chunks.reduce((s, c) => s + c.quality, 0).toFixed(2)})`,
+                        estimatedTokens: chunkTokens,
+                    });
+                    totalTokens += chunkTokens;
+                }
+            }
+        }
+
+        const plan: ReadingPlan = {
+            task,
+            files: plans,
+            totalEstimatedTokens: totalTokens,
+            savings: fullReadTokens - totalTokens,
+            sessionBudget: budgetConfig.effectiveBudget,
+        };
+
+        return { plan, assembly, budgetConfig };
     }
 }
 

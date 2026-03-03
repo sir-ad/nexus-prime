@@ -20,6 +20,7 @@ import { GhostPass, PhantomWorker } from '../../phantom/index.js';
 import { MergeOracle } from '../../phantom/merge-oracle.js';
 import { GuardrailEngine } from '../../engines/guardrails-bridge.js';
 import { SessionDNAManager } from '../../engines/session-dna.js';
+import { ContextAssembler } from '../../engines/context-assembler.js';
 
 const tokenEngine = new TokenSupremacyEngine();
 const guardrailEngine = new GuardrailEngine();
@@ -269,6 +270,19 @@ export class MCPAdapter implements Adapter {
                             sessionId: { type: 'string', description: 'Optional: load a specific session by ID instead of the latest' }
                         },
                         required: ['action'],
+                    },
+                },
+                // ── HyperTune Max ─────────────────────────────────────────────────
+                {
+                    name: 'nexus_hypertune_max',
+                    description: 'Mathematical context-token optimization. Chunks files at function/class boundaries, scores each chunk by relevance+recency+connectivity+novelty, then selects the optimal combination via greedy knapsack that maximizes quality within the adaptive token budget. Use when you want the most token-efficient reading plan possible.',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {
+                            task: { type: 'string', description: 'Task description for context scoring' },
+                            files: { type: 'array', items: { type: 'string' }, description: 'File paths to optimize. If omitted, auto-scans src/' },
+                        },
+                        required: ['task'],
                     },
                 },
             ],
@@ -595,6 +609,44 @@ export class MCPAdapter implements Adapter {
                 };
             }
 
+            case 'nexus_hypertune_max': {
+                const task = String(request.params.arguments?.task ?? '');
+                const rawFiles = Array.isArray(request.params.arguments?.files)
+                    ? (request.params.arguments.files as unknown[]).map(String)
+                    : null;
+                const filePaths = rawFiles ?? this.scanSourceFiles(PROJECT_ROOT);
+
+                const files: FileRef[] = filePaths.map(p => {
+                    const resolved = path.isAbsolute(p) ? p : path.join(PROJECT_ROOT, p);
+                    try {
+                        const stat = statSync(resolved);
+                        return { path: resolved, sizeBytes: stat.size, lastModified: stat.mtimeMs };
+                    } catch {
+                        return { path: resolved, sizeBytes: 0 };
+                    }
+                }).filter(f => f.sizeBytes > 0);
+
+                const { plan, assembly, budgetConfig } = tokenEngine.hypertuneMax(task, files);
+                const planText = formatReadingPlan(plan);
+                const assemblyText = ContextAssembler.format(assembly, budgetConfig);
+
+                const savings = plan.savings;
+                const pct = plan.totalEstimatedTokens + savings > 0
+                    ? Math.round((savings / (plan.totalEstimatedTokens + savings)) * 100)
+                    : 0;
+                this.telemetry.recordTokens(savings);
+
+                const notification = this.telemetry.notifyTokens(task, savings, pct, files.length);
+                const nudge = this.telemetry.planningNudge('optimize', { savings, pct });
+
+                return {
+                    content: [{
+                        type: 'text',
+                        text: `${assemblyText}\n\n${planText}${notification}${nudge}`,
+                    }],
+                };
+            }
+
             case 'nexus_session_dna': {
                 const action = String(request.params.arguments?.action ?? 'load');
                 const sessionId = request.params.arguments?.sessionId
@@ -665,7 +717,7 @@ export class MCPAdapter implements Adapter {
         const transport = new StdioServerTransport();
         await this.server.connect(transport);
         this.connected = true;
-        console.error('[MCP Adapter] Connected — 9 tools active');
+        console.error('[MCP Adapter] Connected — 10 tools active');
     }
 
     async disconnect(): Promise<void> {
