@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus Prime | Dashboard</title>
+    <style>
+        :root {
+            /* Base Theme: Deep Matrix Terminal */
+            --bg-base: #0a0a0c;
+            --bg-surface: #121216;
+            --bg-panel: rgba(18, 18, 22, 0.7);
+            --primary: #00ff41;
+            /* Matrix Green */
+            --primary-dim: rgba(0, 255, 65, 0.2);
+            --primary-glow: rgba(0, 255, 65, 0.5);
+            --secondary: #008f11;
+            --text-main: #e0e0e0;
+            --text-muted: #808080;
+            --danger: #ff3333;
+            --blue: #00a8ff;
+            --magenta: #ff00ff;
+            --yellow: #ffd700;
+
+            --font-mono: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+            --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+
+            --border-std: 1px solid rgba(0, 255, 65, 0.15);
+        }
+
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;700&display=swap');
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-base);
+            color: var(--text-main);
+            font-family: var(--font-sans);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background-image:
+                radial-gradient(circle at 50% 0%, var(--primary-dim) 0%, transparent 40%),
+                linear-gradient(to bottom, rgba(0, 255, 65, 0.03) 1px, transparent 1px);
+            background-size: 100% 100%, 100% 4px;
+        }
+
+        /* Scanline effect */
+        body::after {
+            content: " ";
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            z-index: 2;
+            background-size: 100% 2px, 3px 100%;
+            pointer-events: none;
+        }
+
+        header {
+            padding: 1.5rem 2rem;
+            border-bottom: var(--border-std);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--bg-surface);
+            z-index: 10;
+        }
+
+        h1 {
+            font-family: var(--font-mono);
+            font-size: 1.5rem;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            text-transform: uppercase;
+        }
+
+        h1::before {
+            content: '⚡';
+            color: var(--primary);
+            filter: drop-shadow(0 0 8px var(--primary-glow));
+        }
+
+        .status {
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: var(--primary);
+            box-shadow: 0 0 8px var(--primary);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(0, 255, 65, 0.7);
+            }
+
+            70% {
+                box-shadow: 0 0 0 10px rgba(0, 255, 65, 0);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(0, 255, 65, 0);
+            }
+        }
+
+        .layout {
+            display: grid;
+            grid-template-columns: 350px 1fr 350px;
+            gap: 1.5rem;
+            padding: 1.5rem;
+            flex: 1;
+            height: calc(100vh - 75px);
+            z-index: 10;
+        }
+
+        .panel {
+            background: var(--bg-panel);
+            border: var(--border-std);
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .panel-header {
+            padding: 1rem 1.25rem;
+            border-bottom: var(--border-std);
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--primary);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .panel-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+            scrollbar-width: thin;
+            scrollbar-color: var(--primary-dim) transparent;
+        }
+
+        .panel-content::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .panel-content::-webkit-scrollbar-thumb {
+            background: var(--primary-dim);
+            border-radius: 3px;
+        }
+
+        /* Metrics */
+        .metric-card {
+            background: rgba(0, 255, 65, 0.05);
+            border: 1px solid rgba(0, 255, 65, 0.1);
+            border-radius: 6px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .metric-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .metric-val {
+            font-family: var(--font-mono);
+            font-size: 1.5rem;
+            color: var(--primary);
+            font-weight: 700;
+        }
+
+        /* Stream Events */
+        .event-item {
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            line-height: 1.4;
+            margin-bottom: 0.75rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            animation: slideIn 0.3s ease-out forwards;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .event-time {
+            color: var(--text-muted);
+            font-size: 0.7rem;
+            margin-bottom: 0.2rem;
+            display: block;
+        }
+
+        .event-type {
+            color: var(--primary);
+            font-weight: bold;
+        }
+
+        .event-type.memory {
+            color: var(--blue);
+        }
+
+        .event-type.tokens {
+            color: var(--yellow);
+        }
+
+        .event-type.phantom {
+            color: var(--magenta);
+        }
+
+        .event-type.guardrail {
+            color: var(--danger);
+        }
+
+        .event-data {
+            color: var(--text-main);
+            margin-top: 0.2rem;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        /* Swarm UI */
+        .worker-pill {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.75rem;
+            background: rgba(255, 0, 255, 0.05);
+            border-left: 3px solid var(--magenta);
+            margin-bottom: 0.5rem;
+            border-radius: 0 4px 4px 0;
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+        }
+
+        .worker-pill.active {
+            border-left-color: var(--primary);
+            background: rgba(0, 255, 65, 0.05);
+        }
+
+        .worker-pill.done {
+            border-left-color: var(--text-muted);
+            opacity: 0.7;
+        }
+
+        /* Memory Tags */
+        .tag-cloud {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.4rem;
+        }
+
+        .tag {
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            padding: 0.2rem 0.5rem;
+            background: rgba(0, 168, 255, 0.1);
+            color: var(--blue);
+            border-radius: 4px;
+            border: 1px solid rgba(0, 168, 255, 0.2);
+        }
+
+        .visualizer {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            position: relative;
+        }
+
+        .center-node {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: radial-gradient(circle, var(--primary) 0%, transparent 70%);
+            box-shadow: 0 0 30px var(--primary-glow);
+            position: absolute;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-mono);
+            font-weight: bold;
+            color: #000;
+            z-index: 10;
+        }
+
+        .orbit {
+            position: absolute;
+            border: 1px dashed rgba(0, 255, 65, 0.2);
+            border-radius: 50%;
+            animation: spin linear infinite;
+        }
+
+        .orbit-1 {
+            width: 200px;
+            height: 200px;
+            animation-duration: 20s;
+        }
+
+        .orbit-2 {
+            width: 350px;
+            height: 350px;
+            animation-duration: 35s;
+            animation-direction: reverse;
+        }
+
+        .orbit-3 {
+            width: 500px;
+            height: 500px;
+            animation-duration: 50s;
+        }
+
+        @keyframes spin {
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .orbit-node {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--blue);
+            position: absolute;
+            top: -6px;
+            left: 50%;
+            box-shadow: 0 0 10px var(--blue);
+            transform: translateX(-50%);
+        }
+
+        .orbit-2 .orbit-node {
+            background: var(--yellow);
+            box-shadow: 0 0 10px var(--yellow);
+        }
+
+        .orbit-3 .orbit-node {
+            background: var(--magenta);
+            box-shadow: 0 0 10px var(--magenta);
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <h1>Nexus Prime</h1>
+        <div class="status">
+            <div class="status-dot" id="conn-dot"></div>
+            <span id="conn-text">SSE CONNECTED</span>
+        </div>
+    </header>
+
+    <div class="layout">
+        <!-- Left Panel: Metrics & Stats -->
+        <div class="panel">
+            <div class="panel-header">System Metrics</div>
+            <div class="panel-content">
+                <div class="metric-card">
+                    <span class="metric-label">Tokens Saved (HyperTune)</span>
+                    <span class="metric-val" id="val-tokens">0</span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">Memories (Cortex / Hippocampus)</span>
+                    <span class="metric-val" id="val-memory">0 / 0</span>
+                </div>
+
+                <h3
+                    style="font-family: var(--font-mono); font-size: 0.8rem; margin: 1rem 0 0.5rem; color: var(--text-muted);">
+                    Active Tags</h3>
+                <div class="tag-cloud" id="tag-cloud">
+                    <!-- Tags injected via JS -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Center Panel: Visualization -->
+        <div class="panel">
+            <div class="panel-header">Swarm Matrix</div>
+            <div class="panel-content visualizer">
+                <div class="orbit orbit-3">
+                    <div class="orbit-node"></div>
+                </div>
+                <div class="orbit orbit-2">
+                    <div class="orbit-node"></div>
+                </div>
+                <div class="orbit orbit-1">
+                    <div class="orbit-node"></div>
+                </div>
+                <div class="center-node">PRIME</div>
+            </div>
+        </div>
+
+        <!-- Right Panel: Thinking Stream -->
+        <div class="panel">
+            <div class="panel-header">
+                Thinking Stream
+                <span style="font-size: 0.7rem; color: var(--text-muted);" id="event-count">0 events</span>
+            </div>
+            <div class="panel-content" id="log-container">
+                <!-- Events injected via JS -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State
+        let stats = {
+            tokensSaved: 0,
+            cortex: 0,
+            hippocampus: 0,
+            eventCount: 0
+        };
+
+        const tagSet = new Set();
+
+        // DOM Elements
+        const logContainer = document.getElementById('log-container');
+        const countTokens = document.getElementById('val-tokens');
+        const countMemory = document.getElementById('val-memory');
+        const tagCloud = document.getElementById('tag-cloud');
+        const eventCountLabel = document.getElementById('event-count');
+        const connDot = document.getElementById('conn-dot');
+        const connText = document.getElementById('conn-text');
+
+        function formatTime(timestamp) {
+            const dt = new Date(timestamp);
+            return dt.toTimeString().split(' ')[0] + '.' + dt.getMilliseconds().toString().padStart(3, '0');
+        }
+
+        function getColorClass(type) {
+            if (type.startsWith('memory')) return 'memory';
+            if (type.startsWith('tokens')) return 'tokens';
+            if (type.startsWith('phantom')) return 'phantom';
+            if (type.startsWith('guardrail')) return 'guardrail';
+            return '';
+        }
+
+        function appendLog(event) {
+            stats.eventCount++;
+            eventCountLabel.innerText = `${stats.eventCount} events`;
+
+            const el = document.createElement('div');
+            el.className = 'event-item';
+
+            const time = formatTime(event.timestamp);
+            const colorCls = getColorClass(event.type);
+
+            let dataStr = JSON.stringify(event.data, null, 2);
+            // simplify format for inline viewing
+            dataStr = dataStr.replace(/[{}"]/g, '').trim();
+
+            el.innerHTML = `
+                <span class="event-time">[${time}]</span>
+                <span class="event-type ${colorCls}">${event.type}</span>
+                <div class="event-data">${dataStr}</div>
+            `;
+
+            logContainer.prepend(el);
+
+            // Limit to 100 items visually
+            if (logContainer.children.length > 100) {
+                logContainer.lastChild.remove();
+            }
+        }
+
+        function processEvent(event) {
+            appendLog(event);
+
+            // Update Metrics depending on event type
+            if (event.type === 'tokens.optimized') {
+                stats.tokensSaved += event.data.savings;
+                countTokens.innerText = stats.tokensSaved.toLocaleString();
+            }
+            if (event.type === 'memory.store') {
+                if (event.data.tier === 'cortex') stats.cortex++;
+                else stats.hippocampus++;
+                countMemory.innerText = `${stats.cortex} / ${stats.hippocampus}`;
+
+                if (event.data.tags) {
+                    event.data.tags.forEach(t => tagSet.add(t));
+                    renderTags();
+                }
+            }
+        }
+
+        function renderTags() {
+            tagCloud.innerHTML = Array.from(tagSet).slice(0, 15).map(t => `<span class="tag">${t}</span>`).join('');
+        }
+
+        // Setup SSE connection
+        function connectSSE() {
+            const evtSource = new EventSource('/stream');
+
+            evtSource.onopen = () => {
+                connText.innerText = 'SSE CONNECTED';
+                connDot.style.backgroundColor = 'var(--primary)';
+            };
+
+            evtSource.onmessage = (e) => {
+                const event = JSON.parse(e.data);
+                processEvent(event);
+            };
+
+            evtSource.onerror = (e) => {
+                connText.innerText = 'RECONNECTING...';
+                connDot.style.backgroundColor = 'var(--danger)';
+                evtSource.close();
+                setTimeout(connectSSE, 3000);
+            };
+        }
+
+        // Boot
+        connectSSE();
+    </script>
+</body>
+
+</html>

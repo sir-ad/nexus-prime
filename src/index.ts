@@ -15,6 +15,8 @@ import { AgentLearner } from './agents/learner.js';
 
 // Import engines
 import { createTokenOptimizer, createContextEngine, createMemoryEngine, createOrchestrator } from './engines/index.js';
+import { DashboardServer } from './dashboard/server.js';
+import { nexusEventBus } from './engines/event-bus.js';
 
 export class NexusPrime {
   private config: NexusConfig;
@@ -35,6 +37,7 @@ export class NexusPrime {
   private attention: AttentionEconomics;
   private context: InfiniteContext;
   private running = false;
+  private dashboardServer: DashboardServer;
 
   constructor(config?: Partial<NexusConfig>) {
     this.config = {
@@ -78,6 +81,7 @@ export class NexusPrime {
     this.memoryEngine = createMemoryEngine();
     this.orchestrator = createOrchestrator();
     this.learner = new AgentLearner(this.memoryEngine);
+    this.dashboardServer = new DashboardServer();
   }
 
   async start(): Promise<void> {
@@ -86,6 +90,9 @@ export class NexusPrime {
     for (const adapterType of this.config.adapters) {
       await this.addAdapter(adapterType as AdapterType);
     }
+
+    this.dashboardServer.start();
+    nexusEventBus.emit('system.boot', { version: '2.0.0', toolsCount: 11 });
 
     this.running = true;
     console.error('✅ Nexus Prime running with engines!');
@@ -97,6 +104,8 @@ export class NexusPrime {
     for (const [, adapter] of this.adapters) {
       await adapter.disconnect();
     }
+
+    this.dashboardServer.stop();
 
     this.running = false;
     console.error('✅ Nexus Prime stopped');

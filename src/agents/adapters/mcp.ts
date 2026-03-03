@@ -24,6 +24,7 @@ import { ContextAssembler } from '../../engines/context-assembler.js';
 import { GraphMemoryEngine } from '../../engines/graph-memory.js';
 import { GraphTraversalEngine } from '../../engines/graph-traversal.js';
 import { HybridRetriever } from '../../engines/hybrid-retriever.js';
+import { nexusEventBus } from '../../engines/event-bus.js';
 
 const tokenEngine = new TokenSupremacyEngine();
 const guardrailEngine = new GuardrailEngine();
@@ -362,6 +363,7 @@ export class MCPAdapter implements Adapter {
                     ? (request.params.arguments.tags as unknown[]).map(String)
                     : [];
                 const id = this.nexusRef.storeMemory(content, priority, tags);
+                nexusEventBus.emit('memory.store', { id, priority, tags, tier: priority > 0.8 ? 'cortex' : 'hippocampus' });
                 this.telemetry.recordStore();
                 this.sessionDNA.recordMemoryStore();
                 const memStats = this.nexusRef.getMemoryStats();
@@ -379,6 +381,7 @@ export class MCPAdapter implements Adapter {
                 const query = String(request.params.arguments?.query ?? '');
                 const k = Number(request.params.arguments?.k ?? 5);
                 const memories = await this.nexusRef.recallMemory(query, k);
+                nexusEventBus.emit('memory.recall', { query, count: memories.length });
                 this.telemetry.recordRecall(memories.length);
                 this.sessionDNA.recordMemoryRecall();
                 const memStats = this.nexusRef.getMemoryStats();
@@ -445,6 +448,7 @@ export class MCPAdapter implements Adapter {
 
                 this.telemetry.recordTokens(plan.savings);
                 const pct = plan.totalEstimatedTokens > 0 ? Math.round(plan.savings / (plan.totalEstimatedTokens + plan.savings) * 100) : 0;
+                nexusEventBus.emit('tokens.optimized', { savings: plan.savings, pct, files: filePaths.length });
                 const notification = this.telemetry.notifyTokens(task, plan.savings, pct, filePaths.length);
                 const fullReads = plan.files.filter((a: any) => a.action === 'full').length;
                 const nudge = this.telemetry.planningNudge('optimize', { fullReads });
@@ -469,6 +473,8 @@ export class MCPAdapter implements Adapter {
                         0.7, ['#guardrail', '#mindkit']
                     );
                 }
+
+                nexusEventBus.emit('guardrail.check', { action: ctx.action, passed: result.passed, score: result.score });
 
                 const nudge = result.passed
                     ? this.telemetry.planningNudge('high_call_count', {})
@@ -526,6 +532,8 @@ export class MCPAdapter implements Adapter {
                     0.6, ['#ghost-pass']
                 );
 
+                nexusEventBus.emit('ghost.pass', { task: goal, risks: report.riskAreas.length, workers: report.workerAssignments.length });
+
                 const ghostNudge = this.telemetry.planningNudge('ghost_pass', { risks: report.riskAreas.length });
                 return { content: [{ type: 'text', text: text + ghostNudge }] };
             }
@@ -572,15 +580,20 @@ export class MCPAdapter implements Adapter {
                             ['#phantom-swarm', `#approach-${task.approach}`]
                         );
 
+                        nexusEventBus.emit('phantom.worker.start', { workerId: `W-${w.id}`, approach: task.approach, goal });
+
                         // Check what other workers found
                         const peerFindings = w.receive(['#phantom-swarm']);
                         if (peerFindings.length > 0) {
                             learnings.push(`Received ${peerFindings.length} findings from peer workers`);
                         }
 
+                        const confidence = learnings.length > 0 ? 0.75 : 0.5;
+                        nexusEventBus.emit('phantom.worker.complete', { workerId: `W-${w.id}`, confidence });
+
                         return {
                             learnings,
-                            confidence: learnings.length > 0 ? 0.75 : 0.5,
+                            confidence,
                         };
                     });
                 });
@@ -595,6 +608,8 @@ export class MCPAdapter implements Adapter {
                     `Phantom Swarm executed: ${results.length} workers, action=${decision.action}, confidence=${decision.confidence.toFixed(2)}`,
                     0.8, ['#phantom-swarm', '#decision']
                 );
+
+                nexusEventBus.emit('phantom.merge', { action: decision.action, winner: decision.recommendedStrategy });
 
                 // NEW: Agent Learning Loop
                 await this.nexusRef.analyzeLearning(goal, decision);
@@ -720,6 +735,7 @@ export class MCPAdapter implements Adapter {
                     ? Math.round((savings / (plan.totalEstimatedTokens + savings)) * 100)
                     : 0;
                 this.telemetry.recordTokens(savings);
+                nexusEventBus.emit('tokens.optimized', { savings, pct, files: files.length });
 
                 const notification = this.telemetry.notifyTokens(task, savings, pct, files.length);
                 const nudge = this.telemetry.planningNudge('optimize', { savings, pct });
