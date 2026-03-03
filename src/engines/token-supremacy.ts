@@ -332,6 +332,7 @@ export class TokenSupremacyEngine {
 
         return task
             .toLowerCase()
+            // eslint-disable-next-line no-useless-escape
             .replace(/[^a-z0-9\s_\-\/\.]/g, ' ')
             .split(/\s+/)
             .filter(w => w.length > 2 && !stopWords.has(w));

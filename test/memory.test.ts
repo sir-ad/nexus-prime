@@ -84,13 +84,13 @@ async function runTests() {
     assert(typeof id2 === 'string', 'Multiple items stored');
 
     // Exact recall
-    const exactResults = mem.recall('SQLite flush SIGINT process exit', 3);
+    const exactResults = await mem.recall('SQLite flush SIGINT process exit', 3);
     console.log(`  recall("SQLite flush SIGINT"): ${exactResults.length} results`);
     assert(exactResults.length > 0, 'Exact recall returns results');
 
     // ── The Critical Synonym Test ─────────────────────────────────────────────
     console.log('\n🎯 Synonym Gap (Critical Vector Test)');
-    const synonymResults = mem.recall('login not working', 3);
+    const synonymResults = await mem.recall('login not working', 3);
     console.log(`  query: "login not working"`);
     console.log(`  results:`);
     synonymResults.forEach((r: string, i: number) => console.log(`    ${i + 1}. ${r.slice(0, 70)}...`));
@@ -106,7 +106,7 @@ async function runTests() {
     );
 
     // Ghost pass synonym test  
-    const phantomResults = mem.recall('parallel agent branches', 3);
+    const phantomResults = await mem.recall('parallel agent branches', 3);
     console.log(`  query: "parallel agent branches"`);
     console.log(`  top result: ${(phantomResults[0] ?? 'none').slice(0, 60)}...`);
 
@@ -123,7 +123,8 @@ async function runTests() {
     mem.close();
 
     const mem2 = new MemoryEngine(TEST_DB);
-    const reloadResults = mem2.recall('OAuth authentication bug', 3);
+    mem2.load();
+    const reloadResults = await mem2.recall('OAuth authentication bug', 3);
     assert(reloadResults.length > 0, 'Memories survive close + reload');
     console.log(`  after reload, recall("OAuth"): ${reloadResults.length} results`);
     mem2.close();

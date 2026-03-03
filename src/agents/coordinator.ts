@@ -402,7 +402,7 @@ export class AgentCoordinator {
     agents: string[]
   ): Promise<{ decided: boolean; result?: string }> {
     // Gossip until convergence
-    let values = new Set([proposal]);
+    const values = new Set([proposal]);
 
     for (let round = 0; round < 5; round++) {
       // Each agent gossips with random neighbor

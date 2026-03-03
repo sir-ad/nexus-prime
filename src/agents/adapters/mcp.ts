@@ -992,7 +992,7 @@ export class MCPAdapter implements Adapter {
                     results.push(filePath);
                 }
             }
-        } catch { }
+        } catch (e) { void e; }
         return results;
     }
 

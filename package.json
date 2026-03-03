@@ -31,7 +31,7 @@
     "dev": "tsc --watch",
     "start": "node dist/cli.js start",
     "init": "node dist/cli.js init",
-    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "test": "npx tsx test/basic.test.ts && npx tsx test/memory.test.ts && npx tsx test/phantom.test.ts",
     "lint": "eslint src --ext .ts"
   },
   "keywords": [
