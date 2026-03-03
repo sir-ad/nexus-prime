@@ -25,6 +25,7 @@ import { GraphMemoryEngine } from '../../engines/graph-memory.js';
 import { GraphTraversalEngine } from '../../engines/graph-traversal.js';
 import { HybridRetriever } from '../../engines/hybrid-retriever.js';
 import { nexusEventBus } from '../../engines/event-bus.js';
+import { SkillCardRegistry, type SkillCard } from '../../engines/skill-card.js';
 
 const tokenEngine = new TokenSupremacyEngine();
 const guardrailEngine = new GuardrailEngine();
@@ -321,6 +322,21 @@ export class MCPAdapter implements Adapter {
                             tags: { type: 'array', items: { type: 'string' }, description: 'Tags to associate (for action=ingest)' },
                         },
                         required: ['action'],
+                    },
+                },
+                // ── Skill Cards ──────────────────────────────────────────────────
+                {
+                    name: 'nexus_skill_register',
+                    description: 'Register a declarative Skill Card into the Graph Knowledge Engine. Skill cards define contextual triggers and reusable tool execution templates without using arbitrary eval().',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {
+                            card: {
+                                type: 'object',
+                                description: 'The SkillCard object containing name, trigger DSL, actions, confidence, origin, and adoptions.',
+                            }
+                        },
+                        required: ['card'],
                     },
                 },
             ],
@@ -792,33 +808,60 @@ export class MCPAdapter implements Adapter {
                 }
             }
 
+            case 'nexus_skill_register': {
+                const graphEngine = getGraphEngine();
+                const registry = new SkillCardRegistry(graphEngine);
+                const card = request.params.arguments?.card as SkillCard;
+
+                if (!card || !card.name || !card.trigger || !card.actions) {
+                    throw new McpError(ErrorCode.InvalidParams, 'Invalid SkillCard format. Must contain name, trigger, and actions.');
+                }
+
+                const id = registry.register(card);
+                nexusEventBus.emit('skill.register', { name: card.name, id });
+
+                return {
+                    content: [{
+                        type: 'text',
+                        text: `🎯 Skill Card "${card.name}" registered successfully!\nEntity ID: ${id}\nYAML serialized and stored in Graph Knowledge Engine.`
+                    }]
+                };
+            }
+
             default:
                 throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${request.params.name}`);
         }
     }
 
 
-    private scanSourceFiles(cwd: string): string[] {
-        const srcDir = path.join(cwd, 'src');
+    scanSourceFiles(cwd: string): string[] {
+        return this.walk(cwd).filter(f => f.endsWith('.ts') && !f.includes('node_modules') && !f.endsWith('.d.ts'));
+    }
+
+    private walk(dir: string): string[] {
+        let results: string[] = [];
         try {
-            const walk = (dir: string): string[] =>
-                readdirSync(dir, { withFileTypes: true }).flatMap(entry => {
-                    const full = path.join(dir, entry.name);
-                    if (entry.isDirectory() && !entry.name.startsWith('.')) return walk(full);
-                    if (entry.isFile() && /\.[jt]s$/.test(entry.name)) return [full];
-                    return [];
-                });
-            return walk(srcDir).slice(0, 30);
-        } catch {
-            return [];
-        }
+            const list = readdirSync(dir);
+            for (const file of list) {
+                const filePath = path.join(dir, file);
+                const stat = statSync(filePath);
+                if (stat && stat.isDirectory()) {
+                    if (file !== 'node_modules' && file !== 'dist' && file !== '.git') {
+                        results = results.concat(this.walk(filePath));
+                    }
+                } else {
+                    results.push(filePath);
+                }
+            }
+        } catch { }
+        return results;
     }
 
     async connect(): Promise<void> {
         const transport = new StdioServerTransport();
         await this.server.connect(transport);
         this.connected = true;
-        console.error('[MCP Adapter] Connected — 11 tools active');
+        console.error('[MCP Adapter] Connected — 12 tools active');
     }
 
     async disconnect(): Promise<void> {

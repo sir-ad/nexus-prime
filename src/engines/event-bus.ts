@@ -24,7 +24,8 @@ export type NexusEventType =
     | 'guardrail.check'
     | 'ghost.pass'
     | 'darwin.cycle'
-    | 'session.dna';
+    | 'session.dna'
+    | 'skill.register';
 
 export interface NexusEventPayloads {
     'system.boot': { version: string; toolsCount: number };
@@ -38,6 +39,7 @@ export interface NexusEventPayloads {
     'ghost.pass': { task: string; risks: number; workers: number };
     'darwin.cycle': { hypothesis: string; outcome: string };
     'session.dna': { sessionId: string; action: 'generated' | 'loaded' };
+    'skill.register': { name: string; id: string };
 }
 
 export interface NexusEvent<T extends NexusEventType = NexusEventType> {
