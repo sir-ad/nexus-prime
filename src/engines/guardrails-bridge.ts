@@ -6,6 +6,10 @@
  * 6 rules from packages/mindkit/src/guardrails.ts.
  */
 
+import * as os from 'os';
+import * as path from 'path';
+import * as fs from 'fs';
+
 export type GuardrailSeverity = 'error' | 'warn' | 'info';
 
 export interface GuardrailContext {
@@ -132,11 +136,15 @@ const RULES: Rule[] = [
 ];
 
 export class GuardrailEngine {
+    private externalRules: Rule[] = [];
+    private static CACHE_PATH = path.join(os.homedir(), '.nexus-prime', 'mindkit-cache.json');
+
     check(ctx: GuardrailContext): GuardrailResult {
+        const allRules = [...RULES, ...this.externalRules];
         const violations: GuardrailViolation[] = [];
         const warnings: GuardrailViolation[] = [];
 
-        for (const rule of RULES) {
+        for (const rule of allRules) {
             const r = rule.check(ctx);
             if (!r) continue;
             if (r.severity === 'error') violations.push(r);
@@ -164,6 +172,125 @@ export class GuardrailEngine {
     }
 
     listRules() {
-        return RULES.map(r => ({ id: r.id, rule: r.rule, severity: r.severity }));
+        return [...RULES, ...this.externalRules].map(r => ({ id: r.id, rule: r.rule, severity: r.severity }));
+    }
+
+    /**
+     * Sync guardrail rules from the MindKit GitHub repo.
+     * Fetches from sir-ad/mindkit, caches locally for 1 hour.
+     * Falls back silently to bundled rules if offline.
+     */
+    async syncFromGitHub(): Promise<{ synced: boolean; ruleCount: number; source: string }> {
+        // Check cache first (1-hour TTL)
+        try {
+            if (fs.existsSync(GuardrailEngine.CACHE_PATH)) {
+                const cached = JSON.parse(fs.readFileSync(GuardrailEngine.CACHE_PATH, 'utf-8'));
+                const age = Date.now() - (cached.timestamp ?? 0);
+                if (age < 3600_000 && Array.isArray(cached.rules)) {
+                    this.loadExternalRules(cached.rules);
+                    return { synced: true, ruleCount: this.externalRules.length, source: 'cache' };
+                }
+            }
+        } catch { /* cache miss */ }
+
+        // Fetch from GitHub
+        try {
+            const url = 'https://raw.githubusercontent.com/sir-ad/mindkit/main/src/guardrails.ts';
+            const response = await fetch(url);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const content = await response.text();
+
+            // Extract rule IDs and descriptions from the fetched source
+            const ruleMatches = [...content.matchAll(/id:\s*['"]([^'"]+)['"]\s*,\s*rule:\s*['"]([^'"]+)['"]/g)];
+            const fetchedRules = ruleMatches.map(m => ({ id: m[1], rule: m[2] }));
+
+            // Cache the fetched data
+            const cacheDir = path.dirname(GuardrailEngine.CACHE_PATH);
+            if (!fs.existsSync(cacheDir)) fs.mkdirSync(cacheDir, { recursive: true });
+            fs.writeFileSync(GuardrailEngine.CACHE_PATH, JSON.stringify({
+                timestamp: Date.now(),
+                rules: fetchedRules,
+                sourceUrl: url
+            }));
+
+            this.loadExternalRules(fetchedRules);
+            return { synced: true, ruleCount: this.externalRules.length, source: 'github' };
+        } catch {
+            // Offline — use bundled rules only
+            return { synced: false, ruleCount: RULES.length, source: 'bundled' };
+        }
+    }
+
+    private loadExternalRules(fetched: Array<{ id: string; rule: string }>): void {
+        // Only add rules that don't already exist in the built-in set
+        const builtinIds = new Set(RULES.map(r => r.id));
+        const newRules: Rule[] = fetched
+            .filter(r => !builtinIds.has(r.id))
+            .map(r => ({
+                id: r.id,
+                rule: r.rule,
+                severity: 'info' as GuardrailSeverity,
+                check: () => null  // External rules are informational — no active enforcement yet
+            }));
+        this.externalRules = newRules;
+    }
+
+    /**
+     * Bidirectional MindKit sync — push Nexus findings back to MindKit.
+     * Writes evolution candidates, session learnings, and guardrail outcomes
+     * to MindKit's memory/sessions directory via GitHub API.
+     */
+    async pushFindingsToMindKit(findings: {
+        sessionId: string;
+        findings: string[];
+        hotspots: Array<[string, number]>;
+        recommendations: string[];
+    }): Promise<{ pushed: boolean; reason: string }> {
+        const token = process.env.GITHUB_TOKEN;
+        if (!token) return { pushed: false, reason: 'No GITHUB_TOKEN — skipping MindKit push' };
+
+        try {
+            const sessionDate = new Date().toISOString().split('T')[0];
+            const content = [
+                `# Nexus Prime Session: ${findings.sessionId}`,
+                `Date: ${sessionDate}`,
+                '',
+                '## Findings',
+                ...findings.findings.map(f => `- ${f}`),
+                '',
+                '## Hotspots',
+                ...findings.hotspots.map(([file, count]) => `- ${count}x ${file}`),
+                '',
+                '## Recommendations',
+                ...findings.recommendations.map(r => `- ${r}`),
+            ].join('\n');
+
+            const encoded = Buffer.from(content).toString('base64');
+            const filePath = `memory/sessions/nexus-${sessionDate}-${findings.sessionId.slice(0, 8)}.md`;
+
+            const res = await fetch(`https://api.github.com/repos/sir-ad/mindkit/contents/${filePath}`, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/vnd.github+json',
+                },
+                body: JSON.stringify({
+                    message: `nexus-prime: session findings ${sessionDate}`,
+                    content: encoded,
+                }),
+            });
+
+            if (res.ok) {
+                return { pushed: true, reason: `Pushed to mindkit/${filePath}` };
+            } else {
+                const errText = await res.text();
+                return { pushed: false, reason: `GitHub API ${res.status}: ${errText.slice(0, 100)}` };
+            }
+        } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : 'Unknown error';
+            return { pushed: false, reason: `Push failed: ${msg}` };
+        }
     }
 }
+

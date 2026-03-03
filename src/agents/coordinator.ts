@@ -5,6 +5,11 @@
  */
 
 import { Agent, NetworkMessage, ConsensusState, NodeState } from '../core/types.js';
+import { PhantomWorker, type WorkerTask } from '../phantom/index.js';
+import { randomUUID } from 'crypto';
+import { type FileRef } from '../engines/token-supremacy.js';
+import * as fs from 'fs';
+import * as path from 'path';
 
 export type Topology = 'peer' | 'hierarchical' | 'ring' | 'star';
 export type Consensus = 'raft' | 'bft' | 'gossip' | 'crdt';
@@ -257,11 +262,78 @@ export class AgentCoordinator {
     agentId: string,
     work: string
   ): Promise<{ agentId: string; result: unknown }> {
-    // Simulate work execution
-    return {
-      agentId,
-      result: `processed_${work}`
+    const worker = new PhantomWorker();
+    const task: WorkerTask = {
+      id: randomUUID(),
+      goal: work,
+      files: [] as FileRef[],
+      approach: 'standard',
+      tokenBudget: 50000,
     };
+
+    try {
+      const result = await worker.spawn(task, async (worktreeDir, workerTask, w) => {
+        const learnings: string[] = [];
+
+        // Scan the worktree for relevant source files
+        const srcDir = path.join(worktreeDir, 'src');
+        const filesToRead: string[] = [];
+        try {
+          const entries = fs.readdirSync(srcDir, { withFileTypes: true });
+          for (const entry of entries) {
+            if (entry.isFile() && /\.[jt]s$/.test(entry.name)) {
+              filesToRead.push(path.join(srcDir, entry.name));
+            }
+          }
+        } catch { /* worktree may not have src/ */ }
+
+        // Read first 500 bytes of up to 5 files for context
+        for (const filePath of filesToRead.slice(0, 5)) {
+          try {
+            const content = fs.readFileSync(filePath, 'utf-8').slice(0, 500);
+            const fileName = path.basename(filePath);
+            const exports = (content.match(/export\s+(class|function|const|interface)\s+\w+/g) || []);
+            learnings.push(
+              `[${agentId}] Analyzed ${fileName}: ${exports.length} exports, ${content.length} chars read`
+            );
+          } catch {
+            learnings.push(`[${agentId}] Could not read ${path.basename(filePath)}`);
+          }
+        }
+
+        // Broadcast findings to POD network
+        w.broadcast(
+          `Agent ${agentId} analyzed ${filesToRead.length} files for: ${workerTask.goal.slice(0, 60)}`,
+          0.7,
+          ['#coordinator', '#agent-work']
+        );
+
+        // Check peer findings
+        const peerFindings = w.receive(['#coordinator']);
+        if (peerFindings.length > 0) {
+          learnings.push(`[${agentId}] Received ${peerFindings.length} peer findings`);
+        }
+
+        return {
+          learnings: learnings.length > 0 ? learnings : [`[${agentId}] No source files found in worktree`],
+          confidence: learnings.length > 2 ? 0.85 : 0.6,
+        };
+      });
+
+      return {
+        agentId,
+        result: {
+          diff: result.diff,
+          outcome: result.outcome,
+          learnings: result.learnings,
+        }
+      };
+    } catch (err) {
+      return {
+        agentId,
+        result: { outcome: 'failed', error: String(err) }
+      };
+    }
   }
 
   // ==================== CONSENSUS ====================

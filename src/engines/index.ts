@@ -4,23 +4,24 @@
  * All core engines for the Nexus Prime system.
  */
 
-export { TokenOptimizer, createTokenOptimizer, SLERPCompressor, createSLERPCompressor } from './token-optimizer.js';
+export { TokenSupremacyEngine as TokenOptimizer, createTokenSupremacyEngine as createTokenOptimizer } from './token-supremacy.js';
+export { SLERPCompressor, createSLERPCompressor } from './token-optimizer.js';
 export { ContextEngine, createContextEngine } from './context.js';
 export { MemoryEngine, createMemoryEngine, MemoryItem } from './memory.js';
 export { OrchestratorEngine, createOrchestrator, Agent, AgentType, Task } from './orchestrator.js';
 export { CacheManager, createCacheManager, CacheEntry, AgentDelta } from './cache-manager.js';
-export { 
-  MetaLearner, 
-  AdaptiveInterpolator, 
+export {
+  MetaLearner,
+  AdaptiveInterpolator,
   TokenRetention,
-  createMetaLearner, 
-  createAdaptiveInterpolator, 
+  createMetaLearner,
+  createAdaptiveInterpolator,
   createTokenRetention,
   CompressionFeatures
 } from './meta-learner.js';
-export { 
-  BenchmarkSuite, 
+export {
+  BenchmarkSuite,
   createBenchmarkSuite,
   EXPECTED_RESULTS,
-  BenchmarkResult 
+  BenchmarkResult
 } from './benchmark.js';

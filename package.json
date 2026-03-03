@@ -1,10 +1,27 @@
 {
   "name": "nexus-prime",
-  "version": "0.1.0",
-  "description": "The Self-Evolving Agent Operating System",
+  "version": "0.2.0",
+  "description": "The Self-Evolving Agent Operating System — cross-session memory, token optimization, parallel sub-agents via MCP",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "GEMINI.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sir-ad/nexus-prime.git"
+  },
+  "homepage": "https://github.com/sir-ad/nexus-prime",
   "bin": {
     "nexus-prime": "./dist/cli.js"
   },
@@ -20,13 +37,14 @@
   "keywords": [
     "ai",
     "agents",
-    "self-evolving",
+    "mcp",
+    "memory",
+    "token-optimization",
     "multi-agent",
     "orchestration",
-    "nexus",
-    "fission",
-    "emergent",
-    "language"
+    "guardrails",
+    "self-evolving",
+    "nexus-prime"
   ],
   "author": "sir-ad",
   "license": "MIT",

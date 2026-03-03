@@ -5,6 +5,8 @@
  */
 
 import { MemoryEngine } from './memory.js';
+import * as fs from 'fs';
+import * as path from 'path';
 
 export type AgentType = 'researcher' | 'coder' | 'planner' | 'executor' | 'reviewer';
 
@@ -42,7 +44,7 @@ export class OrchestratorEngine {
       .split(/,| and | then /)
       .map(s => s.trim())
       .filter(Boolean);
-    
+
     return subtasks.length > 0 ? subtasks : [task];
   }
 
@@ -51,23 +53,23 @@ export class OrchestratorEngine {
    */
   spawn(type: AgentType, task: string): string {
     const id = `${type}_${++this.agentCounter}`;
-    
+
     const agent: Agent = {
       id,
       type,
       task,
       state: 'pending'
     };
-    
+
     this.agents.set(id, agent);
-    
+
     // Store in memory
     this.memory.store(
       `Agent ${id} (${type}) created for: ${task}`,
       0.5,
       ['agent', type]
     );
-    
+
     return id;
   }
 
@@ -81,10 +83,10 @@ export class OrchestratorEngine {
   }> {
     // Decompose task
     const subtasks = this.decomposeTask(task);
-    
+
     // Spawn agents for each subtask
     const agentIds: string[] = [];
-    
+
     for (const subtask of subtasks) {
       const type = this.getAgentType(subtask);
       const id = this.spawn(type, subtask);
@@ -118,18 +120,55 @@ export class OrchestratorEngine {
 
     // Update state
     agent.state = 'running';
-    
-    // Simulate work (in production, actual execution)
-    await new Promise(resolve => setTimeout(resolve, 100));
-    
-    // Simple result
-    const result = `Completed: ${agent.task}`;
-    
+
+    // Store intent in memory before execution
+    this.memory.store(
+      `Agent ${agentId} (${agent.type}) starting: ${agent.task}`,
+      0.5,
+      ['execution-start', agent.type]
+    );
+
+    // ── Recall relevant context ──
+    const recalled = await this.memory.recall(agent.task, 3);
+
+    // ── Scan source files for task-relevant content ──
+    const findings: string[] = [];
+    try {
+      const srcDir = path.join(process.cwd(), 'src');
+      const entries = fs.readdirSync(srcDir, { withFileTypes: true });
+      const taskLower = agent.task.toLowerCase();
+
+      for (const entry of entries) {
+        if (!entry.isFile() || !/\.[jt]s$/.test(entry.name)) continue;
+        // Check if file name is relevant to the task
+        const nameLower = entry.name.toLowerCase().replace(/\.[^.]+$/, '');
+        if (taskLower.includes(nameLower) || nameLower.includes('index')) {
+          try {
+            const content = fs.readFileSync(path.join(srcDir, entry.name), 'utf-8').slice(0, 300);
+            const exports = (content.match(/export\s+(class|function|const|interface)\s+\w+/g) || []);
+            findings.push(`${entry.name}: ${exports.length} exports`);
+          } catch { /* skip unreadable */ }
+        }
+      }
+    } catch { /* no src/ dir */ }
+
+    // ── Build result ──
+    const resultParts: string[] = [];
+    if (recalled.length > 0) {
+      resultParts.push(`Context: ${recalled.length} prior memories applied`);
+    }
+    if (findings.length > 0) {
+      resultParts.push(`Analyzed: ${findings.join(', ')}`);
+    }
+    resultParts.push(`Task: ${agent.task}`);
+
+    const result = resultParts.join(' | ');
+
     // Update agent
     agent.state = 'complete';
     agent.result = result;
 
-    // Store in memory
+    // Store result in memory
     this.memory.store(
       result,
       0.7,
@@ -144,7 +183,7 @@ export class OrchestratorEngine {
    */
   private getAgentType(task: string): AgentType {
     const t = task.toLowerCase();
-    
+
     if (t.includes('research') || t.includes('find') || t.includes('search')) {
       return 'researcher';
     }
@@ -157,7 +196,7 @@ export class OrchestratorEngine {
     if (t.includes('review') || t.includes('check')) {
       return 'reviewer';
     }
-    
+
     return 'executor';
   }
 
@@ -166,13 +205,13 @@ export class OrchestratorEngine {
    */
   private checkConsensus(results: Array<{ result: string }>): boolean {
     if (results.length < 2) return true;
-    
+
     // Simple consensus: similar results
     const first = results[0].result;
-    const similar = results.filter(r => 
+    const similar = results.filter(r =>
       this.similarity(first, r.result) > this.consensusThreshold
     );
-    
+
     return similar.length / results.length >= this.consensusThreshold;
   }
 
@@ -189,10 +228,10 @@ export class OrchestratorEngine {
   private similarity(a: string, b: string): number {
     const wordsA = new Set(a.toLowerCase().split(/\s+/));
     const wordsB = new Set(b.toLowerCase().split(/\s+/));
-    
+
     const intersection = [...wordsA].filter(x => wordsB.has(x));
     const union = new Set([...wordsA, ...wordsB]);
-    
+
     return intersection.length / (union.size || 1);
   }
 
@@ -204,5 +243,5 @@ export class OrchestratorEngine {
   }
 }
 
-export const createOrchestrator = (memory?: MemoryEngine) => 
+export const createOrchestrator = (memory?: MemoryEngine) =>
   new OrchestratorEngine(memory);

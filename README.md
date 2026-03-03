@@ -7,6 +7,33 @@ Nexus Prime is an MCP server that gives AI coding agents cross-session memory, t
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/Node.js-18%2B-green.svg)](https://nodejs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue.svg)](https://typescriptlang.org)
+[![npm](https://img.shields.io/npm/v/nexus-prime)](https://www.npmjs.com/package/nexus-prime)
+
+---
+
+## The Super Intellect Stack
+
+Nexus Prime is the **runtime layer** in a 4-project ecosystem:
+
+```
+┌─────────────────────────────────────────────────┐
+│  Phantom (PM)                                    │
+│  "What to build" — PRDs, releases, docs         │
+│  github.com/sir-ad/phantom                      │
+├─────────────────────────────────────────────────┤
+│  MindKit (Skills)                                │
+│  "How to think" — 22 skills, guardrails, routing │
+│  github.com/sir-ad/mindkit                      │
+├─────────────────────────────────────────────────┤
+│  Nexus Prime (OS)  ← YOU ARE HERE               │
+│  "How to run" — memory, tokens, workers, POD     │
+│  github.com/sir-ad/nexus-prime                  │
+├─────────────────────────────────────────────────┤
+│  Grain (Language)                                │
+│  "How to speak" — 10 universal AI primitives     │
+│  github.com/sir-ad/grain                        │
+└─────────────────────────────────────────────────┘
+```
 
 ---
 
@@ -15,9 +42,10 @@ Nexus Prime is an MCP server that gives AI coding agents cross-session memory, t
 Every AI coding session starts cold. The agent re-reads the same files, re-discovers the same patterns, makes the same mistakes. Nexus Prime fixes this:
 
 - **Memory persists between sessions** — findings survive restarts
-- **Token usage is optimized** — agents read only what they need
-- **Parallel sub-agents** explore multiple solutions simultaneously
+- **Token usage is optimized** — agents read only what they need (50-90% savings)
+- **Parallel sub-agents** explore multiple solutions simultaneously via git worktrees
 - **Guardrails prevent mistakes** before code is written
+- **Self-evolution** — learns from past sessions and adapts
 
 ---
 
@@ -30,23 +58,32 @@ Every AI coding session starts cold. The agent re-reads the same files, re-disco
 │  Session Start         During Work          Shutdown  │
 │  nexus_recall_memory   nexus_store_memory   store     │
 │  nexus_memory_stats    nexus_optimize_tokens summary  │
-│  nexus_mindkit_check   nexus_ghost_pass              │
+│                        nexus_mindkit_check            │
+│                        nexus_ghost_pass               │
+│                        nexus_spawn_workers            │
+│                        nexus_audit_evolution          │
 └────────────────────────┬────────────────────────────┘
                          │ MCP (stdio)
 ┌────────────────────────▼────────────────────────────┐
 │                   NEXUS PRIME MCP SERVER             │
 │                                                       │
 │  MemoryEngine          TokenSupremacyEngine           │
-│  ├─ Prefrontal (7)     ├─ FileScorer                  │
+│  ├─ Prefrontal (7)     ├─ Content-Aware Scoring       │
 │  ├─ Hippocampus (200)  ├─ BudgetAllocator             │
 │  └─ Cortex (∞, SQLite) └─ DifferentialContext        │
 │                                                       │
 │  PhantomWorkers        GuardrailEngine                │
 │  ├─ GhostPass          ├─ TokenBudget                 │
 │  ├─ PhantomWorker      ├─ DestructiveGuard            │
-│  └─ MergeOracle        └─ MemoryFirst                 │
+│  ├─ MergeOracle        ├─ MindKit GitHub Sync         │
+│  └─ POD Network        └─ MemoryFirst                 │
+│                                                       │
+│  HyperTuning           AgentLearner                   │
+│  ├─ Adaptive Budget    ├─ SQL Pattern Detection        │
+│  └─ Complexity Signals └─ Evolution Candidates         │
 │                                                       │
 │  Embedder (TF-IDF 128-dim + optional OpenAI API)     │
+│  SessionTelemetry (📡 footer on every response)      │
 └─────────────────────────────────────────────────────┘
          │
          ▼
@@ -58,17 +95,19 @@ Every AI coding session starts cold. The agent re-reads the same files, re-disco
 ## Quick Start
 
 ```bash
-# Clone and install
+# Install from npm
+npm install -g nexus-prime
+
+# Or clone and build
 git clone https://github.com/sir-ad/nexus-prime
 cd nexus-prime
 npm install
 npm run build
-
-# Start MCP server (connects to your AI agent)
-node dist/cli.js mcp
 ```
 
-### Wire into AntiGravity / Claude Desktop
+### Wire into your AI agent
+
+Add to your MCP config (AntiGravity, Claude Desktop, etc.):
 
 ```json
 {
@@ -83,34 +122,30 @@ node dist/cli.js mcp
 
 ---
 
-## The 6 MCP Tools
+## The 8 MCP Tools
 
 ### Memory
 
-```typescript
-nexus_store_memory(content: string, priority?: number, tags?: string[])
-// Store a finding. priority: 0-1. High-priority items auto-fission to long-term.
-
-nexus_recall_memory(query: string, k?: number)
-// Semantic recall. Returns top-k memories matching the query.
-
-nexus_memory_stats()
-// Shows memory tier counts, top tags, Zettelkasten link graph stats.
-```
+| Tool | When | What |
+|------|------|------|
+| `nexus_store_memory` | After discoveries | Store findings, bugs, decisions. Priority 0-1. |
+| `nexus_recall_memory` | Session start + mid-session | Semantic recall. Top-k memories matching query. |
+| `nexus_memory_stats` | Session start | Tier counts, top tags, Zettelkasten link stats. |
 
 ### Intelligence
 
-```typescript
-nexus_optimize_tokens(task: string, files?: string[], budget?: number)
-// Pre-flight reading plan. Returns: which files to read fully/outline/skip.
-// Saves avg 55% token usage.
+| Tool | When | What |
+|------|------|------|
+| `nexus_optimize_tokens` | Before reading 3+ files | Pre-flight reading plan. 50-90% token savings. |
+| `nexus_ghost_pass` | Before modifying 3+ files | Risk analysis + worker approach suggestions. |
+| `nexus_mindkit_check` | Before destructive ops | Guardrail check. PASS/FAIL with score 0-100. |
 
-nexus_ghost_pass(goal: string, files?: string[])
-// Read-only pre-flight analysis. Returns risk areas + worker approaches.
+### Parallel Work
 
-nexus_mindkit_check(action: string, tokenCount?: number, filesToModify?: string[], isDestructive?: boolean)
-// Guardrail check. Returns PASS/FAIL, score 0-100, violations + suggestions.
-```
+| Tool | When | What |
+|------|------|------|
+| `nexus_spawn_workers` | Complex multi-file refactors | Phantom Workers in isolated git worktrees. |
+| `nexus_audit_evolution` | Sprint boundaries / post-bug | Find recurring patterns, file hotspots. |
 
 ---
 
@@ -119,12 +154,12 @@ nexus_mindkit_check(action: string, tokenCount?: number, filesToModify?: string[
 Three-tier architecture modelled on human memory:
 
 | Tier | Size | Backed by | Purpose |
-|------|------|-----------|---------|
+|------|------|-----------|---------:|
 | **Prefrontal** | 7 items | RAM | Active working set |
 | **Hippocampus** | 200 items | RAM | Recent session context |
 | **Cortex** | Unlimited | SQLite | Long-term persistence |
 
-**Recall** uses hybrid scoring: vector similarity (TF-IDF, 128-dim) + priority + recency + access count.
+**Recall** uses hybrid scoring: TF-IDF vectors (128-dim) + priority + recency + access count.
 
 ---
 
@@ -135,28 +170,28 @@ Parallel sub-agent framework using real git worktrees:
 ```
 GhostPass (read-only analysis)
   → N PhantomWorkers (parallel, isolated git worktrees)
-    → MergeOracle (Byzantine vote, confidence-weighted merge)
-      → Apply winning diff to main branch
+    → POD Network (asynchronous learning exchange)
+      → MergeOracle (Byzantine vote, confidence-weighted merge)
 ```
 
-Each worker gets an isolated copy of the repo to experiment in.  
-The `MergeOracle` evaluates outcomes by confidence score and approach quality.
+Each worker gets an isolated copy of the repo. Workers broadcast findings via the **POD Network**. The `MergeOracle` evaluates outcomes by confidence score.
 
-```typescript
-// Spawn 2 workers in parallel to implement the same feature 2 ways
-const [resultA, resultB] = await Promise.all([
-  new PhantomWorker(REPO_ROOT).spawn(taskA, workerAExecutor),
-  new PhantomWorker(REPO_ROOT).spawn(taskB, workerBExecutor),
-]);
-const decision = await oracle.merge([resultA, resultB]);
-// → decision.action: 'apply' | 'synthesize' | 'reject'
+---
+
+## Session Telemetry
+
+Every MCP response includes a telemetry footer:
+
+```
+─── 📡 Nexus Prime (12s) ───
+3 calls │ 20.3k tokens saved │ 2 stored │ 5 recalled │ 59 Zettel links
 ```
 
 ---
 
-## Guardrails (Mindkit)
+## Guardrails (MindKit)
 
-6 machine-checked rules that run before any significant operation:
+6 machine-checked rules + external rules synced from [MindKit](https://github.com/sir-ad/mindkit):
 
 | Rule | Trigger | Action |
 |------|---------|--------|
@@ -176,23 +211,28 @@ nexus-prime/
 ├── src/
 │   ├── index.ts                    # NexusPrime main class
 │   ├── cli.ts                      # CLI entry (node dist/cli.js mcp)
-│   ├── agents/adapters/mcp.ts      # MCP server, 6 tools
+│   ├── agents/
+│   │   ├── adapters/mcp.ts         # MCP server, 8 tools + telemetry
+│   │   ├── coordinator.ts          # Worker dispatch orchestration
+│   │   ├── orchestrator.ts         # Context-aware agent runner
+│   │   └── learner.ts              # SQL-based evolution detection
 │   ├── engines/
-│   │   ├── memory.ts               # Three-tier memory system
+│   │   ├── memory.ts               # Three-tier memory + queryByTags
 │   │   ├── embedder.ts             # TF-IDF + optional OpenAI embeddings
-│   │   ├── token-supremacy.ts      # Token optimization engine
-│   │   └── guardrails-bridge.ts    # 6-rule GuardrailEngine
+│   │   ├── token-supremacy.ts      # Content-aware token optimization
+│   │   ├── guardrails-bridge.ts    # GuardrailEngine + MindKit sync
+│   │   └── meta-learner.ts         # HyperTuning adaptive parameters
 │   └── phantom/
 │       ├── index.ts                # GhostPass, PhantomWorker, MergeOracle
-│       └── phase4-orchestrator.ts  # Example: Phase 4 built by itself
+│       └── phase4-orchestrator.ts  # Self-built phase orchestrator
 ├── packages/
-│   └── mindkit/                    # Standalone npm package (guardrails + MCP)
+│   └── mindkit/                    # Standalone npm package
 ├── test/
-│   ├── phantom.test.ts             # 19/19 E2E Phantom Workers test
+│   ├── phantom.test.ts             # E2E Phantom Workers test
 │   └── memory.test.ts              # Semantic recall test
-├── AGENTS.md                       # ← Read this first (AI agent protocol)
-├── NEXUS.md                        # Nexus Prime language specification
-└── GEMINI.md                       # Session protocol for AntiGravity
+├── GEMINI.md                       # Session protocol for AI agents
+├── AGENTS.md                       # Agent overview
+└── NEXUS.md                        # Language specification
 ```
 
 ---
@@ -205,22 +245,6 @@ nexus-prime/
 | `NEXUS_EMBED_URL` | — | API endpoint when mode=api |
 | `NEXUS_EMBED_KEY` | — | API key when mode=api |
 | `NEXUS_EMBED_MODEL` | — | Model name when mode=api |
-
----
-
-## Mindkit Package
-
-A standalone npm package that any project can use:
-
-```bash
-cd packages/mindkit && npm install && npm run build
-
-mindkit init          # Scaffold .agent/ into your project
-mindkit check "..."   # CLI guardrail check
-mindkit mcp           # Start Mindkit MCP server (3 tools)
-mindkit skills        # List available skills
-mindkit workflows     # List slash commands
-```
 
 ---
 

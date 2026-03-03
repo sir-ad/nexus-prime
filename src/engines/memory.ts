@@ -194,7 +194,9 @@ export class MemoryEngine {
           tags: JSON.stringify(item.tags),
           tier: item.tier,
           session_id: item.sessionId ?? null,
-          access_count: item.accessCount
+          access_count: item.accessCount,
+          parent_id: item.parentId ?? null,
+          depth: item.depth ?? 0
         });
       }
     });
@@ -522,6 +524,22 @@ export class MemoryEngine {
   clear(): void {
     this.prefrontal = [];
     this.db.exec('DELETE FROM memory_links; DELETE FROM memories;');
+  }
+
+  /**
+   * Query memories by tag using direct SQL — precise, no fuzzy matching.
+   * Returns memories that contain ANY of the specified tags.
+   */
+  queryByTags(tags: string[], limit: number = 20): MemoryItem[] {
+    if (tags.length === 0) return [];
+    const placeholders = tags.map(() => '?').join(',');
+    const rows = this.db.prepare(`
+      SELECT DISTINCT m.* FROM memories m, json_each(m.tags) jt
+      WHERE jt.value IN (${placeholders})
+      ORDER BY m.priority DESC, m.timestamp DESC
+      LIMIT ?
+    `).all(...tags, limit) as any[];
+    return rows.map(row => this.rowToItem(row));
   }
 
   close(): void {

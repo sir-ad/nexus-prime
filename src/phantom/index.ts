@@ -70,6 +70,8 @@ export interface MergeDecision {
     rationale: string;
     confidence: number;
     learnings: string[];   // To store in Nexus memory
+    conflicts: string[];   // Overlapping hunks detected
+    recommendedStrategy: string;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -11,6 +11,7 @@ import { EvolutionEngine, FissionProtocol, createEvolutionEngine, createFissionP
 import { AttentionEconomics, TokenOptimizer, InfiniteContext, createAttentionEconomics, createInfiniteContext } from './core/optimize.js';
 import { AgentCoordinator, createCoordinator, Topology, Consensus } from './agents/coordinator.js';
 import { Adapter, createAdapter, AdapterType } from './agents/adapters.js';
+import { AgentLearner } from './agents/learner.js';
 
 // Import engines
 import { createTokenOptimizer, createContextEngine, createMemoryEngine, createOrchestrator } from './engines/index.js';
@@ -26,6 +27,7 @@ export class NexusPrime {
   private contextEngine: any;
   private memoryEngine: any;
   private orchestrator: any;
+  private learner: AgentLearner;
 
   private coordinator: AgentCoordinator;
   private evolution: EvolutionEngine;
@@ -75,6 +77,7 @@ export class NexusPrime {
     this.contextEngine = createContextEngine();
     this.memoryEngine = createMemoryEngine();
     this.orchestrator = createOrchestrator();
+    this.learner = new AgentLearner(this.memoryEngine);
   }
 
   async start(): Promise<void> {
@@ -111,6 +114,11 @@ export class NexusPrime {
     if (this.memoryEngine && typeof this.memoryEngine.load === 'function') {
       this.memoryEngine.load();
     }
+  }
+
+  /** Get the memory engine instance */
+  get memory(): any {
+    return this.memoryEngine;
   }
 
   /** Get memory tier stats (used by nexus_memory_stats MCP tool) */
@@ -224,6 +232,20 @@ export class NexusPrime {
    */
   async recallMemory(query: string, k: number = 5): Promise<string[]> {
     return this.memoryEngine.recall(query, k);
+  }
+
+  /**
+   * Audit evolution candidates — returns structured analysis.
+   */
+  async auditEvolution() {
+    return this.learner.identifyEvolutionCandidates();
+  }
+
+  /**
+   * Analyze result for learning
+   */
+  async analyzeLearning(goal: string, decision: any): Promise<void> {
+    await this.learner.analyze(goal, decision);
   }
 
   /**

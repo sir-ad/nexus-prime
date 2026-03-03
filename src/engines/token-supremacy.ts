@@ -88,9 +88,15 @@ export class TokenSupremacyEngine {
 
     // ───────────────────────────────────────────────────────────────────────────
     // Primary API: generate a reading plan for a task
-    // ───────────────────────────────────────────────────────────────────────────
-
+    /**
+     * Plan a token-efficient reading strategy for a given task + files.
+     */
     plan(task: string, files: FileRef[]): ReadingPlan {
+        // Apply hypertuning if we have many files
+        if (files.length > 10) {
+            this.hypertune(task);
+        }
+
         const taskKeywords = this.extractKeywords(task);
         const plans: FileReadPlan[] = [];
         let totalTokens = 0;
@@ -161,6 +167,18 @@ export class TokenSupremacyEngine {
             savings: fullReadTokens - totalTokens,
             sessionBudget: this.sessionBudget
         };
+    }
+
+    /**
+     * Legacy compatibility wrapper for NexusPrime.
+     */
+    optimize(context: string[], task: string): ReadingPlan {
+        const files: FileRef[] = context.map((c, i) => ({
+            path: `context_${i}.txt`,
+            sizeBytes: c.length * 4,
+            lastModified: Date.now()
+        }));
+        return this.plan(task, files);
     }
 
     // ───────────────────────────────────────────────────────────────────────────
@@ -319,23 +337,38 @@ export class TokenSupremacyEngine {
     private scoreRelevance(filePath: string, keywords: string[]): number {
         if (keywords.length === 0) return 0.5;
 
-        const normalized = filePath.toLowerCase().replace(/\\/g, '/');
+        // ── Normalize path: strip cwd prefix so keywords match relative segments ──
+        const cwd = process.cwd().toLowerCase().replace(/\\/g, '/');
+        let normalized = filePath.toLowerCase().replace(/\\/g, '/');
+        if (normalized.startsWith(cwd)) {
+            normalized = normalized.slice(cwd.length).replace(/^\//, '');
+        }
         const parts = normalized.split('/');
         const fileName = parts[parts.length - 1];
+        const baseName = fileName.replace(/\.[^.]+$/, ''); // e.g. "memory" from "memory.ts"
         const ext = fileName.split('.').pop() ?? '';
 
-        let score = 0;
-        let matches = 0;
+        // ── Extension-based baseline: .ts/.js files always get a floor for code tasks ──
+        let extBaseline = 0;
+        if (['ts', 'js', 'tsx', 'jsx'].includes(ext)) extBaseline = 0.20;
+        else if (['json', 'md'].includes(ext)) extBaseline = 0.15;
+
+        // ── Path keyword matching ──
+        let pathScore = 0;
+        let pathMatches = 0;
 
         for (const kw of keywords) {
-            if (normalized.includes(kw)) {
-                matches++;
-                // Filename matches are worth more than directory matches
-                score += fileName.includes(kw) ? 1.5 : 0.8;
+            // Check basename directly (e.g. keyword "memory" matches "memory.ts")
+            if (baseName === kw || baseName.includes(kw)) {
+                pathMatches++;
+                pathScore += 1.5;
+            } else if (normalized.includes(kw)) {
+                pathMatches++;
+                pathScore += 0.8;
             }
         }
 
-        // Content-aware scoring (First 500 bytes)
+        // ── Content-aware scoring (first 500 bytes) — weighted heavily ──
         let contentBonus = 0;
         try {
             const fullPath = path.isAbsolute(filePath) ? filePath : path.join(process.cwd(), filePath);
@@ -351,35 +384,37 @@ export class TokenSupremacyEngine {
                 for (const kw of keywords) {
                     if (contentKeywords.includes(kw)) contentMatches++;
                 }
-                contentBonus = (contentMatches / keywords.length) * 0.6;
+                // Boost from 0.6 → 0.8 — content is the most reliable signal
+                contentBonus = (contentMatches / keywords.length) * 0.8;
             }
         } catch { /* ignore */ }
 
-        // Check learned relevance
+        // ── Learned relevance ──
         const taskType = keywords.slice(0, 3).join('_');
         const learnedScore = this.relevanceCache.get(taskType)?.get(filePath) ?? 0;
 
-        // Type-based baseline (common patterns)
+        // ── Semantic type bonuses ──
         let typeBonus = 0;
-        const codeKeywords = ['fix', 'bug', 'debug', 'error', 'impl', 'add', 'build', 'audit', 'nexus', 'prime', 'tools'];
-        const memKeywords = ['memory', 'cache', 'store', 'recall', 'persist'];
-        const testKeywords = ['test', 'spec', 'jest', 'validate', 'verify'];
+        const codeKws = ['fix', 'bug', 'debug', 'error', 'impl', 'add', 'build', 'audit', 'nexus', 'prime', 'tools', 'code', 'source'];
+        const memKws = ['memory', 'cache', 'store', 'recall', 'persist'];
+        const testKws = ['test', 'spec', 'jest', 'validate', 'verify'];
 
-        if (keywords.some(k => codeKeywords.includes(k)) && ['ts', 'js', 'json', 'md'].includes(ext)) {
+        if (keywords.some(k => codeKws.includes(k)) && ['ts', 'js', 'json', 'md'].includes(ext)) {
             typeBonus = 0.15;
         }
-        if (keywords.some(k => memKeywords.includes(k)) && normalized.includes('memory')) {
+        if (keywords.some(k => memKws.includes(k)) && (normalized.includes('memory') || baseName.includes('memory'))) {
             typeBonus = 0.4;
         }
-        if (keywords.some(k => testKeywords.includes(k)) && ['test', 'spec'].some(t => fileName.includes(t))) {
+        if (keywords.some(k => testKws.includes(k)) && ['test', 'spec'].some(t => fileName.includes(t))) {
             typeBonus = 0.3;
         }
 
-        const baseScore = keywords.length > 0
-            ? (matches / keywords.length) * (score / Math.max(matches, 1))
+        // ── Combine: baseline + path + content + type + learned ──
+        const pathComponent = keywords.length > 0
+            ? (pathMatches / keywords.length) * (pathScore / Math.max(pathMatches, 1))
             : 0;
 
-        return Math.min(1, baseScore + typeBonus + learnedScore * 0.1 + contentBonus);
+        return Math.min(1, Math.max(extBaseline, pathComponent + typeBonus + learnedScore * 0.1 + contentBonus));
     }
 
     private estimateHotLines(
@@ -402,6 +437,32 @@ export class TokenSupremacyEngine {
     private fingerprintFile(file: FileRef): string {
         // Use mtime + size as cheap fingerprint (no hashing needed)
         return `${file.lastModified ?? 0}-${file.sizeBytes}`;
+    }
+
+    /**
+     * Adjust token budget based on task complexity signals.
+     * Complex tasks get +25% budget; simple lookups get -25%.
+     */
+    private hypertune(task: string): void {
+        const taskLower = task.toLowerCase();
+        const originalBudget = this.sessionBudget;
+
+        // Complexity signals
+        const complexSignals = ['refactor', 'complex', 'rewrite', 'migration', 'audit', 'architecture', 'redesign'];
+        const simpleSignals = ['lookup', 'find', 'list', 'check', 'quick', 'status'];
+
+        const isComplex = complexSignals.some(s => taskLower.includes(s));
+        const isSimple = simpleSignals.some(s => taskLower.includes(s));
+
+        if (isComplex) {
+            this.sessionBudget = Math.round(originalBudget * 1.25);
+        } else if (isSimple) {
+            this.sessionBudget = Math.round(originalBudget * 0.75);
+        }
+
+        if (this.sessionBudget !== originalBudget) {
+            console.error(`[Token Engine] Hypertuned: budget ${originalBudget.toLocaleString()} → ${this.sessionBudget.toLocaleString()} tokens (${isComplex ? 'complex' : 'simple'} task detected)`);
+        }
     }
 }
 

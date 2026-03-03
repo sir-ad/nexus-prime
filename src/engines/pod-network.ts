@@ -17,6 +17,7 @@ export class PODNetwork {
     private messages: PodMessage[] = [];
     private subscribers: Map<string, Set<(msg: PodMessage) => void>> = new Map();
     private podPath: string;
+    private pollHandle: ReturnType<typeof setInterval> | null = null;
 
     constructor() {
         this.podPath = path.join(os.homedir(), '.nexus-prime', 'pod.json');
@@ -26,8 +27,9 @@ export class PODNetwork {
         this.loadMessages();
 
         // Basic poll for changes from other workers (cross-process)
-        // In a high-traffic swarm, this could transition to a socket or redis
-        setInterval(() => this.loadMessages(), 5000);
+        // unref() allows the Node process to exit even if the timer is still active
+        this.pollHandle = setInterval(() => this.loadMessages(), 5000);
+        this.pollHandle.unref();
     }
 
     private loadMessages(): void {
@@ -117,6 +119,14 @@ export class PODNetwork {
         this.messages = [];
         if (fs.existsSync(this.podPath)) {
             fs.unlinkSync(this.podPath);
+        }
+    }
+
+    /** Stop the poll timer and release resources */
+    destroy(): void {
+        if (this.pollHandle) {
+            clearInterval(this.pollHandle);
+            this.pollHandle = null;
         }
     }
 }
