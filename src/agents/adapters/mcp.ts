@@ -27,10 +27,12 @@ import { HybridRetriever } from '../../engines/hybrid-retriever.js';
 import { nexusEventBus } from '../../engines/event-bus.js';
 import { SkillCardRegistry, type SkillCard } from '../../engines/skill-card.js';
 import { DarwinLoop } from '../../engines/darwin-loop.js';
+import { NexusNetRelay } from '../../engines/nexusnet-relay.js';
 
 const tokenEngine = new TokenSupremacyEngine();
 const guardrailEngine = new GuardrailEngine();
 const darwinLoop = new DarwinLoop();
+const nexusNet = new NexusNetRelay();
 
 // Lazy-initialized Graph Engine (separate DB from core memory)
 let _graphEngine: GraphMemoryEngine | null = null;
@@ -366,6 +368,28 @@ export class MCPAdapter implements Adapter {
                             learnings: { type: 'array', items: { type: 'string' }, description: 'Lessons learned from attempting this cycle' }
                         },
                         required: ['cycleId', 'action'],
+                    },
+                },
+                // ── NexusNet Relay ───────────────────────────────────────────────
+                {
+                    name: 'nexus_net_publish',
+                    description: 'Publish an anonymized knowledge snippet or SkillCard to the shared NexusNet relay (MVP via GitHub Gists). Use this to share valuable insights or templates with other agents across machines.',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {
+                            type: { type: 'string', enum: ['knowledge', 'skill'], description: 'Type of content' },
+                            content: { type: 'string', description: 'The knowledge string or SkillCard YAML to share' },
+                            tags: { type: 'array', items: { type: 'string' }, description: 'Tags to associate with this message' }
+                        },
+                        required: ['type', 'content', 'tags'],
+                    },
+                },
+                {
+                    name: 'nexus_net_sync',
+                    description: 'Sync and retrieve new messages (insights and skills) published by other Nexus agents on the NexusNet Relay.',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {}
                     },
                 },
             ],
@@ -902,6 +926,47 @@ export class MCPAdapter implements Adapter {
                 }
             }
 
+            case 'nexus_net_publish': {
+                const type = String(request.params.arguments?.type ?? 'knowledge') as 'knowledge' | 'skill';
+                const content = String(request.params.arguments?.content ?? '');
+                const tags = Array.isArray(request.params.arguments?.tags) ? (request.params.arguments?.tags as string[]) : [];
+
+                try {
+                    const result = await nexusNet.publish(type, { content, tags });
+                    nexusEventBus.emit('nexusnet.publish', { type, byteSize: result.bytes });
+                    return {
+                        content: [{
+                            type: 'text',
+                            text: `🌐 Published to NexusNet successfully.\nMessage ID: ${result.id}\nBytes: ${result.bytes}`,
+                        }],
+                    };
+                } catch (err: any) {
+                    return {
+                        content: [{ type: 'text', text: `❌ NexusNet Publish Failed: ${err.message}` }],
+                    };
+                }
+            }
+
+            case 'nexus_net_sync': {
+                try {
+                    const messages = await nexusNet.sync();
+                    nexusEventBus.emit('nexusnet.sync', { newItemsCount: messages.length });
+
+                    let text = `🌐 Synced with NexusNet. Found ${messages.length} new messages from other agents.\n`;
+                    messages.forEach((m, i) => {
+                        text += `\n[${i + 1}] Type: ${m.type} | Agent: ${m.sourceId}\nContent: ${m.payload.content}\nTags: ${m.payload.tags.join(', ')}\n`;
+                    });
+
+                    return {
+                        content: [{ type: 'text', text }],
+                    };
+                } catch (err: any) {
+                    return {
+                        content: [{ type: 'text', text: `❌ NexusNet Sync Failed: ${err.message}` }],
+                    };
+                }
+            }
+
             default:
                 throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${request.params.name}`);
         }
@@ -935,7 +1000,7 @@ export class MCPAdapter implements Adapter {
         const transport = new StdioServerTransport();
         await this.server.connect(transport);
         this.connected = true;
-        console.error('[MCP Adapter] Connected — 14 tools active');
+        console.error('[MCP Adapter] Connected — 16 tools active');
     }
 
     async disconnect(): Promise<void> {
