@@ -158,7 +158,7 @@ export class MCPAdapter implements Adapter {
                 case 'nexus_recall_memory': {
                     const query = String(request.params.arguments?.query ?? '');
                     const k = Number(request.params.arguments?.k ?? 5);
-                    const memories = this.nexusRef.recallMemory(query, k);
+                    const memories = await this.nexusRef.recallMemory(query, k);
                     return {
                         content: [{
                             type: 'text',

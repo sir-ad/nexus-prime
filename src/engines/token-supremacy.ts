@@ -72,11 +72,18 @@ export class TokenSupremacyEngine {
 
     // Per-session learned relevance: task keyword → file paths that helped
     private relevanceCache: Map<string, Map<string, number>> = new Map();
+    private relevanceCachePath: string;
 
     constructor(sessionBudget: number = 200_000) {
         this.sessionBudget = sessionBudget;
         this.sessionPath = path.join(os.homedir(), '.nexus-prime', 'sessions');
+        this.relevanceCachePath = path.join(os.homedir(), '.nexus-prime', 'relevance.json');
+
         fs.mkdirSync(this.sessionPath, { recursive: true });
+        if (!fs.existsSync(path.dirname(this.relevanceCachePath))) {
+            fs.mkdirSync(path.dirname(this.relevanceCachePath), { recursive: true });
+        }
+        this.loadRelevanceCache();
     }
 
     // ───────────────────────────────────────────────────────────────────────────
@@ -228,6 +235,34 @@ export class TokenSupremacyEngine {
         for (const f of skipFiles) {
             cache.set(f, (cache.get(f) ?? 0) - 0.3); // mild penalty
         }
+
+        this.saveRelevanceCache();
+    }
+
+    private loadRelevanceCache(): void {
+        try {
+            if (fs.existsSync(this.relevanceCachePath)) {
+                const data = JSON.parse(fs.readFileSync(this.relevanceCachePath, 'utf-8'));
+                for (const [taskType, fileScores] of Object.entries(data)) {
+                    const scoreMap = new Map<string, number>(Object.entries(fileScores as any));
+                    this.relevanceCache.set(taskType, scoreMap);
+                }
+            }
+        } catch (e) {
+            console.error('Failed to load relevance cache:', e);
+        }
+    }
+
+    private saveRelevanceCache(): void {
+        try {
+            const data: Record<string, Record<string, number>> = {};
+            for (const [taskType, scoreMap] of this.relevanceCache.entries()) {
+                data[taskType] = Object.fromEntries(scoreMap.entries());
+            }
+            fs.writeFileSync(this.relevanceCachePath, JSON.stringify(data, null, 2));
+        } catch (e) {
+            console.error('Failed to save relevance cache:', e);
+        }
     }
 
     // ───────────────────────────────────────────────────────────────────────────
@@ -276,7 +311,7 @@ export class TokenSupremacyEngine {
 
         return task
             .toLowerCase()
-            .replace(/[^a-z0-9\s_/-]/g, ' ')
+            .replace(/[^a-z0-9\s_\-\/\.]/g, ' ')
             .split(/\s+/)
             .filter(w => w.length > 2 && !stopWords.has(w));
     }
@@ -300,18 +335,38 @@ export class TokenSupremacyEngine {
             }
         }
 
+        // Content-aware scoring (First 500 bytes)
+        let contentBonus = 0;
+        try {
+            const fullPath = path.isAbsolute(filePath) ? filePath : path.join(process.cwd(), filePath);
+            if (fs.existsSync(fullPath)) {
+                const fd = fs.openSync(fullPath, 'r');
+                const buffer = Buffer.alloc(500);
+                const bytesRead = fs.readSync(fd, buffer, 0, 500, 0);
+                fs.closeSync(fd);
+
+                const content = buffer.toString('utf-8', 0, bytesRead).toLowerCase();
+                const contentKeywords = this.extractKeywords(content);
+                let contentMatches = 0;
+                for (const kw of keywords) {
+                    if (contentKeywords.includes(kw)) contentMatches++;
+                }
+                contentBonus = (contentMatches / keywords.length) * 0.6;
+            }
+        } catch { /* ignore */ }
+
         // Check learned relevance
         const taskType = keywords.slice(0, 3).join('_');
         const learnedScore = this.relevanceCache.get(taskType)?.get(filePath) ?? 0;
 
         // Type-based baseline (common patterns)
         let typeBonus = 0;
-        const codeKeywords = ['fix', 'bug', 'debug', 'error', 'impl', 'add', 'build'];
+        const codeKeywords = ['fix', 'bug', 'debug', 'error', 'impl', 'add', 'build', 'audit', 'nexus', 'prime', 'tools'];
         const memKeywords = ['memory', 'cache', 'store', 'recall', 'persist'];
         const testKeywords = ['test', 'spec', 'jest', 'validate', 'verify'];
 
-        if (keywords.some(k => codeKeywords.includes(k)) && ['ts', 'js'].includes(ext)) {
-            typeBonus = 0.2;
+        if (keywords.some(k => codeKeywords.includes(k)) && ['ts', 'js', 'json', 'md'].includes(ext)) {
+            typeBonus = 0.15;
         }
         if (keywords.some(k => memKeywords.includes(k)) && normalized.includes('memory')) {
             typeBonus = 0.4;
@@ -324,7 +379,7 @@ export class TokenSupremacyEngine {
             ? (matches / keywords.length) * (score / Math.max(matches, 1))
             : 0;
 
-        return Math.min(1, baseScore + typeBonus + learnedScore * 0.1);
+        return Math.min(1, baseScore + typeBonus + learnedScore * 0.1 + contentBonus);
     }
 
     private estimateHotLines(

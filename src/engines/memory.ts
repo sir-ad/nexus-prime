@@ -14,7 +14,8 @@ import * as os from 'os';
 import * as path from 'path';
 import * as fs from 'fs';
 import { randomUUID } from 'crypto';
-import { Embedder } from './embedder.js';
+import { Embedder, HyperbolicMath } from './embedder.js';
+import { podNetwork } from './pod-network.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -30,6 +31,8 @@ export interface MemoryItem {
   sessionId?: string;
   accessCount: number;
   links?: string[];  // IDs of related memories (Zettelkasten links)
+  parentId?: string;
+  depth?: number;
 }
 
 export interface MemoryLink {
@@ -95,18 +98,33 @@ export class MemoryEngine {
         tags        TEXT NOT NULL DEFAULT '[]',
         tier        TEXT NOT NULL DEFAULT 'hippocampus',
         session_id  TEXT,
-        access_count INTEGER NOT NULL DEFAULT 0
+        access_count INTEGER NOT NULL DEFAULT 0,
+        parent_id   TEXT,
+        depth       INTEGER DEFAULT 0
       );
+    `);
 
-      CREATE TABLE IF NOT EXISTS memory_links (
-        from_id  TEXT NOT NULL,
-        to_id    TEXT NOT NULL,
-        weight   REAL NOT NULL DEFAULT 0.5,
-        type     TEXT NOT NULL DEFAULT 'semantic',
-        PRIMARY KEY (from_id, to_id),
-        FOREIGN KEY (from_id) REFERENCES memories(id) ON DELETE CASCADE,
-        FOREIGN KEY (to_id)   REFERENCES memories(id) ON DELETE CASCADE
-      );
+    // Migration logic for existing tables
+    const tableInfo = this.db.prepare("PRAGMA table_info(memories)").all() as any[];
+    const columns = tableInfo.map(c => c.name);
+
+    if (!columns.includes('parent_id')) {
+      this.db.exec("ALTER TABLE memories ADD COLUMN parent_id TEXT");
+    }
+    if (!columns.includes('depth')) {
+      this.db.exec("ALTER TABLE memories ADD COLUMN depth INTEGER DEFAULT 0");
+    }
+
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS memory_links(
+      from_id  TEXT NOT NULL,
+      to_id    TEXT NOT NULL,
+      weight   REAL NOT NULL DEFAULT 0.5,
+      type     TEXT NOT NULL DEFAULT 'semantic',
+      PRIMARY KEY(from_id, to_id),
+      FOREIGN KEY(from_id) REFERENCES memories(id) ON DELETE CASCADE,
+      FOREIGN KEY(to_id)   REFERENCES memories(id) ON DELETE CASCADE
+    );
 
       CREATE INDEX IF NOT EXISTS idx_memories_tier      ON memories(tier);
       CREATE INDEX IF NOT EXISTS idx_memories_priority  ON memories(priority DESC);
@@ -156,13 +174,15 @@ export class MemoryEngine {
   /** Flush prefrontal to DB (called on MCP shutdown) */
   flush(): void {
     const upsert = this.db.prepare(`
-      INSERT INTO memories (id, content, priority, timestamp, tags, tier, session_id, access_count)
-      VALUES (@id, @content, @priority, @timestamp, @tags, @tier, @session_id, @access_count)
+      INSERT INTO memories(id, content, priority, timestamp, tags, tier, session_id, access_count, parent_id, depth)
+    VALUES(@id, @content, @priority, @timestamp, @tags, @tier, @session_id, @access_count, @parent_id, @depth)
       ON CONFLICT(id) DO UPDATE SET
-        priority     = excluded.priority,
-        access_count = excluded.access_count,
-        tier         = excluded.tier
-    `);
+    priority = excluded.priority,
+      access_count = excluded.access_count,
+      tier = excluded.tier,
+      parent_id = excluded.parent_id,
+      depth = excluded.depth
+        `);
 
     const txn = this.db.transaction((items: MemoryItem[]) => {
       for (const item of items) {
@@ -186,7 +206,7 @@ export class MemoryEngine {
   // Core Operations
   // ─────────────────────────────────────────────────────────────────────────
 
-  store(content: string, priority: number = 1.0, tags: string[] = []): string {
+  store(content: string, priority: number = 1.0, tags: string[] = [], parentId?: string, depth: number = 0): string {
     const id = randomUUID();
     const item: MemoryItem = {
       id,
@@ -196,14 +216,16 @@ export class MemoryEngine {
       tags,
       tier: 'prefrontal',
       sessionId: this.sessionId,
-      accessCount: 0
+      accessCount: 0,
+      parentId,
+      depth
     };
 
     // Write to DB immediately (don't wait for flush)
     this.db.prepare(`
-      INSERT INTO memories (id, content, priority, timestamp, tags, tier, session_id, access_count)
-      VALUES (?, ?, ?, ?, ?, 'prefrontal', ?, 0)
-    `).run(id, content, priority, item.timestamp, JSON.stringify(tags), this.sessionId);
+      INSERT INTO memories(id, content, priority, timestamp, tags, tier, session_id, access_count, parent_id, depth)
+    VALUES(?, ?, ?, ?, ?, 'prefrontal', ?, 0, ?, ?)
+      `).run(id, content, priority, item.timestamp, JSON.stringify(tags), this.sessionId, parentId, depth);
 
     // Update vocabulary and add to vector index
     this.embedder.fitVocabulary([content]);
@@ -228,51 +250,66 @@ export class MemoryEngine {
     return id;
   }
 
-  recall(query: string, k: number = 5): string[] {
+  async recall(query: string, k: number = 5): Promise<string[]> {
     // ── Stage 1: Vector search (semantic) ────────────────────────────────────
-    const queryVector = this.embedder.localEmbed(query);
+    const queryVector = await this.embedder.embed(query);
     const vectorMatches: Map<string, number> = new Map();
 
-    for (const [vectorId, memId] of this.vectorIdToMemoryId) {
-      const storedVector = this.vectorEmbeddings.get(vectorId);
-      if (storedVector) {
-        const sim = this.embedder.cosineSimilarity(queryVector, storedVector);
-        const existing = vectorMatches.get(memId) ?? 0;
-        if (sim > existing) vectorMatches.set(memId, sim);
+    const allItems = this.getAllItems();
+    for (const item of allItems) {
+      const itemVector = this.embedder.localEmbed(item.content);
+      const hDist = HyperbolicMath.dist(queryVector, itemVector);
+      let score = 1 / (1 + hDist);
+
+      // Hierarchy Boost: if item has a parent that matches query, boost child
+      if (item.parentId) {
+        const parent = allItems.find(i => i.id === item.parentId);
+        if (parent) {
+          const parentVector = this.embedder.localEmbed(parent.content);
+          const pDist = HyperbolicMath.dist(queryVector, parentVector);
+          if (pDist < 0.3) score *= 1.4; // Boost child if parent is relevant
+        }
       }
+      vectorMatches.set(item.id, score);
     }
 
     // ── Stage 2: SQL scoring (priority + recency) ─────────────────────────────
+    const podFindings = podNetwork.recall([]);
+    const queryLower = query.toLowerCase();
+
     const rows = this.db.prepare(`
-      SELECT *, access_count FROM memories
+    SELECT *, access_count FROM memories
       ORDER BY priority DESC, timestamp DESC
       LIMIT 300
     `).all() as any[];
 
     const scored = rows.map(row => {
-      const content: string = row.content;
       const vectorScore = vectorMatches.get(row.id as string) ?? 0;
       const recencyScore = Math.exp(-(Date.now() - row.timestamp) / (7 * 24 * 3600 * 1000));
       const priorityScore = row.priority as number;
       const accessBonus = Math.min((row.access_count as number) * 0.05, 0.3);
 
-      // Hybrid: semantic 50%, priority 25%, recency 15%, access 10%
       return {
-        content,
+        content: row.content as string,
         id: row.id as string,
         score: vectorScore * 0.5 + priorityScore * 0.25 + recencyScore * 0.15 + accessBonus * 0.1
       };
     });
 
-    const top = scored
-      .sort((a, b) => b.score - a.score)
-      .filter(r => r.score > 0.01)  // drop near-zero scores
+    const podMatches = podFindings
+      .filter(f => f.content.toLowerCase().includes(queryLower))
+      .map(f => ({ content: f.content, score: 0.95 }));
+
+    const top = [...scored, ...podMatches]
+      .sort((a, b) => (b.score as number) - (a.score as number))
       .slice(0, k);
 
     // Increment access count for recalled items
     if (top.length > 0) {
-      const ids = top.map(t => `'${t.id}'`).join(',');
-      this.db.exec(`UPDATE memories SET access_count = access_count + 1 WHERE id IN (${ids})`);
+      const ids = top.filter(t => (t as any).id).map(t => `'${(t as any).id}'`).join(',');
+      if (ids) {
+        this.db.exec(`UPDATE memories SET access_count = access_count + 1 WHERE id IN(${ids})`);
+      }
     }
 
     return top.map(r => r.content);
@@ -301,7 +338,7 @@ export class MemoryEngine {
     const recentRows = this.db.prepare(`
       SELECT id, content, tags FROM memories
       WHERE id != ? ORDER BY timestamp DESC LIMIT 50
-    `).all(newItem.id) as any[];
+      `).all(newItem.id) as any[];
 
     const newWords = newItem.content.toLowerCase().split(/\s+/);
 
@@ -311,9 +348,9 @@ export class MemoryEngine {
 
       if (similarity > 0.25) {
         this.db.prepare(`
-          INSERT OR IGNORE INTO memory_links (from_id, to_id, weight, type)
-          VALUES (?, ?, ?, 'semantic')
-        `).run(newItem.id, row.id, similarity);
+          INSERT OR IGNORE INTO memory_links(from_id, to_id, weight, type)
+    VALUES(?, ?, ?, 'semantic')
+      `).run(newItem.id, row.id, similarity);
       }
 
       // Tag-based linking
@@ -322,9 +359,9 @@ export class MemoryEngine {
       );
       if (sharedTags.length > 0) {
         this.db.prepare(`
-          INSERT OR IGNORE INTO memory_links (from_id, to_id, weight, type)
-          VALUES (?, ?, ?, 'tagged')
-        `).run(newItem.id, row.id, 0.6 + sharedTags.length * 0.1);
+          INSERT OR IGNORE INTO memory_links(from_id, to_id, weight, type)
+    VALUES(?, ?, ?, 'tagged')
+      `).run(newItem.id, row.id, 0.6 + sharedTags.length * 0.1);
       }
     }
   }
@@ -340,7 +377,7 @@ export class MemoryEngine {
       for (const fromId of frontier) {
         const links = this.db.prepare(`
           SELECT to_id FROM memory_links WHERE from_id = ? ORDER BY weight DESC LIMIT 5
-        `).all(fromId) as any[];
+      `).all(fromId) as any[];
 
         for (const link of links) {
           const toId = link.to_id as string;
@@ -367,12 +404,12 @@ export class MemoryEngine {
     this.db.prepare(`
       UPDATE memories SET tier = 'cortex', priority = MIN(priority * 1.2, 2.0)
       WHERE id = ?
-    `).run(item.id);
+      `).run(item.id);
 
     // Strengthen links TO this item (makes it easier to discover via related queries)
     this.db.prepare(`
       UPDATE memory_links SET weight = MIN(weight * 1.3, 1.0) WHERE to_id = ?
-    `).run(item.id);
+      `).run(item.id);
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -388,7 +425,7 @@ export class MemoryEngine {
 
     if (toPromote.length > 0) {
       const promoteStmt = this.db.prepare(
-        `UPDATE memories SET tier = 'hippocampus' WHERE id = ?`
+        `UPDATE memories SET tier = 'hippocampus' WHERE id = ? `
       );
       const txn = this.db.transaction((items: MemoryItem[]) => {
         for (const item of items) {
@@ -408,8 +445,8 @@ export class MemoryEngine {
       this.db.prepare(`
         UPDATE memories SET tier = 'cortex'
         WHERE tier = 'hippocampus'
-        AND id IN (
-          SELECT id FROM memories WHERE tier = 'hippocampus'
+        AND id IN(
+        SELECT id FROM memories WHERE tier = 'hippocampus'
           ORDER BY priority DESC LIMIT ?
         )
       `).run(hippoCount - this.maxHippocampus);
@@ -439,14 +476,21 @@ export class MemoryEngine {
       tags: JSON.parse(row.tags ?? '[]'),
       tier: row.tier,
       sessionId: row.session_id,
-      accessCount: row.access_count
+      accessCount: row.access_count,
+      parentId: row.parent_id,
+      depth: row.depth
     };
+  }
+
+  private getAllItems(): MemoryItem[] {
+    const rows = this.db.prepare('SELECT * FROM memories').all() as any[];
+    return rows.map(row => this.rowToItem(row));
   }
 
   getStats(): MemoryStats {
     const counts = this.db.prepare(`
       SELECT tier, COUNT(*) as c FROM memories GROUP BY tier
-    `).all() as any[];
+      `).all() as any[];
 
     const tierMap: Record<string, number> = {};
     for (const row of counts) tierMap[row.tier] = row.c;
@@ -463,7 +507,7 @@ export class MemoryEngine {
       SELECT value as tag, COUNT(*) as c
       FROM memories, json_each(memories.tags)
       GROUP BY value ORDER BY c DESC LIMIT 5
-    `).all() as any[];
+      `).all() as any[];
 
     return {
       prefrontal: tierMap['prefrontal'] ?? 0,

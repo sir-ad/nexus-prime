@@ -18,11 +18,14 @@ import * as fs from 'fs';
 import * as os from 'os';
 import { randomUUID } from 'crypto';
 import type { MemoryEngine } from '../engines/memory.js';
+import { MergeOracle } from './merge-oracle.js';
+export { MergeOracle };
 import {
     TokenSupremacyEngine,
     type FileRef,
     type ReadingPlan
 } from '../engines/token-supremacy.js';
+import { podNetwork, type PodMessage } from '../engines/pod-network.js';
 
 const exec = promisify(execCallback);
 
@@ -166,13 +169,23 @@ export class PhantomWorker {
 
     get id(): string { return this.workerId; }
 
+    /** Sync a finding to the POD Network mid-execution */
+    broadcast(content: string, confidence: number = 0.8, tags: string[] = []): PodMessage {
+        return podNetwork.publish(this.workerId, content, confidence, [...tags, `#worker-${this.workerId}`]);
+    }
+
+    /** Receive relevant findings from other workers from the POD */
+    receive(tags: string[] = []): PodMessage[] {
+        return podNetwork.recall(tags);
+    }
+
     /**
      * Spawn this worker in an isolated git worktree.
      * The executor function receives the worktree path and operates within it.
      */
     async spawn(
         task: WorkerTask,
-        executor: (worktreeDir: string, task: WorkerTask) => Promise<{ learnings: string[]; confidence: number }>
+        executor: (worktreeDir: string, task: WorkerTask, worker: PhantomWorker) => Promise<{ learnings: string[]; confidence: number }>
     ): Promise<WorkerResult> {
         const startTime = Date.now();
 
@@ -181,7 +194,8 @@ export class PhantomWorker {
             await this.createWorktree();
 
             // Execute the task in isolation
-            const { learnings, confidence } = await executor(this.worktreeDir, task);
+            // Pass the worker instance itself so the executor can call .broadcast()
+            const { learnings, confidence } = await executor(this.worktreeDir, task, this);
 
             // Capture the diff (what changed vs main)
             const diff = await this.captureDiff();
@@ -278,126 +292,6 @@ export class PhantomWorker {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Merge Oracle — Byzantine Consensus Merge
-// ─────────────────────────────────────────────────────────────────────────────
-
-export class MergeOracle {
-    private memory: MemoryEngine;
-
-    constructor(memory: MemoryEngine) {
-        this.memory = memory;
-    }
-
-    /**
-     * Evaluate all worker results and produce a merge decision.
-     * Uses Byzantine-inspired voting: 2/3 agreement = high confidence.
-     */
-    async merge(workers: WorkerResult[]): Promise<MergeDecision> {
-        if (workers.length === 0) {
-            return {
-                action: 'reject',
-                rationale: 'No worker results to merge',
-                confidence: 0,
-                learnings: []
-            };
-        }
-
-        // Score each worker
-        const scored = workers.map(w => ({
-            worker: w,
-            score: this.scoreWorker(w)
-        })).sort((a, b) => b.score - a.score);
-
-        const best = scored[0];
-        const allLearnings = workers.flatMap(w => w.learnings);
-
-        // Byzantine check: do 2/3 of workers agree on the approach?
-        const approaches = workers.map(w => w.approach);
-        const approachCounts = new Map<string, number>();
-        for (const a of approaches) {
-            approachCounts.set(a, (approachCounts.get(a) ?? 0) + 1);
-        }
-        const majorityApproach = [...approachCounts.entries()]
-            .sort((a, b) => b[1] - a[1])[0];
-        const consensusRatio = majorityApproach[1] / workers.length;
-
-        // Also check if workers with good outcomes converge
-        const successfulWorkers = workers.filter(w => w.outcome === 'success');
-        const avgConfidence = successfulWorkers.length > 0
-            ? successfulWorkers.reduce((s, w) => s + w.confidence, 0) / successfulWorkers.length
-            : 0;
-
-        // Store learnings to memory regardless
-        for (const learning of allLearnings) {
-            if (learning.trim().length > 20) {
-                this.memory.store(learning, 0.7, ['#phantom-learning']);
-            }
-        }
-
-        if (best.score > 0.7 && (consensusRatio > 0.6 || successfulWorkers.length >= 2)) {
-            // High confidence: apply the best result
-            this.memory.store(
-                `Phantom merge success: approach="${best.worker.approach}" confidence=${best.score.toFixed(2)}`,
-                0.8,
-                ['#phantom-success', '#merge-oracle']
-            );
-
-            return {
-                action: 'apply',
-                winner: best.worker,
-                rationale: `Worker "${best.worker.approach}" scored highest (${best.score.toFixed(2)}), consensus ${(consensusRatio * 100).toFixed(0)}%`,
-                confidence: best.score,
-                learnings: allLearnings
-            };
-        }
-
-        if (scored.length >= 2) {
-            // Synthesize: take best parts from top 2
-            const synthesized = this.synthesize(scored[0].worker, scored[1].worker);
-            return {
-                action: 'synthesize',
-                synthesized,
-                rationale: `Low consensus (${(consensusRatio * 100).toFixed(0)}%): synthesizing top 2 approaches`,
-                confidence: avgConfidence * 0.8,
-                learnings: allLearnings
-            };
-        }
-
-        return {
-            action: 'reject',
-            rationale: `Insufficient confidence (best: ${best.score.toFixed(2)}) — manual review needed`,
-            confidence: best.score,
-            learnings: allLearnings
-        };
-    }
-
-    private scoreWorker(worker: WorkerResult): number {
-        const outcomeScore = worker.outcome === 'success' ? 1.0
-            : worker.outcome === 'partial' ? 0.5
-                : 0.0;
-
-        const hasMeaningfulDiff = worker.diff.trim().length > 50 ? 1.0 : 0.3;
-        const hasDiff = worker.diff.length > 0 ? 1 : 0;
-
-        return (
-            worker.confidence * 0.4 +
-            outcomeScore * 0.3 +
-            hasMeaningfulDiff * 0.2 +
-            hasDiff * 0.1
-        );
-    }
-
-    private synthesize(a: WorkerResult, b: WorkerResult): string {
-        // Simple synthesis: take unique hunks from both diffs
-        // In production: use proper patch merging
-        if (!a.diff && !b.diff) return '';
-        if (!a.diff) return b.diff;
-        if (!b.diff) return a.diff;
-        return `# Synthesized from: ${a.approach} + ${b.approach}\n\n${a.diff}\n\n# Additional from ${b.approach}:\n${b.diff}`;
-    }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 // PhantomOrchestrator — High-level entry point
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -423,7 +317,7 @@ export class PhantomOrchestrator {
     async run(
         goal: string,
         files: FileRef[],
-        executor: (worktreeDir: string, task: WorkerTask) => Promise<{ learnings: string[]; confidence: number }>,
+        executor: (worktreeDir: string, task: WorkerTask, worker: PhantomWorker) => Promise<{ learnings: string[]; confidence: number }>,
         nWorkers: number = 2
     ): Promise<{ report: GhostReport; decision: MergeDecision }> {
         // Phase 1: Ghost Pass

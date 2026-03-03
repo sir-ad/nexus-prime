@@ -27,6 +27,60 @@ const STOP_WORDS = new Set([
 ]);
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Hyperbolic Math (Poincare Ball Model)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Poincare Ball model for hyperbolic space.
+ * Hyperbolic distance is better suited for hierarchical structures (trees/code).
+ */
+export const HyperbolicMath = {
+    /** 
+     * Hyperbolic distance between two points in the unit ball.
+     * d(u, v) = arcosh(1 + 2 * ||u-v||^2 / ( (1-||u||^2)(1-||v||^2) ))
+     */
+    dist(u: number[], v: number[]): number {
+        const diffSq = u.reduce((sum, ui, i) => sum + Math.pow(ui - (v[i] || 0), 2), 0);
+        const normU2 = u.reduce((sum, ui) => sum + ui * ui, 0);
+        const normV2 = v.reduce((sum, vi) => sum + vi * vi, 0);
+
+        const eps = 1e-9;
+        const den = (1 - normU2) * (1 - normV2);
+        if (Math.abs(den) < eps) return 100; // boundary
+
+        const x = 1 + (2 * diffSq) / den;
+        // arcosh(x) = ln(x + sqrt(x^2 - 1))
+        return Math.log(x + Math.sqrt(x * x - 1));
+    },
+
+    /**
+     * Mobius addition: u ⊕ v
+     * Used to translate points in hyperbolic space while staying in the unit ball.
+     */
+    mobiusAdd(u: number[], v: number[]): number {
+        const dotUV = u.reduce((sum, ui, i) => sum + ui * (v[i] || 0), 0);
+        const normU2 = u.reduce((sum, ui) => sum + ui * ui, 0);
+        const normV2 = v.reduce((sum, vi) => sum + vi * vi, 0);
+
+        const den = 1 + 2 * dotUV + normU2 * normV2;
+        const num1 = (1 + 2 * dotUV + normV2);
+        const num2 = (1 - normU2);
+
+        // Resulting vector is scaled combination of u and v
+        // In practice for simple hierarchy shifts, we just normalize the final result back to unit ball
+        return 0; // Placeholder for simplified logic below
+    },
+
+    /** Ensure vector is within unit ball (norm < 1) */
+    project(v: number[]): number[] {
+        const norm = Math.sqrt(v.reduce((s, x) => s + x * x, 0));
+        const maxNorm = 0.999;
+        if (norm <= maxNorm) return v;
+        return v.map(x => (x / norm) * maxNorm);
+    }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Embedder
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -52,12 +106,36 @@ export class Embedder {
     async embed(text: string): Promise<number[]> {
         if (this.apiMode && this.apiKey) {
             try {
-                return await this.apiEmbed(text);
+                const vec = await this.apiEmbed(text);
+                return HyperbolicMath.project(vec);
             } catch {
                 // Fall back to local on API failure
             }
         }
         return this.localEmbed(text);
+    }
+
+    /** 
+     * Generate a hierarchical embedding.
+     * Shifts the vector "deeper" into the Poincare ball relative to a parent.
+     */
+    embedHierarchical(text: string, parentVector?: number[], depth: number = 0): number[] {
+        const base = this.localEmbed(text);
+        if (!parentVector || depth === 0) return base;
+
+        // Hierarchical shift: move towards the boundary (norm -> 1) 
+        // while staying in the "shadow" of the parent
+        const alpha = 0.3; // alignment with parent
+        const shift = 0.2; // depth push
+
+        const blended = base.map((x, i) => (1 - alpha) * x + alpha * parentVector[i]);
+        const norm = Math.sqrt(blended.reduce((s, x) => s + x * x, 0));
+
+        // Push towards boundary: new_norm = old_norm + (1 - old_norm) * shift
+        const targetNorm = norm + (1 - norm) * (shift * Math.min(depth, 5));
+        const scaled = blended.map(x => (x / (norm || 1)) * targetNorm);
+
+        return HyperbolicMath.project(scaled);
     }
 
     /** Update vocabulary with new documents (call as you store memories) */

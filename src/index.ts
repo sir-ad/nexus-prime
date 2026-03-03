@@ -215,14 +215,14 @@ export class NexusPrime {
   /**
    * Store in memory
    */
-  storeMemory(content: string, priority: number = 1.0, tags: string[] = []): void {
-    this.memoryEngine.store(content, priority, tags);
+  storeMemory(content: string, priority: number = 1.0, tags: string[] = [], parentId?: string, depth?: number): string {
+    return this.memoryEngine.store(content, priority, tags, parentId, depth);
   }
 
   /**
    * Recall from memory
    */
-  recallMemory(query: string, k: number = 5): string[] {
+  async recallMemory(query: string, k: number = 5): Promise<string[]> {
     return this.memoryEngine.recall(query, k);
   }
 

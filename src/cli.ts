@@ -225,12 +225,12 @@ program
     new Command('search')
       .argument('<query>', 'Search query')
       .option('-k, --top <number>', 'Number of results', '10')
-      .action((query: string, options: { top: string }) => {
+      .action(async (query: string, options: { top: string }) => {
         if (!nexus) {
           console.log('⚠️  Nexus Prime not running. Run "nexus-prime start" first.');
           return;
         }
-        const results = nexus.recallMemory(query, parseInt(options.top));
+        const results = await nexus.recallMemory(query, parseInt(options.top));
         console.log('🔍 Results:');
         results.forEach(r => console.log(`  - ${r}`));
       })
