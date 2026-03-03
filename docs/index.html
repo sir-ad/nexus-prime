@@ -1,18 +1,22 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Nexus Prime — The AI Meta-Framework</title>
-  <meta name="description" content="Nexus Prime gives AI agents cross-session memory, token optimization, parallel sub-agent orchestration, and machine-checked guardrails — as native MCP tools." />
+  <meta name="description"
+    content="Nexus Prime gives AI agents cross-session memory, token optimization, parallel sub-agent orchestration, and machine-checked guardrails — as native MCP tools." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Inter:wght@300;400;500;600;700;900&display=swap" rel="stylesheet" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Inter:wght@300;400;500;600;700;900&display=swap"
+    rel="stylesheet" />
 
   <style>
     :root {
       --green: #00ff88;
       --green-dim: #00cc6a;
-      --green-glow: rgba(0,255,136,0.15);
+      --green-glow: rgba(0, 255, 136, 0.15);
       --cyan: #00d4ff;
       --purple: #8b5cf6;
       --red: #ff4d6d;
@@ -20,16 +24,24 @@
       --bg: #040810;
       --bg2: #080f1a;
       --bg3: #0d1828;
-      --surface: rgba(13,24,40,0.8);
-      --border: rgba(0,255,136,0.12);
+      --surface: rgba(13, 24, 40, 0.8);
+      --border: rgba(0, 255, 136, 0.12);
       --text: #e2f5ff;
       --text-dim: #7a9bb0;
       --text-muted: #3d5570;
     }
 
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
 
-    html { scroll-behavior: smooth; }
+    html {
+      scroll-behavior: smooth;
+    }
 
     body {
       font-family: 'Inter', sans-serif;
@@ -45,8 +57,8 @@
       position: fixed;
       inset: 0;
       background-image:
-        linear-gradient(rgba(0,255,136,0.03) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(0,255,136,0.03) 1px, transparent 1px);
+        linear-gradient(rgba(0, 255, 136, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 255, 136, 0.03) 1px, transparent 1px);
       background-size: 60px 60px;
       pointer-events: none;
       z-index: 0;
@@ -57,13 +69,11 @@
       content: '';
       position: fixed;
       inset: 0;
-      background: repeating-linear-gradient(
-        0deg,
-        transparent,
-        transparent 2px,
-        rgba(0,0,0,0.08) 2px,
-        rgba(0,0,0,0.08) 4px
-      );
+      background: repeating-linear-gradient(0deg,
+          transparent,
+          transparent 2px,
+          rgba(0, 0, 0, 0.08) 2px,
+          rgba(0, 0, 0, 0.08) 4px);
       pointer-events: none;
       z-index: 0;
     }
@@ -79,7 +89,7 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      background: rgba(4,8,16,0.85);
+      background: rgba(4, 8, 16, 0.85);
       backdrop-filter: blur(20px);
       border-bottom: 1px solid var(--border);
     }
@@ -102,8 +112,15 @@
     }
 
     @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.3; }
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.3;
+      }
     }
 
     .nav-links {
@@ -120,7 +137,9 @@
       transition: color 0.2s;
     }
 
-    .nav-links a:hover { color: var(--green); }
+    .nav-links a:hover {
+      color: var(--green);
+    }
 
     .nav-cta {
       font-family: 'JetBrains Mono', monospace;
@@ -136,7 +155,7 @@
 
     .nav-cta:hover {
       background: #00ffaa;
-      box-shadow: 0 0 20px rgba(0,255,136,0.4);
+      box-shadow: 0 0 20px rgba(0, 255, 136, 0.4);
     }
 
     /* ── HERO ── */
@@ -158,7 +177,7 @@
       transform: translateX(-50%);
       width: 600px;
       height: 600px;
-      background: radial-gradient(circle, rgba(0,255,136,0.08) 0%, transparent 70%);
+      background: radial-gradient(circle, rgba(0, 255, 136, 0.08) 0%, transparent 70%);
       pointer-events: none;
     }
 
@@ -175,8 +194,8 @@
       font-family: 'JetBrains Mono', monospace;
       font-size: 12px;
       color: var(--green);
-      background: rgba(0,255,136,0.08);
-      border: 1px solid rgba(0,255,136,0.2);
+      background: rgba(0, 255, 136, 0.08);
+      border: 1px solid rgba(0, 255, 136, 0.2);
       padding: 6px 16px;
       border-radius: 100px;
       margin-bottom: 32px;
@@ -227,12 +246,12 @@
       border-radius: 6px;
       text-decoration: none;
       transition: all 0.25s;
-      box-shadow: 0 0 30px rgba(0,255,136,0.3);
+      box-shadow: 0 0 30px rgba(0, 255, 136, 0.3);
     }
 
     .btn-primary:hover {
       background: #00ffaa;
-      box-shadow: 0 0 50px rgba(0,255,136,0.5);
+      box-shadow: 0 0 50px rgba(0, 255, 136, 0.5);
       transform: translateY(-1px);
     }
 
@@ -243,8 +262,8 @@
       font-family: 'JetBrains Mono', monospace;
       font-size: 14px;
       color: var(--green);
-      background: rgba(0,255,136,0.08);
-      border: 1px solid rgba(0,255,136,0.25);
+      background: rgba(0, 255, 136, 0.08);
+      border: 1px solid rgba(0, 255, 136, 0.25);
       padding: 14px 28px;
       border-radius: 6px;
       text-decoration: none;
@@ -252,19 +271,19 @@
     }
 
     .btn-secondary:hover {
-      background: rgba(0,255,136,0.15);
-      border-color: rgba(0,255,136,0.5);
+      background: rgba(0, 255, 136, 0.15);
+      border-color: rgba(0, 255, 136, 0.5);
     }
 
     /* ── TERMINAL ── */
     .terminal {
-      background: rgba(4,8,16,0.9);
+      background: rgba(4, 8, 16, 0.9);
       border: 1px solid var(--border);
       border-radius: 12px;
       margin: 80px auto;
       max-width: 860px;
       overflow: hidden;
-      box-shadow: 0 0 80px rgba(0,255,136,0.08), 0 40px 80px rgba(0,0,0,0.6);
+      box-shadow: 0 0 80px rgba(0, 255, 136, 0.08), 0 40px 80px rgba(0, 0, 0, 0.6);
     }
 
     .terminal-bar {
@@ -276,10 +295,23 @@
       border-bottom: 1px solid var(--border);
     }
 
-    .dot { width: 12px; height: 12px; border-radius: 50%; }
-    .dot-r { background: #ff5f57; }
-    .dot-y { background: #ffbd2e; }
-    .dot-g { background: #28ca40; }
+    .dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+    }
+
+    .dot-r {
+      background: #ff5f57;
+    }
+
+    .dot-y {
+      background: #ffbd2e;
+    }
+
+    .dot-g {
+      background: #28ca40;
+    }
 
     .terminal-title {
       font-family: 'JetBrains Mono', monospace;
@@ -295,14 +327,37 @@
       line-height: 1.8;
     }
 
-    .t-prompt { color: var(--text-muted); }
-    .t-cmd { color: var(--text); }
-    .t-green { color: var(--green); }
-    .t-cyan { color: var(--cyan); }
-    .t-dim { color: var(--text-muted); }
-    .t-comment { color: #3d5570; }
-    .t-amber { color: var(--amber); }
-    .t-purple { color: var(--purple); }
+    .t-prompt {
+      color: var(--text-muted);
+    }
+
+    .t-cmd {
+      color: var(--text);
+    }
+
+    .t-green {
+      color: var(--green);
+    }
+
+    .t-cyan {
+      color: var(--cyan);
+    }
+
+    .t-dim {
+      color: var(--text-muted);
+    }
+
+    .t-comment {
+      color: #3d5570;
+    }
+
+    .t-amber {
+      color: var(--amber);
+    }
+
+    .t-purple {
+      color: var(--purple);
+    }
 
     /* ── SECTION ── */
     section {
@@ -356,8 +411,8 @@
     }
 
     .tool-card:hover {
-      border-color: rgba(0,255,136,0.3);
-      box-shadow: 0 0 30px rgba(0,255,136,0.08);
+      border-color: rgba(0, 255, 136, 0.3);
+      box-shadow: 0 0 30px rgba(0, 255, 136, 0.08);
       transform: translateY(-2px);
     }
 
@@ -383,7 +438,7 @@
       font-family: 'JetBrains Mono', monospace;
       font-size: 11px;
       color: var(--text-muted);
-      background: rgba(0,0,0,0.3);
+      background: rgba(0, 0, 0, 0.3);
       padding: 8px 12px;
       border-radius: 6px;
       border-left: 2px solid var(--green);
@@ -407,15 +462,15 @@
 
     .arch-item {
       padding: 24px;
-      background: rgba(0,0,0,0.3);
-      border: 1px solid rgba(0,255,136,0.08);
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(0, 255, 136, 0.08);
       border-radius: 10px;
       transition: all 0.3s;
     }
 
     .arch-item:hover {
-      border-color: rgba(0,255,136,0.25);
-      background: rgba(0,255,136,0.04);
+      border-color: rgba(0, 255, 136, 0.25);
+      background: rgba(0, 255, 136, 0.04);
     }
 
     .arch-icon {
@@ -484,9 +539,23 @@
       font-weight: 600;
     }
 
-    .badge-error { background: rgba(255,77,109,0.15); color: #ff4d6d; border: 1px solid rgba(255,77,109,0.3); }
-    .badge-warn { background: rgba(251,191,36,0.12); color: #fbbf24; border: 1px solid rgba(251,191,36,0.25); }
-    .badge-info { background: rgba(0,212,255,0.1); color: var(--cyan); border: 1px solid rgba(0,212,255,0.2); }
+    .badge-error {
+      background: rgba(255, 77, 109, 0.15);
+      color: #ff4d6d;
+      border: 1px solid rgba(255, 77, 109, 0.3);
+    }
+
+    .badge-warn {
+      background: rgba(251, 191, 36, 0.12);
+      color: #fbbf24;
+      border: 1px solid rgba(251, 191, 36, 0.25);
+    }
+
+    .badge-info {
+      background: rgba(0, 212, 255, 0.1);
+      color: var(--cyan);
+      border: 1px solid rgba(0, 212, 255, 0.2);
+    }
 
     /* ── PHANTOM ── */
     .phantom-flow {
@@ -509,18 +578,27 @@
     }
 
     .flow-box:hover {
-      border-color: rgba(0,255,136,0.4);
-      box-shadow: 0 0 20px rgba(0,255,136,0.1);
+      border-color: rgba(0, 255, 136, 0.4);
+      box-shadow: 0 0 20px rgba(0, 255, 136, 0.1);
     }
 
-    .flow-icon { font-size: 28px; margin-bottom: 8px; }
+    .flow-icon {
+      font-size: 28px;
+      margin-bottom: 8px;
+    }
+
     .flow-label {
       font-family: 'JetBrains Mono', monospace;
       font-size: 12px;
       color: var(--green);
       font-weight: 600;
     }
-    .flow-sub { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+
+    .flow-sub {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
 
     .flow-arrow {
       font-size: 20px;
@@ -535,8 +613,13 @@
       gap: 12px;
     }
 
-    .flow-box.worker-a { border-color: rgba(0,255,136,0.2); }
-    .flow-box.worker-b { border-color: rgba(139,92,246,0.2); }
+    .flow-box.worker-a {
+      border-color: rgba(0, 255, 136, 0.2);
+    }
+
+    .flow-box.worker-b {
+      border-color: rgba(139, 92, 246, 0.2);
+    }
 
     /* ── MEMORY ── */
     .memory-tiers {
@@ -564,22 +647,31 @@
     }
 
     .tier-prefrontal {
-      background: rgba(0,255,136,0.04);
-      border-color: rgba(0,255,136,0.2);
+      background: rgba(0, 255, 136, 0.04);
+      border-color: rgba(0, 255, 136, 0.2);
     }
-    .tier-prefrontal::before { background: var(--green); }
+
+    .tier-prefrontal::before {
+      background: var(--green);
+    }
 
     .tier-hippo {
-      background: rgba(0,212,255,0.04);
-      border-color: rgba(0,212,255,0.2);
+      background: rgba(0, 212, 255, 0.04);
+      border-color: rgba(0, 212, 255, 0.2);
     }
-    .tier-hippo::before { background: var(--cyan); }
+
+    .tier-hippo::before {
+      background: var(--cyan);
+    }
 
     .tier-cortex {
-      background: rgba(139,92,246,0.04);
-      border-color: rgba(139,92,246,0.2);
+      background: rgba(139, 92, 246, 0.04);
+      border-color: rgba(139, 92, 246, 0.2);
     }
-    .tier-cortex::before { background: var(--purple); }
+
+    .tier-cortex::before {
+      background: var(--purple);
+    }
 
     .tier-name {
       font-family: 'JetBrains Mono', monospace;
@@ -595,7 +687,11 @@
       margin-bottom: 12px;
     }
 
-    .tier-desc { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+    .tier-desc {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
 
     /* ── INSTALL ── */
     .install-steps {
@@ -617,7 +713,7 @@
     }
 
     .install-step:hover {
-      border-color: rgba(0,255,136,0.25);
+      border-color: rgba(0, 255, 136, 0.25);
     }
 
     .step-num {
@@ -625,8 +721,8 @@
       font-size: 12px;
       font-weight: 700;
       color: var(--green);
-      background: rgba(0,255,136,0.1);
-      border: 1px solid rgba(0,255,136,0.2);
+      background: rgba(0, 255, 136, 0.1);
+      border: 1px solid rgba(0, 255, 136, 0.2);
       width: 36px;
       height: 36px;
       border-radius: 50%;
@@ -647,12 +743,12 @@
       font-family: 'JetBrains Mono', monospace;
       font-size: 12px;
       color: var(--green);
-      background: rgba(0,0,0,0.4);
+      background: rgba(0, 0, 0, 0.4);
       padding: 8px 14px;
       border-radius: 6px;
       display: block;
       margin-top: 10px;
-      border: 1px solid rgba(0,255,136,0.1);
+      border: 1px solid rgba(0, 255, 136, 0.1);
       white-space: pre;
     }
 
@@ -686,7 +782,9 @@
       transition: color 0.2s;
     }
 
-    .footer-links a:hover { color: var(--green); }
+    .footer-links a:hover {
+      color: var(--green);
+    }
 
     .footer-copy {
       font-size: 12px;
@@ -703,31 +801,80 @@
 
     /* ── RESPONSIVE ── */
     @media (max-width: 768px) {
-      nav { padding: 14px 20px; }
-      .nav-links { display: none; }
-      section { padding: 60px 20px; }
-      .arch-row { grid-template-columns: 1fr; }
-      .memory-tiers { grid-template-columns: 1fr; }
-      .tools-grid { grid-template-columns: 1fr; }
-      footer { flex-direction: column; gap: 24px; text-align: center; }
-      .footer-links { flex-wrap: wrap; justify-content: center; }
-      #hero { padding: 100px 20px 60px; }
-      .phantom-flow { flex-direction: column; align-items: stretch; }
-      .flow-arrow { transform: rotate(90deg); text-align: center; }
+      nav {
+        padding: 14px 20px;
+      }
+
+      .nav-links {
+        display: none;
+      }
+
+      section {
+        padding: 60px 20px;
+      }
+
+      .arch-row {
+        grid-template-columns: 1fr;
+      }
+
+      .memory-tiers {
+        grid-template-columns: 1fr;
+      }
+
+      .tools-grid {
+        grid-template-columns: 1fr;
+      }
+
+      footer {
+        flex-direction: column;
+        gap: 24px;
+        text-align: center;
+      }
+
+      .footer-links {
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+
+      #hero {
+        padding: 100px 20px 60px;
+      }
+
+      .phantom-flow {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .flow-arrow {
+        transform: rotate(90deg);
+        text-align: center;
+      }
     }
 
     /* ── ANIMATIONS ── */
     @keyframes fadeInUp {
-      from { opacity: 0; transform: translateY(30px); }
-      to   { opacity: 1; transform: translateY(0); }
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
 
     .fade-up {
       animation: fadeInUp 0.7s ease both;
     }
 
-    .fade-up:nth-child(2) { animation-delay: 0.1s; }
-    .fade-up:nth-child(3) { animation-delay: 0.2s; }
+    .fade-up:nth-child(2) {
+      animation-delay: 0.1s;
+    }
+
+    .fade-up:nth-child(3) {
+      animation-delay: 0.2s;
+    }
 
     /* ── CURSOR BLINK ── */
     .cursor::after {
@@ -737,8 +884,15 @@
     }
 
     @keyframes blink {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0; }
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0;
+      }
     }
 
     /* ── CODE HIGHLIGHT ── */
@@ -746,7 +900,7 @@
       font-family: 'JetBrains Mono', monospace;
       font-size: 13px;
       line-height: 1.7;
-      background: rgba(0,0,0,0.5);
+      background: rgba(0, 0, 0, 0.5);
       border: 1px solid var(--border);
       border-radius: 10px;
       padding: 24px;
@@ -788,6 +942,7 @@
     }
   </style>
 </head>
+
 <body>
 
   <!-- NAV -->
@@ -799,6 +954,7 @@
       <li><a href="#memory">Memory</a></li>
       <li><a href="#install">Install</a></li>
       <li><a href="NEXUS.md">Spec</a></li>
+      <li><a href="knowledge-base.html">Knowledge Base</a></li>
     </ul>
     <a class="nav-cta" href="https://github.com/sir-ad/nexus-prime" target="_blank">GitHub →</a>
   </nav>
@@ -812,7 +968,8 @@
         The framework that<br><span class="accent">rewrites itself.</span>
       </h1>
       <p class="hero-sub fade-up">
-        Nexus Prime gives AI agents cross-session memory, token optimization, parallel sub-agent orchestration, and machine-checked guardrails — as native MCP tools. Built to be used by agents. Improved by agents.
+        Nexus Prime gives AI agents cross-session memory, token optimization, parallel sub-agent orchestration, and
+        machine-checked guardrails — as native MCP tools. Built to be used by agents. Improved by agents.
       </p>
       <div class="hero-actions fade-up">
         <a class="btn-primary" href="#install">
@@ -836,7 +993,8 @@
       </div>
       <div class="terminal-body">
         <div><span class="t-comment"># 1. Recall what you already know</span></div>
-        <div><span class="t-prompt">→ </span><span class="t-green">nexus_recall_memory</span>(<span class="t-amber">"add oauth login flow"</span>, k=<span class="t-cyan">8</span>)</div>
+        <div><span class="t-prompt">→ </span><span class="t-green">nexus_recall_memory</span>(<span class="t-amber">"add
+            oauth login flow"</span>, k=<span class="t-cyan">8</span>)</div>
         <div style="margin-left:14px;margin-top:4px;">
           <div class="t-green">✓ Found 5 memories:</div>
           <div class="t-dim">&nbsp;&nbsp;1. "Auth middleware lives in src/middleware/auth.ts (priority: 0.9)"</div>
@@ -845,24 +1003,30 @@
         </div>
         <br>
         <div><span class="t-comment"># 2. Plan before you read (save 55% tokens)</span></div>
-        <div><span class="t-prompt">→ </span><span class="t-green">nexus_optimize_tokens</span>(<span class="t-amber">"add oauth"</span>, files=[<span class="t-cyan">...</span>])</div>
+        <div><span class="t-prompt">→ </span><span class="t-green">nexus_optimize_tokens</span>(<span
+            class="t-amber">"add oauth"</span>, files=[<span class="t-cyan">...</span>])</div>
         <div style="margin-left:14px;margin-top:4px;">
-          <div class="t-green">✅ Read fully:   src/middleware/auth.ts  (12kb)</div>
-          <div class="t-amber">✂️  Outline only: src/routes/api.ts      (89kb → 4kb)</div>
-          <div class="t-dim">⏭️  Skip:          test/**                 (saves 34k tokens)</div>
+          <div class="t-green">✅ Read fully: src/middleware/auth.ts (12kb)</div>
+          <div class="t-amber">✂️ Outline only: src/routes/api.ts (89kb → 4kb)</div>
+          <div class="t-dim">⏭️ Skip: test/** (saves 34k tokens)</div>
         </div>
         <br>
         <div><span class="t-comment"># 3. Check guardrails before writing</span></div>
-        <div><span class="t-prompt">→ </span><span class="t-green">nexus_mindkit_check</span>({ action: <span class="t-amber">"add oauth middleware"</span>, filesToModify: [<span class="t-cyan">"src/middleware/auth.ts"</span>] })</div>
+        <div><span class="t-prompt">→ </span><span class="t-green">nexus_mindkit_check</span>({ action: <span
+            class="t-amber">"add oauth middleware"</span>, filesToModify: [<span
+            class="t-cyan">"src/middleware/auth.ts"</span>] })</div>
         <div style="margin-left:14px;margin-top:4px;">
           <span class="t-green">✅ PASSED (score: 100%) — proceed</span>
         </div>
         <br>
         <div><span class="t-comment"># 4. Store what you learned</span></div>
-        <div><span class="t-prompt">→ </span><span class="t-green">nexus_store_memory</span>(<span class="t-amber">"OAuth2 callback URL: /auth/callback, provider config in src/config/oauth.ts"</span>, priority=<span class="t-cyan">0.85</span>)</div>
+        <div><span class="t-prompt">→ </span><span class="t-green">nexus_store_memory</span>(<span
+            class="t-amber">"OAuth2 callback URL: /auth/callback, provider config in src/config/oauth.ts"</span>,
+          priority=<span class="t-cyan">0.85</span>)</div>
         <div style="margin-left:14px;"><span class="t-green">✓ Stored · persists to next session</span></div>
         <br>
-        <div><span class="t-cursor" style="font-family:'JetBrains Mono';color:#3d5570;">→ <span class="cursor"></span></span></div>
+        <div><span class="t-cursor" style="font-family:'JetBrains Mono';color:#3d5570;">→ <span
+              class="cursor"></span></span></div>
       </div>
     </div>
   </div>
@@ -895,37 +1059,44 @@
   <section id="tools">
     <div class="section-label">// module: tools</div>
     <h2>6 Tools. One Protocol.</h2>
-    <p class="section-desc">Every tool is a native MCP endpoint. Call them the same way you call any tool — your agent framework does the rest.</p>
+    <p class="section-desc">Every tool is a native MCP endpoint. Call them the same way you call any tool — your agent
+      framework does the rest.</p>
 
     <div class="tools-grid">
       <div class="tool-card">
         <div class="tool-name">💾 nexus_store_memory</div>
-        <div class="tool-desc">Write a finding, insight, or decision to the Nexus Cortex. Priority 0.9+ auto-promotes to long-term SQLite. High-priority stores trigger Zettelkasten linking.</div>
+        <div class="tool-desc">Write a finding, insight, or decision to the Nexus Cortex. Priority 0.9+ auto-promotes to
+          long-term SQLite. High-priority stores trigger Zettelkasten linking.</div>
         <div class="tool-returns">→ id: string (memory UUID)</div>
       </div>
       <div class="tool-card">
         <div class="tool-name">🧠 nexus_recall_memory</div>
-        <div class="tool-desc">Semantic nearest-neighbor search across all memory tiers. Bridges synonym gaps via 128-dim TF-IDF embeddings. Works even if exact words don't match.</div>
+        <div class="tool-desc">Semantic nearest-neighbor search across all memory tiers. Bridges synonym gaps via
+          128-dim TF-IDF embeddings. Works even if exact words don't match.</div>
         <div class="tool-returns">→ string[] (top-k memory contents)</div>
       </div>
       <div class="tool-card">
         <div class="tool-name">📊 nexus_memory_stats</div>
-        <div class="tool-desc">Health check for the memory system. Shows item counts across all 3 tiers, top tags, Zettelkasten link count, and oldest entry timestamp.</div>
+        <div class="tool-desc">Health check for the memory system. Shows item counts across all 3 tiers, top tags,
+          Zettelkasten link count, and oldest entry timestamp.</div>
         <div class="tool-returns">→ { prefrontal, hippocampus, cortex, totalLinks, topTags }</div>
       </div>
       <div class="tool-card">
         <div class="tool-name">⚡ nexus_optimize_tokens</div>
-        <div class="tool-desc">Pre-flight reading plan before touching a file. Scores files by relevance to your task and assigns read, outline, or skip. Saves ~55% tokens on average.</div>
+        <div class="tool-desc">Pre-flight reading plan before touching a file. Scores files by relevance to your task
+          and assigns read, outline, or skip. Saves ~55% tokens on average.</div>
         <div class="tool-returns">→ ReadingPlan { files[], totalTokens, savings }</div>
       </div>
       <div class="tool-card">
         <div class="tool-name">👻 nexus_ghost_pass</div>
-        <div class="tool-desc">Read-only pre-flight analysis. Returns risk areas, a reading plan, and suggested worker approaches — without modifying anything. Like a dry run before a big task.</div>
+        <div class="tool-desc">Read-only pre-flight analysis. Returns risk areas, a reading plan, and suggested worker
+          approaches — without modifying anything. Like a dry run before a big task.</div>
         <div class="tool-returns">→ GhostReport { riskAreas, workerAssignments, readingPlan }</div>
       </div>
       <div class="tool-card">
         <div class="tool-name">🛡️ nexus_mindkit_check</div>
-        <div class="tool-desc">Machine-check an action against 6 guardrail rules before executing. Returns a score 0-100 with violations and actionable suggestions. Block before you break.</div>
+        <div class="tool-desc">Machine-check an action against 6 guardrail rules before executing. Returns a score 0-100
+          with violations and actionable suggestions. Block before you break.</div>
         <div class="tool-returns">→ { passed, score, violations, warnings, summary }</div>
       </div>
     </div>
@@ -937,7 +1108,8 @@
   <section id="phantom">
     <div class="section-label">// module: phantom</div>
     <h2>Phantom Workers.<br>Parallel by design.</h2>
-    <p class="section-desc">Too big for one agent? Spawn two in isolated git worktrees. MergeOracle picks the winner. Main branch never sees the experiments.</p>
+    <p class="section-desc">Too big for one agent? Spawn two in isolated git worktrees. MergeOracle picks the winner.
+      Main branch never sees the experiments.</p>
 
     <div class="phantom-flow">
       <div class="flow-box">
@@ -987,32 +1159,41 @@
   <section id="memory">
     <div class="section-label">// module: memory</div>
     <h2>Memory that<br>survives restarts.</h2>
-    <p class="section-desc">Three-tier architecture modelled on human cognition. Everything persists to SQLite. Semantic recall bridges synonym gaps via TF-IDF embeddings.</p>
+    <p class="section-desc">Three-tier architecture modelled on human cognition. Everything persists to SQLite. Semantic
+      recall bridges synonym gaps via TF-IDF embeddings.</p>
 
     <div class="memory-tiers">
       <div class="mem-tier tier-prefrontal">
         <div class="tier-name" style="color:var(--green)">Prefrontal</div>
         <div class="tier-size" style="color:var(--green)">7</div>
-        <div class="tier-desc">Active working set. Instant recall. The 7 most relevant items for the current session. Automatically populated by recall().</div>
+        <div class="tier-desc">Active working set. Instant recall. The 7 most relevant items for the current session.
+          Automatically populated by recall().</div>
       </div>
       <div class="mem-tier tier-hippo">
         <div class="tier-name" style="color:var(--cyan)">Hippocampus</div>
         <div class="tier-size" style="color:var(--cyan)">200</div>
-        <div class="tier-desc">Recent context window. Holds the last ~200 memories across recent sessions. Fast in-RAM access for current context.</div>
+        <div class="tier-desc">Recent context window. Holds the last ~200 memories across recent sessions. Fast in-RAM
+          access for current context.</div>
       </div>
       <div class="mem-tier tier-cortex">
         <div class="tier-name" style="color:var(--purple)">Cortex</div>
         <div class="tier-size" style="color:var(--purple)">∞</div>
-        <div class="tier-desc">Long-term permanent storage. SQLite-backed, survives all restarts. High-priority memories auto-fission here with Zettelkasten links.</div>
+        <div class="tier-desc">Long-term permanent storage. SQLite-backed, survives all restarts. High-priority memories
+          auto-fission here with Zettelkasten links.</div>
       </div>
     </div>
 
-    <div style="margin-top:40px;padding:28px;background:var(--surface);border:1px solid var(--border);border-radius:12px;">
-      <div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text-muted);margin-bottom:12px;">HYBRID RECALL FORMULA</div>
+    <div
+      style="margin-top:40px;padding:28px;background:var(--surface);border:1px solid var(--border);border-radius:12px;">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text-muted);margin-bottom:12px;">
+        HYBRID RECALL FORMULA</div>
       <div style="font-family:'JetBrains Mono',monospace;color:var(--text);font-size:15px;">
-        score = <span style="color:var(--green)">0.50</span>×vector_similarity + <span style="color:var(--cyan)">0.25</span>×priority + <span style="color:var(--amber)">0.15</span>×recency + <span style="color:var(--purple)">0.10</span>×access_count
+        score = <span style="color:var(--green)">0.50</span>×vector_similarity + <span
+          style="color:var(--cyan)">0.25</span>×priority + <span style="color:var(--amber)">0.15</span>×recency + <span
+          style="color:var(--purple)">0.10</span>×access_count
       </div>
-      <div style="font-size:13px;color:var(--text-muted);margin-top:12px;">Semantic TF-IDF 128-dim vectors bridge synonym gaps. "login broken" recalls "authentication bug" even with zero word overlap.</div>
+      <div style="font-size:13px;color:var(--text-muted);margin-top:12px;">Semantic TF-IDF 128-dim vectors bridge
+        synonym gaps. "login broken" recalls "authentication bug" even with zero word overlap.</div>
     </div>
   </section>
 
@@ -1022,7 +1203,8 @@
   <section>
     <div class="section-label">// module: guardrails</div>
     <h2>6 rules.<br>Machine-enforced.</h2>
-    <p class="section-desc">Mindkit guardrails run before any significant operation. Block before you break. Warn before you overspend.</p>
+    <p class="section-desc">Mindkit guardrails run before any significant operation. Block before you break. Warn before
+      you overspend.</p>
 
     <table class="guardrails-table">
       <thead>
@@ -1087,7 +1269,8 @@
         <div class="step-num">1</div>
         <div class="step-content">
           <h4>Clone and build</h4>
-          <div style="font-size:13px;color:var(--text-dim);">Install dependencies and compile the TypeScript source.</div>
+          <div style="font-size:13px;color:var(--text-dim);">Install dependencies and compile the TypeScript source.
+          </div>
           <code>git clone https://github.com/sir-ad/nexus-prime
 cd nexus-prime && npm install && npm run build</code>
         </div>
@@ -1096,7 +1279,8 @@ cd nexus-prime && npm install && npm run build</code>
         <div class="step-num">2</div>
         <div class="step-content">
           <h4>Wire as MCP server</h4>
-          <div style="font-size:13px;color:var(--text-dim);">Add to your agent's MCP config (Claude Desktop / AntiGravity settings).</div>
+          <div style="font-size:13px;color:var(--text-dim);">Add to your agent's MCP config (Claude Desktop /
+            AntiGravity settings).</div>
           <code>{ "nexus-prime": {
   "command": "node",
   "args": ["/path/to/nexus-prime/dist/cli.js", "mcp"]
@@ -1107,7 +1291,8 @@ cd nexus-prime && npm install && npm run build</code>
         <div class="step-num">3</div>
         <div class="step-content">
           <h4>Add AGENTS.md to your project</h4>
-          <div style="font-size:13px;color:var(--text-dim);">Copy AGENTS.md to your project root so any agent knows the protocol automatically.</div>
+          <div style="font-size:13px;color:var(--text-dim);">Copy AGENTS.md to your project root so any agent knows the
+            protocol automatically.</div>
           <code>cp /path/to/nexus-prime/AGENTS.md ./AGENTS.md</code>
         </div>
       </div>
@@ -1115,7 +1300,8 @@ cd nexus-prime && npm install && npm run build</code>
         <div class="step-num">4</div>
         <div class="step-content">
           <h4>Start building</h4>
-          <div style="font-size:13px;color:var(--text-dim);">Your agent now has 6 native MCP tools and persistent memory across all sessions.</div>
+          <div style="font-size:13px;color:var(--text-dim);">Your agent now has 6 native MCP tools and persistent memory
+            across all sessions.</div>
           <code>→ nexus_recall_memory("today's task")
 → nexus_optimize_tokens("...")
 → nexus_mindkit_check("...")</code>
@@ -1137,4 +1323,5 @@ cd nexus-prime && npm install && npm run build</code>
   </footer>
 
 </body>
+
 </html>

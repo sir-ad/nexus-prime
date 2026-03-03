@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Knowledge Base | Nexus Prime</title>
+    <meta name="description"
+        content="Developer documentation, API reference, and language integration guide for Nexus Prime." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Inter:wght@300;400;500;600;700;900&display=swap"
+        rel="stylesheet" />
+
+    <style>
+        :root {
+            --green: #00ff88;
+            --green-dim: #00cc6a;
+            --cyan: #00d4ff;
+            --purple: #8b5cf6;
+            --amber: #fbbf24;
+            --red: #ff4d6d;
+            --bg: #040810;
+            --bg2: #080f1a;
+            --bg3: #0d1828;
+            --surface: rgba(13, 24, 40, 0.8);
+            --border: rgba(0, 255, 136, 0.12);
+            --text: #e2f5ff;
+            --text-dim: #7a9bb0;
+            --text-muted: #3d5570;
+        }
+
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            overflow-x: hidden;
+            line-height: 1.6;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image: linear-gradient(rgba(0, 255, 136, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 136, 0.03) 1px, transparent 1px);
+            background-size: 60px 60px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            padding: 16px 48px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(4, 8, 16, 0.85);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .nav-logo {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--green);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .nav-logo::before {
+            content: '●';
+            font-size: 10px;
+            opacity: 0.5;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 32px;
+            list-style: none;
+        }
+
+        .nav-links a {
+            font-size: 13px;
+            color: var(--text-dim);
+            text-decoration: none;
+            letter-spacing: 0.05em;
+            transition: color 0.2s;
+        }
+
+        .nav-links a:hover,
+        .nav-links a.active {
+            color: var(--green);
+        }
+
+        .nav-cta {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--bg);
+            background: var(--green);
+            padding: 8px 20px;
+            border-radius: 4px;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+
+        .nav-cta:hover {
+            background: #00ffaa;
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.4);
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 260px 1fr;
+            max-width: 1400px;
+            margin: 100px auto 40px;
+            padding: 0 48px;
+            gap: 60px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ── SIDEBAR ── */
+        aside {
+            position: sticky;
+            top: 100px;
+            height: calc(100vh - 120px);
+            overflow-y: auto;
+            padding-right: 20px;
+        }
+
+        .sidebar-group {
+            margin-bottom: 32px;
+        }
+
+        .sidebar-title {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            color: var(--text-muted);
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            margin-bottom: 12px;
+        }
+
+        .sidebar-nav {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .sidebar-nav a {
+            font-size: 14px;
+            color: var(--text-dim);
+            text-decoration: none;
+            transition: all 0.2s;
+            display: block;
+            padding: 6px 12px;
+            border-radius: 6px;
+            border-left: 2px solid transparent;
+        }
+
+        .sidebar-nav a:hover,
+        .sidebar-nav a.active {
+            color: var(--green);
+            background: rgba(0, 255, 136, 0.05);
+            border-left-color: var(--green);
+        }
+
+        /* ── MAIN CONTENT ── */
+        main {
+            padding-bottom: 100px;
+        }
+
+        h1 {
+            font-size: 48px;
+            font-weight: 800;
+            margin-bottom: 24px;
+            letter-spacing: -0.02em;
+        }
+
+        h2 {
+            font-size: 32px;
+            font-weight: 700;
+            margin: 60px 0 24px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 12px;
+        }
+
+        h3 {
+            font-size: 20px;
+            font-weight: 600;
+            margin: 32px 0 16px;
+            color: var(--green);
+        }
+
+        p {
+            font-size: 16px;
+            color: var(--text-dim);
+            margin-bottom: 20px;
+            line-height: 1.7;
+        }
+
+        ul {
+            margin-bottom: 24px;
+            padding-left: 24px;
+            color: var(--text-dim);
+            font-size: 16px;
+            line-height: 1.7;
+        }
+
+        li {
+            margin-bottom: 8px;
+        }
+
+        /* ── CALLOUTS ── */
+        .callout {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-left: 4px solid var(--green);
+            padding: 24px;
+            border-radius: 8px;
+            margin: 32px 0;
+        }
+
+        .callout.warning {
+            border-left-color: var(--amber);
+            background: rgba(251, 191, 36, 0.05);
+        }
+
+        .callout.danger {
+            border-left-color: var(--red);
+            background: rgba(255, 77, 109, 0.05);
+        }
+
+        .callout-title {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .callout p {
+            margin-bottom: 0;
+            font-size: 15px;
+        }
+
+        /* ── CODE ── */
+        pre {
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid var(--border);
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            margin: 24px 0;
+            color: #e2f5ff;
+        }
+
+        code {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            background: rgba(4, 8, 16, 0.8);
+            color: var(--green);
+            padding: 2px 6px;
+            border-radius: 4px;
+            border: 1px solid var(--border);
+        }
+
+        pre code {
+            background: none;
+            border: none;
+            padding: 0;
+            color: inherit;
+        }
+
+        /* ── TABLES ── */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 32px 0;
+        }
+
+        th {
+            text-align: left;
+            padding: 12px 16px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border);
+        }
+
+        td {
+            padding: 16px;
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            font-size: 14px;
+            color: var(--text-dim);
+        }
+
+        td:first-child {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 600;
+            color: var(--green);
+        }
+
+        /* ── LANGUAGE SPEC BLOCK ── */
+        .lang-block {
+            background: linear-gradient(135deg, rgba(0, 255, 136, 0.05) 0%, rgba(0, 212, 255, 0.05) 100%);
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            border-radius: 12px;
+            padding: 32px;
+            margin-top: 40px;
+        }
+
+        @media (max-width: 900px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+
+            aside {
+                position: static;
+                height: auto;
+                margin-bottom: 40px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- NAV -->
+    <nav>
+        <a class="nav-logo" href="index.html">nexus-prime</a>
+        <ul class="nav-links">
+            <li><a href="index.html">Overview</a></li>
+            <li><a href="knowledge-base.html" class="active">Knowledge Base</a></li>
+        </ul>
+        <a class="nav-cta" href="https://github.com/sir-ad/nexus-prime" target="_blank">GitHub \>_</a>
+    </nav>
+
+    <div class="container">
+        <!-- SIDEBAR -->
+        <aside>
+            <div class="sidebar-group">
+                <div class="sidebar-title">Getting Started</div>
+                <ul class="sidebar-nav">
+                    <li><a href="#introduction">Introduction</a></li>
+                    <li><a href="#integration">MCP Integration Guide</a></li>
+                </ul>
+            </div>
+
+            <div class="sidebar-group">
+                <div class="sidebar-title">Agent Programming</div>
+                <ul class="sidebar-nav">
+                    <li><a href="#agent-language">Nexus Prime Language</a></li>
+                    <li><a href="#telemetry">Session Telemetry</a></li>
+                </ul>
+            </div>
+
+            <div class="sidebar-group">
+                <div class="sidebar-title">API Reference</div>
+                <ul class="sidebar-nav">
+                    <li><a href="#api-memory">Memory Operations</a></li>
+                    <li><a href="#api-intelligence">Intelligence Ops</a></li>
+                    <li><a href="#api-parallel">Parallel Workers</a></li>
+                </ul>
+            </div>
+
+            <div class="sidebar-group">
+                <div class="sidebar-title">Guardrails</div>
+                <ul class="sidebar-nav">
+                    <li><a href="#mindkit">MindKit Verification</a></li>
+                </ul>
+            </div>
+        </aside>
+
+        <!-- CONTENT -->
+        <main>
+            <h1>Developer Knowledge Base</h1>
+            <p>A comprehensive guide on building with, configuring, and coding alongside the Nexus Prime OS layer.</p>
+
+            <!-- INTRO -->
+            <section id="introduction">
+                <h2>1. Introduction</h2>
+                <p>Nexus Prime is designed to be completely invisible to the end user, but completely exposed to the AI
+                    Coding Agent. By running as an MCP server in the background, agents (like AntiGravity, Claude
+                    Desktop, or custom scripts) can invoke its tools natively.</p>
+
+                <div class="callout">
+                    <div class="callout-title" style="color: var(--cyan)">Mental Model</div>
+                    <p>Treat Nexus Prime as a co-processor. If you (the agent) are unsure about history, you ping the
+                        Hippocampus. If you are reading heavy logs, you route them through the Token Optimizer. If you
+                        are refactoring multiple interrelated files, you spawn Phantom Workers.</p>
+                </div>
+            </section>
+
+            <!-- AGENT LANGUAGE -->
+            <section id="agent-language">
+                <h2>2. Nexus Prime Language Guideline (for Agents)</h2>
+                <p>If you are an AI coding agent connected to this workspace, you are operating within the <strong>Super
+                        Intellect Stack</strong>. Your prompts, code exploration, and problem-solving strategies must
+                    follow the Core Directives.</p>
+
+                <div class="lang-block">
+                    <h3>The Agent Language Directive</h3>
+                    <p>When coding in a Nexus Prime environment, you must adhere to the following principles:</p>
+                    <ul>
+                        <li><strong>Protocol Over Assumption:</strong> Never guess what happened prior to your birth
+                            (session start). You. MUST. Call. <code>nexus_recall_memory</code> on first boot.</li>
+                        <li><strong>Token Frugality:</strong> If a file is over 500 lines, do not read it raw. Pass it
+                            through <code>nexus_optimize_tokens</code>. Listen to the routing (Read, Outline, or Skip).
+                            Ignorance of routing is a Guardrail violation.</li>
+                        <li><strong>Fission on Insight:</strong> When you decipher a complex architecture, figure out a
+                            bug, or make an architectural decision, immediately invoke <code>nexus_store_memory</code>.
+                            Write it like a Zettelkasten note (concise, searchable, heavily tagged).</li>
+                        <li><strong>Pre-Flight Checks:</strong> Before deleting files, rewriting core modules, or
+                            altering >3 files simultaneously, run <code>nexus_ghost_pass</code> to detect rippling
+                            dependencies via the AST.</li>
+                        <li><strong>Swarm Delegation:</strong> When the `Ghost Pass` reveals heavily coupled
+                            dependencies and you aren't sure which path is correct, DO NOT guess. Use
+                            <code>nexus_spawn_workers</code> to split the worktree and run experiments in parallel.</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- TELEMETRY -->
+            <section id="telemetry">
+                <h2>3. Reading Session Telemetry</h2>
+                <p>Nexus Prime automatically formats its log outputs back to the MCP Client using Grain primitives.
+                    Every successful MCP action appends a state header to the response:</p>
+                <pre>&lt;state type="telemetry"&gt;
+─── 📡 Nexus Prime (12s) ───
+3 calls │ 20.3k tokens saved │ 2 stored │ 5 recalled
+&lt;/state&gt;</pre>
+                <p>As an agent, you do not need to parse this. It is designed to be injected into your prompt context so
+                    that you are passively aware of your savings and memory accumulation throughout the session.</p>
+            </section>
+
+            <!-- MCP API REFERENCE -->
+            <section id="api-memory">
+                <h2>4. API Reference</h2>
+
+                <h3>Memory Operations</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Tool Name</th>
+                            <th>Required Params</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>nexus_recall_memory</td>
+                            <td><code>query</code> (str), <code>k</code> (num)</td>
+                            <td>Performs a Vector/TF-IDF similarity search across the SQLite Cortex database. Retrieves
+                                historical context.</td>
+                        </tr>
+                        <tr>
+                            <td>nexus_store_memory</td>
+                            <td><code>content</code> (str), <code>priority</code> (num), <code>tags</code> (arr)</td>
+                            <td>Persists an insight to the Cortex. Priority > 0.8 keeps the memory active in the
+                                Hippocampus cache.</td>
+                        </tr>
+                        <tr>
+                            <td>nexus_memory_stats</td>
+                            <td>None</td>
+                            <td>Returns Zettelkasten metrics: total nodes, dominant tags, and cache tier capacities.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3 id="api-intelligence">Intelligence Ops</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Tool Name</th>
+                            <th>Required Params</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>nexus_optimize_tokens</td>
+                            <td><code>task</code> (str), <code>files</code> (arr)</td>
+                            <td>Evaluates codebase relevancy relative to your task. Returns a strict reading plan (Read,
+                                Outline, Skip).</td>
+                        </tr>
+                        <tr>
+                            <td>nexus_ghost_pass</td>
+                            <td><code>goal</code> (str), <code>files</code> (arr)</td>
+                            <td>Performs a read-only AST simulation on target files to spot syntax risks and breaking
+                                changes before they happen.</td>
+                        </tr>
+                        <tr>
+                            <td>nexus_mindkit_check</td>
+                            <td><code>action</code>, <code>filesToModify</code></td>
+                            <td>Strict policy evaluation. Returns PASS/FAIL based on Token Budgets and the Destructive
+                                Guard filters.</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3 id="api-parallel">Parallel Workers</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Tool Name</th>
+                            <th>Required Params</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>nexus_spawn_workers</td>
+                            <td><code>goal</code> (str), <code>files</code> (arr)</td>
+                            <td>Spawns headless Phantom Workers into isolated `git worktrees`. Evaluates differing
+                                solutions via Byzantine Merge Oracle.</td>
+                        </tr>
+                        <tr>
+                            <td>nexus_audit_evolution</td>
+                            <td>None</td>
+                            <td>Reads the SQLite history for "hotspot" files that break frequently. Pushes these
+                                evolution candidates back to MindKit sync.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <section id="mindkit">
+                <h2>5. MindKit Guardrails & Sync</h2>
+                <p>Nexus Prime acts as the enforcement layer for the policies defined by the <code>sir-ad/mindkit</code>
+                    repository.</p>
+
+                <div class="callout warning">
+                    <div class="callout-title" style="color: var(--amber)">Destructive File Protection</div>
+                    <p>Any agent attempting to rewrite configurations spanning more than 10 files simultaneously will
+                        automatically trigger the <strong>BULK_FILE_GUARD</strong>. The MCP server will respond with a
+                        warning exception requesting a fallback to a <code>nexus_ghost_pass</code>.</p>
+                </div>
+
+                <h3>Bidirectional MindKit Sync</h3>
+                <p>When the <code>nexus_audit_evolution</code> tool runs, Nexus Prime pushes analytical telemetry
+                    directly back to the MindKit repository via the GitHub REST API. This forms a continuous feedback
+                    loop where MindKit's rules get smarter based on the bugs you encounter in your local environment.
+                </p>
+            </section>
+
+        </main>
+    </div>
+
+</body>
+
+</html>

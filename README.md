@@ -51,43 +51,107 @@ Every AI coding session starts cold. The agent re-reads the same files, re-disco
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────────────────┐
-│                   AI Agent (Claude / Gemini / GPT)   │
-│                                                       │
-│  Session Start         During Work          Shutdown  │
-│  nexus_recall_memory   nexus_store_memory   store     │
-│  nexus_memory_stats    nexus_optimize_tokens summary  │
-│                        nexus_mindkit_check            │
-│                        nexus_ghost_pass               │
-│                        nexus_spawn_workers            │
-│                        nexus_audit_evolution          │
-└────────────────────────┬────────────────────────────┘
-                         │ MCP (stdio)
-┌────────────────────────▼────────────────────────────┐
-│                   NEXUS PRIME MCP SERVER             │
-│                                                       │
-│  MemoryEngine          TokenSupremacyEngine           │
-│  ├─ Prefrontal (7)     ├─ Content-Aware Scoring       │
-│  ├─ Hippocampus (200)  ├─ BudgetAllocator             │
-│  └─ Cortex (∞, SQLite) └─ DifferentialContext        │
-│                                                       │
-│  PhantomWorkers        GuardrailEngine                │
-│  ├─ GhostPass          ├─ TokenBudget                 │
-│  ├─ PhantomWorker      ├─ DestructiveGuard            │
-│  ├─ MergeOracle        ├─ MindKit GitHub Sync         │
-│  └─ POD Network        └─ MemoryFirst                 │
-│                                                       │
-│  HyperTuning           AgentLearner                   │
-│  ├─ Adaptive Budget    ├─ SQL Pattern Detection        │
-│  └─ Complexity Signals └─ Evolution Candidates         │
-│                                                       │
-│  Embedder (TF-IDF 128-dim + optional OpenAI API)     │
-│  SessionTelemetry (📡 footer on every response)      │
-└─────────────────────────────────────────────────────┘
-         │
-         ▼
-    ~/.nexus-prime/memory.db  (SQLite, survives restarts)
+```mermaid
+flowchart TB
+    %% Styling
+    classDef client fill:#1e1e1e,stroke:#00ffcc,stroke-width:2px,color:#fff
+    classDef adapter fill:#2a2a2a,stroke:#4a90e2,stroke-width:2px,color:#fff
+    classDef engine fill:#1e293b,stroke:#a855f7,stroke-width:2px,color:#fff
+    classDef subengine fill:#0f172a,stroke:#8b5cf6,stroke-width:1px,color:#cbd5e1
+    classDef data fill:#064e3b,stroke:#10b981,stroke-width:2px,color:#fff
+    classDef swarm fill:#450a0a,stroke:#ef4444,stroke-width:2px,color:#fff
+    classDef external fill:#171717,stroke:#fbbf24,stroke-width:2px,color:#fff
+
+    %% External Actors
+    User["AI Coding Agent<br/>e.g., AntiGravity"]:::client
+
+    subgraph "External Ecosystem"
+        MindKitRepo["sir-ad/mindkit GitHub Repo"]:::external
+        Codebase["Target Git Repository"]:::external
+    end
+
+    subgraph "Nexus Prime Meta-Framework (~/.nexus-prime)"
+        
+        %% Entry Point
+        MCP["MCP Adapter (stdio)<br/>Exposes 8 standard tools"]:::adapter
+
+        subgraph "Core Engines"
+            direction TB
+            
+            subgraph "Memory Engine"
+                Prefrontal["Prefrontal (RAM)<br/>Active Working Set (Top 7)"]:::subengine
+                Hippocampus["Hippocampus (RAM)<br/>Session Context (Top 200)"]:::subengine
+                Cortex["Cortex (SQLite)<br/>Long-term Persistence"]:::subengine
+            end
+
+            subgraph "Token Supremacy Engine"
+                Scoring["Content-Aware Scoring"]:::subengine
+                Optimizer["Budget Allocator<br/>(Reads 50-90% less)"]:::subengine
+            end
+
+            subgraph "Guardrail Engine (MindKit Sync)"
+                Guard1["Token Budget Guard"]:::subengine
+                Guard2["Destructive Action Guard"]:::subengine
+                Sync["GitHub API Sync<br/>Push Findings to MindKit"]:::subengine
+            end
+
+            Embedder["Embedder Engine<br/>TF-IDF 128-dim + API fallback"]:::subengine
+            HyperTuning["HyperTuning Engine<br/>Adaptive Budgeting"]:::subengine
+            Learner["Agent Learner<br/>Evolution & Hotspot Detection"]:::subengine
+        end
+        
+        %% Phantom Swarm Infrastructure
+        subgraph "Phantom Swarm"
+            Coordinator["Swarm Coordinator"]:::swarm
+            GhostPass["Ghost Pass<br/>Pre-flight Risk Analysis"]:::swarm
+            
+            subgraph "Parallel Workers (Git Worktrees)"
+                W1["Phantom Worker A<br/>Isolated Worktree 1"]:::swarm
+                W2["Phantom Worker B<br/>Isolated Worktree 2"]:::swarm
+            end
+
+            POD["P.O.D. Network<br/>Worker Comms & Synapses"]:::swarm
+            MergeOracle["Merge Oracle<br/>Byzantine Vote & Synthesis"]:::swarm
+        end
+
+        %% Data Layer
+        DB[("memory.db<br/>(SQLite Database)")]:::data
+    end
+
+    %% Data Flow
+    User -->|"Calls Tools<br/>e.g. nexus_recall_memory"| MCP
+    MCP -->|"Routes Request"| Guard1
+    Guard1 -->|"Passes"| MemoryEngine
+    Guard1 -->|"Passes"| TokenOptimizer
+    
+    %% Engine Internal Flow
+    Prefrontal <-->|"Promotes/Demotes"| Hippocampus
+    Hippocampus <-->|"Persists/Fetches"| Cortex
+    Cortex <-->|"Reads/Writes"| DB
+    
+    MemoryEngine -->|"Vector Search"| Embedder
+    TokenOptimizer -->|"Dynamically Adjusts"| HyperTuning
+
+    %% Swarm Flow
+    MCP -->|"nexus_spawn_workers"| Coordinator
+    Coordinator -->|"1. Reads AST"| GhostPass
+    Coordinator -->|"2. Spawns"| W1
+    Coordinator -->|"2. Spawns"| W2
+    W1 <-->|"Broadcasts Findings"| POD
+    W2 <-->|"Broadcasts Findings"| POD
+    POD -->|"Aggregates State"| MergeOracle
+    MergeOracle -->|"Returns Synthesized Decision"| MCP
+    W1 -->|"Modifies"| Codebase
+    W2 -->|"Modifies"| Codebase
+
+    %% Guardrails & Evolution
+    Sync -->|"Pushes Evolution Candidates"| MindKitRepo
+    Learner -->|"Detects Patterns"| Sync
+    Cortex -->|"Feeds Historical Data"| Learner
+    
+    %% Layout constraints
+    TokenOptimizer ~~~ GuardrailEngine
+    PhantomSwarm ~~~ CoreEngines
 ```
 
 ---
