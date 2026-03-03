@@ -19,6 +19,7 @@ import {
 import { GhostPass, PhantomWorker } from '../../phantom/index.js';
 import { MergeOracle } from '../../phantom/merge-oracle.js';
 import { GuardrailEngine } from '../../engines/guardrails-bridge.js';
+import { SessionDNAManager } from '../../engines/session-dna.js';
 
 const tokenEngine = new TokenSupremacyEngine();
 const guardrailEngine = new GuardrailEngine();
@@ -134,12 +135,14 @@ export class MCPAdapter implements Adapter {
     private server: Server;
     private nexusRef?: NexusPrime;
     private telemetry = new SessionTelemetry();
+    private sessionDNA: SessionDNAManager;
 
     constructor() {
         this.server = new Server(
-            { name: 'nexus-prime-mcp', version: '0.2.0' },
+            { name: 'nexus-prime-mcp', version: '0.3.0' },
             { capabilities: { tools: {} } }
         );
+        this.sessionDNA = new SessionDNAManager(crypto.randomUUID?.() ?? `session-${Date.now()}`);
         this.setupToolHandlers();
     }
 
@@ -255,6 +258,19 @@ export class MCPAdapter implements Adapter {
                         properties: {},
                     },
                 },
+                // ── Session DNA ──────────────────────────────────────────────────
+                {
+                    name: 'nexus_session_dna',
+                    description: 'Generate or load a Session DNA snapshot. Captures files accessed/modified, decisions made, skills used, and recommended next steps for perfect session handover. Use "generate" to create a snapshot of the current session, "load" to retrieve the most recent previous session\'s DNA.',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {
+                            action: { type: 'string', enum: ['generate', 'load'], description: 'Whether to generate current session DNA or load the latest previous session DNA' },
+                            sessionId: { type: 'string', description: 'Optional: load a specific session by ID instead of the latest' }
+                        },
+                        required: ['action'],
+                    },
+                },
             ],
         }));
 
@@ -264,6 +280,7 @@ export class MCPAdapter implements Adapter {
             }
 
             this.telemetry.recordCall();
+            this.sessionDNA.recordToolCall();
             const result = await this.handleToolCall(request);
 
             // Inject telemetry footer into every response
@@ -295,6 +312,7 @@ export class MCPAdapter implements Adapter {
                     : [];
                 const id = this.nexusRef.storeMemory(content, priority, tags);
                 this.telemetry.recordStore();
+                this.sessionDNA.recordMemoryStore();
                 const memStats = this.nexusRef.getMemoryStats();
                 const notification = this.telemetry.notifyStore(priority, tags, memStats);
                 const nudge = this.telemetry.planningNudge('store', { priority });
@@ -311,6 +329,7 @@ export class MCPAdapter implements Adapter {
                 const k = Number(request.params.arguments?.k ?? 5);
                 const memories = await this.nexusRef.recallMemory(query, k);
                 this.telemetry.recordRecall(memories.length);
+                this.sessionDNA.recordMemoryRecall();
                 const memStats = this.nexusRef.getMemoryStats();
                 const notification = this.telemetry.notifyRecall(memories.length, query, memStats);
                 const nudge = this.telemetry.planningNudge('recall', { count: memories.length });
@@ -576,6 +595,50 @@ export class MCPAdapter implements Adapter {
                 };
             }
 
+            case 'nexus_session_dna': {
+                const action = String(request.params.arguments?.action ?? 'load');
+                const sessionId = request.params.arguments?.sessionId
+                    ? String(request.params.arguments.sessionId)
+                    : undefined;
+
+                if (action === 'generate') {
+                    // Sync counters from telemetry before generating
+                    this.sessionDNA.syncFromTelemetry({
+                        callCount: (this.telemetry as any).callCount ?? 0,
+                        memoriesStored: (this.telemetry as any).memoriesStored ?? 0,
+                        memoriesRecalled: (this.telemetry as any).memoriesRecalled ?? 0,
+                    });
+                    const dna = this.sessionDNA.flush();
+                    const formatted = SessionDNAManager.format(dna);
+                    return {
+                        content: [{
+                            type: 'text',
+                            text: `✅ Session DNA generated and saved.\n\n${formatted}`,
+                        }],
+                    };
+                } else {
+                    // Load latest or by ID
+                    const dna = sessionId
+                        ? SessionDNAManager.loadById(sessionId)
+                        : SessionDNAManager.loadLatest();
+                    if (!dna) {
+                        return {
+                            content: [{
+                                type: 'text',
+                                text: '📭 No previous Session DNA found. This appears to be a fresh start.',
+                            }],
+                        };
+                    }
+                    const formatted = SessionDNAManager.format(dna);
+                    return {
+                        content: [{
+                            type: 'text',
+                            text: `📦 Previous Session DNA loaded:\n\n${formatted}`,
+                        }],
+                    };
+                }
+            }
+
             default:
                 throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${request.params.name}`);
         }
@@ -602,10 +665,22 @@ export class MCPAdapter implements Adapter {
         const transport = new StdioServerTransport();
         await this.server.connect(transport);
         this.connected = true;
-        console.error('[MCP Adapter] Connected — 8 tools active');
+        console.error('[MCP Adapter] Connected — 9 tools active');
     }
 
     async disconnect(): Promise<void> {
+        // Auto-flush Session DNA on disconnect
+        try {
+            this.sessionDNA.syncFromTelemetry({
+                callCount: (this.telemetry as any).callCount ?? 0,
+                memoriesStored: (this.telemetry as any).memoriesStored ?? 0,
+                memoriesRecalled: (this.telemetry as any).memoriesRecalled ?? 0,
+            });
+            this.sessionDNA.flush();
+            console.error('[MCP Adapter] Session DNA flushed');
+        } catch (e) {
+            console.error('[MCP Adapter] Failed to flush Session DNA:', e);
+        }
         await this.server.close();
         this.connected = false;
         console.error('[MCP Adapter] Disconnected');
