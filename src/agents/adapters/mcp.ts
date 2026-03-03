@@ -26,9 +26,11 @@ import { GraphTraversalEngine } from '../../engines/graph-traversal.js';
 import { HybridRetriever } from '../../engines/hybrid-retriever.js';
 import { nexusEventBus } from '../../engines/event-bus.js';
 import { SkillCardRegistry, type SkillCard } from '../../engines/skill-card.js';
+import { DarwinLoop } from '../../engines/darwin-loop.js';
 
 const tokenEngine = new TokenSupremacyEngine();
 const guardrailEngine = new GuardrailEngine();
+const darwinLoop = new DarwinLoop();
 
 // Lazy-initialized Graph Engine (separate DB from core memory)
 let _graphEngine: GraphMemoryEngine | null = null;
@@ -337,6 +339,33 @@ export class MCPAdapter implements Adapter {
                             }
                         },
                         required: ['card'],
+                    },
+                },
+                // ── Darwin Loop ──────────────────────────────────────────────────
+                {
+                    name: 'nexus_darwin_propose',
+                    description: 'Propose a self-improvement cycle for Nexus Prime. Forces validation against the Bounded Improvement Space (forbidding core changes). Use when you have a specific hypothesis to improve an engine or phantom worker.',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {
+                            hypothesis: { type: 'string', description: 'What you are trying to improve and why' },
+                            targetFile: { type: 'string', description: 'The specific file you want to change (must be in src/engines/ or src/phantom/)' },
+                            approach: { type: 'string', description: 'How you plan to implement it' }
+                        },
+                        required: ['hypothesis', 'targetFile', 'approach'],
+                    },
+                },
+                {
+                    name: 'nexus_darwin_review',
+                    description: 'Review and finalize a pending Darwin Cycle after validation.',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {
+                            cycleId: { type: 'string', description: 'ID of the pending Darwin Cycle' },
+                            action: { type: 'string', enum: ['apply', 'reject', 'defer'], description: 'Outcome of the review' },
+                            learnings: { type: 'array', items: { type: 'string' }, description: 'Lessons learned from attempting this cycle' }
+                        },
+                        required: ['cycleId', 'action'],
                     },
                 },
             ],
@@ -828,6 +857,51 @@ export class MCPAdapter implements Adapter {
                 };
             }
 
+            case 'nexus_darwin_propose': {
+                const hypothesis = String(request.params.arguments?.hypothesis ?? '');
+                const targetFile = String(request.params.arguments?.targetFile ?? '');
+                const approach = String(request.params.arguments?.approach ?? '');
+
+                try {
+                    const cycle = darwinLoop.propose(hypothesis, targetFile, approach);
+                    nexusEventBus.emit('darwin.cycle', { hypothesis: cycle.hypothesis, outcome: 'proposed' });
+                    return {
+                        content: [{
+                            type: 'text',
+                            text: `🧬 Darwin Cycle Proposed Successfully\nID: ${cycle.id}\nWorktree Branch: ${cycle.worktreeBranch}\nStatus: ${cycle.outcome}\n\nProceed to implement and validate on this branch, then use nexus_darwin_review.`,
+                        }],
+                    };
+                } catch (err: any) {
+                    return {
+                        content: [{
+                            type: 'text',
+                            text: `❌ Darwin Cycle Rejected: ${err.message}`,
+                        }],
+                    };
+                }
+            }
+
+            case 'nexus_darwin_review': {
+                const cycleId = String(request.params.arguments?.cycleId ?? '');
+                const action = String(request.params.arguments?.action ?? 'defer') as 'apply' | 'reject' | 'defer';
+                const learnings = Array.isArray(request.params.arguments?.learnings)
+                    ? (request.params.arguments?.learnings as string[])
+                    : [];
+
+                try {
+                    const updated = darwinLoop.review(cycleId, action, learnings);
+                    nexusEventBus.emit('darwin.cycle', { hypothesis: updated.hypothesis, outcome: updated.outcome });
+                    return {
+                        content: [{
+                            type: 'text',
+                            text: `🧬 Darwin Cycle ${cycleId} updated to: ${updated.outcome}.\nLearnings recorded: ${updated.learnings.length}`,
+                        }],
+                    };
+                } catch (err: any) {
+                    throw new McpError(ErrorCode.InvalidParams, err.message);
+                }
+            }
+
             default:
                 throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${request.params.name}`);
         }
@@ -861,7 +935,7 @@ export class MCPAdapter implements Adapter {
         const transport = new StdioServerTransport();
         await this.server.connect(transport);
         this.connected = true;
-        console.error('[MCP Adapter] Connected — 12 tools active');
+        console.error('[MCP Adapter] Connected — 14 tools active');
     }
 
     async disconnect(): Promise<void> {
