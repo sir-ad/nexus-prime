@@ -80,6 +80,54 @@ const RULES: Rule[] = [
                 ? { id: 'MEMORY_FIRST', severity: 'info', rule: 'Research without memory check', detail: 'You may already know this', suggestion: 'Call nexus_recall_memory first' }
                 : null;
         }
+    },
+    {
+        id: 'NO_SECRETS', rule: 'Block output containing secrets', severity: 'error',
+        check: (ctx) => {
+            const secretPatterns = [
+                /xox[bp]-[0-9]{12}-[0-9]{12}-[0-9]{12}-[a-z0-9]{32}/i,
+                /AIza[0-9A-Za-z-_]{35}/,
+                /sk-[a-zA-Z0-9]{48}/,
+                /sq0csp-[0-9A-Za-z-_]{43}/,
+                /access_key_id|secret_access_key|api_key|password|client_secret/i
+            ];
+            const found = secretPatterns.some(p => p.test(ctx.action));
+            return found
+                ? { id: 'NO_SECRETS', severity: 'error', rule: 'Potential secret detected', detail: 'Action contains patterns matching API keys or passwords', suggestion: 'Remove secrets before proceeding' }
+                : null;
+        }
+    },
+    {
+        id: 'NO_INSTALLS', rule: 'Block unauthorized installs', severity: 'error',
+        check: (ctx) => {
+            const installCmds = ['npm install', 'npm i ', 'yarn add', 'pip install', 'cargo add'];
+            const found = installCmds.some(c => ctx.action.toLowerCase().includes(c));
+            return found
+                ? { id: 'NO_INSTALLS', severity: 'error', rule: 'Unauthorized installation', detail: 'Installation commands require explicit user approval', suggestion: 'Set isDestructive=true or ask user' }
+                : null;
+        }
+    },
+    {
+        id: 'OUTLINE_FIRST', rule: 'Encourage outline before full read', severity: 'info',
+        check: (ctx) => {
+            const action = ctx.action.toLowerCase();
+            if (action.includes('read') && !action.includes('outline') && !action.includes('partial')) {
+                return { id: 'OUTLINE_FIRST', severity: 'info', rule: 'Read without outline', detail: 'Reading full files is token-expensive', suggestion: 'Use view_file_outline first' };
+            }
+            return null;
+        }
+    },
+    {
+        id: 'QUALITY_GATES', rule: 'Verify changes with test/build', severity: 'warn',
+        check: (ctx) => {
+            const action = ctx.action.toLowerCase();
+            const hasMod = ctx.filesToModify && ctx.filesToModify.length > 0;
+            const hasVerify = action.includes('test') || action.includes('build') || action.includes('verify');
+            if (hasMod && !hasVerify) {
+                return { id: 'QUALITY_GATES', severity: 'warn', rule: 'Changes without verification', detail: 'Modifying files without a plan to test or build', suggestion: 'Include npm test or npm run build in your plan' };
+            }
+            return null;
+        }
     }
 ];
 
