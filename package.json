@@ -27,7 +27,7 @@
   },
   "scripts": {
     "nexus:dev": "node dev-orchestrator.mjs",
-    "build": "tsc",
+    "build": "tsc && cp src/dashboard/index.html dist/dashboard/index.html",
     "dev": "tsc --watch",
     "start": "node dist/cli.js start",
     "init": "node dist/cli.js init",
