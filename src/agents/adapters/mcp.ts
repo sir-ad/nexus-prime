@@ -21,9 +21,30 @@ import { MergeOracle } from '../../phantom/merge-oracle.js';
 import { GuardrailEngine } from '../../engines/guardrails-bridge.js';
 import { SessionDNAManager } from '../../engines/session-dna.js';
 import { ContextAssembler } from '../../engines/context-assembler.js';
+import { GraphMemoryEngine } from '../../engines/graph-memory.js';
+import { GraphTraversalEngine } from '../../engines/graph-traversal.js';
+import { HybridRetriever } from '../../engines/hybrid-retriever.js';
 
 const tokenEngine = new TokenSupremacyEngine();
 const guardrailEngine = new GuardrailEngine();
+
+// Lazy-initialized Graph Engine (separate DB from core memory)
+let _graphEngine: GraphMemoryEngine | null = null;
+let _traversalEngine: GraphTraversalEngine | null = null;
+let _hybridRetriever: HybridRetriever | null = null;
+
+function getGraphEngine(): GraphMemoryEngine {
+    if (!_graphEngine) _graphEngine = new GraphMemoryEngine();
+    return _graphEngine;
+}
+function getTraversalEngine(): GraphTraversalEngine {
+    if (!_traversalEngine) _traversalEngine = new GraphTraversalEngine(getGraphEngine().getDb());
+    return _traversalEngine;
+}
+function getHybridRetriever(): HybridRetriever {
+    if (!_hybridRetriever) _hybridRetriever = new HybridRetriever(getGraphEngine());
+    return _hybridRetriever;
+}
 
 // Derive project root from this file's location (dist/agents/adapters/mcp.js → project root)
 const __filename = fileURLToPath(import.meta.url);
@@ -283,6 +304,22 @@ export class MCPAdapter implements Adapter {
                             files: { type: 'array', items: { type: 'string' }, description: 'File paths to optimize. If omitted, auto-scans src/' },
                         },
                         required: ['task'],
+                    },
+                },
+                // ── Graph Query ──────────────────────────────────────────────────
+                {
+                    name: 'nexus_graph_query',
+                    description: 'Query the knowledge graph. Actions: "query" (hybrid keyword+graph search), "traverse" (N-hop BFS from entity), "centrality" (find most connected entities), "ingest" (extract and store entities from text). Returns entities, relations, and facts.',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {
+                            action: { type: 'string', enum: ['query', 'traverse', 'centrality', 'ingest'], description: 'Graph operation to perform' },
+                            query: { type: 'string', description: 'Search query or entity name' },
+                            depth: { type: 'number', description: 'Traversal depth (default: 2)' },
+                            text: { type: 'string', description: 'Text to ingest (for action=ingest)' },
+                            tags: { type: 'array', items: { type: 'string' }, description: 'Tags to associate (for action=ingest)' },
+                        },
+                        required: ['action'],
                     },
                 },
             ],
@@ -609,6 +646,54 @@ export class MCPAdapter implements Adapter {
                 };
             }
 
+            case 'nexus_graph_query': {
+                const action = String(request.params.arguments?.action ?? 'query');
+                const query = String(request.params.arguments?.query ?? '');
+                const depth = Number(request.params.arguments?.depth ?? 2);
+
+                switch (action) {
+                    case 'query': {
+                        const retriever = getHybridRetriever();
+                        const result = await retriever.retrieve(query, 10, depth);
+                        const formatted = HybridRetriever.format(result);
+                        return { content: [{ type: 'text', text: formatted }] };
+                    }
+                    case 'traverse': {
+                        const traversal = getTraversalEngine();
+                        const result = traversal.queryByName(query, depth);
+                        const formatted = GraphTraversalEngine.format(result);
+                        return { content: [{ type: 'text', text: formatted }] };
+                    }
+                    case 'centrality': {
+                        const traversal = getTraversalEngine();
+                        const scores = traversal.computeCentrality(20);
+                        if (scores.length === 0) {
+                            return { content: [{ type: 'text', text: '📭 No entities in graph yet.' }] };
+                        }
+                        const lines = ['📊 Entity Centrality (top 20):', ''];
+                        for (const s of scores) {
+                            lines.push(`  • ${s.entityName} — score: ${s.score.toFixed(3)} (in: ${s.inDegree}, out: ${s.outDegree})`);
+                        }
+                        return { content: [{ type: 'text', text: lines.join('\n') }] };
+                    }
+                    case 'ingest': {
+                        const text = String(request.params.arguments?.text ?? '');
+                        const tags = Array.isArray(request.params.arguments?.tags)
+                            ? (request.params.arguments.tags as unknown[]).map(String) : [];
+                        const graph = getGraphEngine();
+                        const { entities, relations } = graph.ingestFromText(text, tags);
+                        return {
+                            content: [{
+                                type: 'text',
+                                text: `✅ Ingested: ${entities.length} entities, ${relations.length} relations extracted and stored in graph.`,
+                            }],
+                        };
+                    }
+                    default:
+                        return { content: [{ type: 'text', text: `Unknown graph action: ${action}` }] };
+                }
+            }
+
             case 'nexus_hypertune_max': {
                 const task = String(request.params.arguments?.task ?? '');
                 const rawFiles = Array.isArray(request.params.arguments?.files)
@@ -717,7 +802,7 @@ export class MCPAdapter implements Adapter {
         const transport = new StdioServerTransport();
         await this.server.connect(transport);
         this.connected = true;
-        console.error('[MCP Adapter] Connected — 10 tools active');
+        console.error('[MCP Adapter] Connected — 11 tools active');
     }
 
     async disconnect(): Promise<void> {
