@@ -155,16 +155,24 @@ Changes don't reach main until MergeOracle approves.
 
 ---
 
-## 🔧 Available MCP Tools (6)
+## 🔧 Available MCP Tools (20)
 
 | Tool | Purpose |
 |------|---------|
-| `nexus_store_memory` | Store knowledge |
+| `nexus_store_memory` | Store knowledge & insights |
 | `nexus_recall_memory` | Recall by semantic query |
-| `nexus_memory_stats` | Check memory health |
+| `nexus_memory_stats` | Check memory health & links |
 | `nexus_optimize_tokens` | Pre-flight reading plan |
-| `nexus_ghost_pass` | Pre-flight task analysis |
-| `nexus_mindkit_check` | Guardrail check |
+| `nexus_hypertune_max` | Greedy knapsack optimization |
+| `nexus_ghost_pass` | Pre-flight task risk analysis |
+| `nexus_spawn_workers` | Parallel git worktree sub-agents |
+| `nexus_mindkit_check` | Guardrail checks (safety) |
+| `nexus_graph_query` | Traverse the Zettelkasten graph |
+| `nexus_session_dna` | State snapshots for handover |
+| `nexus_darwin_propose` | Self-improvement cycles |
+| `nexus_net_publish` | Knowledge sharing across relays |
+| `nexus_entangle` | Entangled state measurements |
+| `nexus_cas_compress` | Continuous Attention compression |
 
 ---
 

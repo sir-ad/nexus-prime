@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Changelog | Nexus Prime</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Inter:wght@300;400;500;600;700;900&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --green: #00ff88;
+            --cyan: #00d4ff;
+            --bg: #040810;
+            --surface: rgba(13, 24, 40, 0.8);
+            --border: rgba(0, 255, 136, 0.12);
+            --text: #e2f5ff;
+            --text-dim: #7a9bb0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            margin: 0;
+            line-height: 1.6;
+        }
+
+        nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 16px 48px;
+            background: rgba(4, 8, 16, 0.9);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 100;
+        }
+
+        .nav-logo {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 700;
+            color: var(--green);
+            text-decoration: none;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 24px;
+            list-style: none;
+        }
+
+        .nav-links a {
+            color: var(--text-dim);
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        .nav-links a:hover {
+            color: var(--green);
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 120px auto 80px;
+            padding: 0 40px;
+        }
+
+        h1 {
+            font-size: 48px;
+            margin-bottom: 48px;
+            letter-spacing: -0.02em;
+        }
+
+        .release {
+            margin-bottom: 64px;
+        }
+
+        .release-header {
+            display: flex;
+            align-items: baseline;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .version {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--green);
+        }
+
+        .date {
+            font-size: 14px;
+            color: var(--text-dim);
+        }
+
+        .release-notes {
+            list-style: none;
+        }
+
+        .release-notes li {
+            position: relative;
+            padding-left: 24px;
+            margin-bottom: 12px;
+            font-size: 15px;
+            color: var(--text-dim);
+        }
+
+        .release-notes li::before {
+            content: '→';
+            position: absolute;
+            left: 0;
+            color: var(--cyan);
+        }
+
+        footer {
+            padding: 40px;
+            text-align: center;
+            border-top: 1px solid var(--border);
+            color: var(--text-dim);
+            font-size: 12px;
+        }
+    </style>
+</head>
+
+<body>
+    <nav>
+        <a class="nav-logo" href="index.html">⬡ nexus-prime</a>
+        <ul class="nav-links">
+            <li><a href="index.html">Overview</a></li>
+            <li><a href="architecture.html">Architecture</a></li>
+            <li><a href="api-reference.html">API Reference</a></li>
+            <li><a href="knowledge-base.html">Knowledge Base</a></li>
+        </ul>
+    </nav>
+    <div class="container">
+        <h1>Changelog</h1>
+        <div class="release">
+            <div class="release-header">
+                <span class="version">v0.3.0</span>
+                <span class="date">March 3, 2026</span>
+            </div>
+            <ul class="release-notes">
+                <li>Added Phantom Worker orchestration via Git Worktrees.</li>
+                <li>Implemented HyperTune token optimization (Greedy Knapsack).</li>
+                <li>Added Continuous Attention Streams (CAS) for token compression.</li>
+                <li>Introduced MindKit machine-checked guardrails.</li>
+                <li>Expanded MCP toolset from 8 to 20 tools.</li>
+            </ul>
+        </div>
+        <div class="release">
+            <div class="release-header">
+                <span class="version">v0.2.0</span>
+                <span class="date">February 15, 2026</span>
+            </div>
+            <ul class="release-notes">
+                <li>Initial MVP release with core 3-tier memory engine.</li>
+                <li>Basic MCP implementation with 8 tools.</li>
+                <li>SQLite persistence for long-term cortex.</li>
+            </ul>
+        </div>
+    </div>
+    <footer>
+        &copy; 2026 Sir-Ad. MIT License.
+    </footer>
+</body>
+
+</html>
