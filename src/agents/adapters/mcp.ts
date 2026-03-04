@@ -25,6 +25,7 @@ import { GraphMemoryEngine } from '../../engines/graph-memory.js';
 import { GraphTraversalEngine } from '../../engines/graph-traversal.js';
 import { HybridRetriever } from '../../engines/hybrid-retriever.js';
 import { nexusEventBus } from '../../engines/event-bus.js';
+import { AttentionScorer } from '../../engines/attention-stream.js';
 import { SkillCardRegistry, type SkillCard } from '../../engines/skill-card.js';
 import { DarwinLoop } from '../../engines/darwin-loop.js';
 import { NexusNetRelay } from '../../engines/nexusnet-relay.js';
@@ -76,32 +77,44 @@ class SessionTelemetry {
     recordStore() { this.memoriesStored++; }
     recordRecall(count: number) { this.memoriesRecalled += count; }
 
+    private box(title: string, rows: [string, string][]): string {
+        const W = 44;
+        const top = `┌─ ${title} ${'─'.repeat(Math.max(0, W - title.length - 4))}┐`;
+        const bot = `└${'─'.repeat(W - 1)}┘`;
+        const lines = rows.map(([k, v]) => {
+            const content = `${k.padEnd(10)}│ ${v}`;
+            return `│ ${content.padEnd(W - 3)}│`;
+        });
+        return [top, ...lines, bot].join('\n');
+    }
+
     /** Rich inline notification for memory store events */
     notifyStore(priority: number, tags: string[], memStats: { cortex: number; totalLinks: number }): string {
-        return [
-            `\n── 💾 Memory Stored ──`,
-            `Priority: ${priority} │ Tags: ${tags.join(', ') || 'none'}`,
-            `Cortex now holds ${memStats.cortex} long-term memories │ ${memStats.totalLinks} Zettelkasten links`,
-        ].join('\n');
+        return '\n' + this.box('💾 STORED', [
+            ['Priority', `${priority}`],
+            ['Tags', tags.join(', ') || 'none'],
+            ['Cortex', `${memStats.cortex} memories`],
+            ['Zettel', `${memStats.totalLinks} links`],
+        ]);
     }
 
     /** Rich inline notification for memory recall events */
     notifyRecall(count: number, query: string, memStats: { hippocampus: number; cortex: number }): string {
-        return [
-            `\n── 🧠 Memory Recalled ──`,
-            `${count} memories matched query: "${query.slice(0, 60)}"`,
-            `Hippocampus cache: ${memStats.hippocampus}/200 │ Cortex: ${memStats.cortex} entries`,
-        ].join('\n');
+        return '\n' + this.box('🧠 RECALLED', [
+            ['Matches', `${count}`],
+            ['Query', query.slice(0, 28)],
+            ['Hippo', `${memStats.hippocampus}/200`],
+            ['Cortex', `${memStats.cortex} entries`],
+        ]);
     }
 
     /** Rich inline notification for token optimization events */
     notifyTokens(task: string, savings: number, pct: number, fileCount: number): string {
-        return [
-            `\n── ⚡ Tokens Optimized ──`,
-            `Task: "${task.slice(0, 60)}"`,
-            `Savings: ${savings.toLocaleString()} tokens (${pct}%) │ ${fileCount} files routed`,
-            `Session total: ${(this.tokensOptimized / 1000).toFixed(1)}k tokens saved across ${this.callCount} calls`,
-        ].join('\n');
+        return '\n' + this.box('⚡ TOKENS', [
+            ['Saved', `${savings.toLocaleString()} (${pct}%)`],
+            ['Files', `${fileCount} routed`],
+            ['Total', `${(this.tokensOptimized / 1000).toFixed(1)}k saved`],
+        ]);
     }
 
     /** Contextual planning nudges based on what just happened */
@@ -151,13 +164,9 @@ class SessionTelemetry {
         const uptimeStr = uptime < 60 ? `${uptime}s` : `${Math.round(uptime / 60)}m`;
         const parts = [
             `${this.callCount} calls`,
-            this.tokensOptimized > 0 ? `${(this.tokensOptimized / 1000).toFixed(1)}k tokens saved` : null,
-            this.memoriesStored > 0 ? `${this.memoriesStored} stored` : null,
-            this.memoriesRecalled > 0 ? `${this.memoriesRecalled} recalled` : null,
             memStats ? `${memStats.totalLinks} Zettel links` : null,
         ].filter(Boolean);
-        // Grain-inspired semantic structure
-        return `\n<state type="telemetry" engine="nexus-prime" uptime="${uptimeStr}">\n${parts.join(' │ ')}\n</state>`;
+        return `\n─── 📡 Nexus Prime (${uptimeStr}) ───\n${parts.join(' │ ')}`;
     }
 }
 
@@ -963,7 +972,7 @@ export class MCPAdapter implements Adapter {
                     : [];
 
                 try {
-                    const updated = darwinLoop.review(cycleId, action, learnings);
+                    const updated = await darwinLoop.review(cycleId, action, learnings);
                     nexusEventBus.emit('darwin.cycle', { hypothesis: updated.hypothesis, outcome: updated.outcome });
                     return {
                         content: [{
@@ -1045,7 +1054,8 @@ export class MCPAdapter implements Adapter {
             }
 
             case 'nexus_cas_compress': {
-                const tokens = Array.isArray(request.params.arguments?.tokens) ? request.params.arguments?.tokens as string[] : [];
+                const input = Array.isArray(request.params.arguments?.tokens) ? (request.params.arguments?.tokens as string[]).join(' ') : String(request.params.arguments?.tokens ?? '');
+                const tokens = AttentionScorer.tokenize(input);
                 if (tokens.length === 0) {
                     throw new McpError(ErrorCode.InvalidParams, "Tokens array cannot be empty");
                 }

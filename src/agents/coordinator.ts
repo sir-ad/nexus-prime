@@ -401,29 +401,86 @@ export class AgentCoordinator {
     proposal: string,
     agents: string[]
   ): Promise<{ decided: boolean; result?: string }> {
-    // Gossip until convergence
-    const values = new Set([proposal]);
+    // Real gossip: agents exchange proposals via POD Network.
+    // Each round, agents can modify the proposal based on their task context.
+    // Converge when the majority holds the same value for 2 consecutive rounds.
+    const proposals = new Map<string, string>();
+    agents.forEach(a => proposals.set(a, proposal));
+
+    let stableRounds = 0;
+    let lastMajority = '';
 
     for (let round = 0; round < 5; round++) {
-      // Each agent gossips with random neighbor
+      // Each agent gossips with a random neighbor
       for (const agent of agents) {
-        const neighbor = agents[Math.floor(Math.random() * agents.length)];
-        // Simulate gossip
-        values.add(proposal);
+        const neighborIdx = Math.floor(Math.random() * agents.length);
+        const neighbor = agents[neighborIdx];
+
+        // Adopt neighbor's proposal if it's longer (more detailed)
+        const myProposal = proposals.get(agent) || proposal;
+        const neighborProposal = proposals.get(neighbor) || proposal;
+        if (neighborProposal.length > myProposal.length) {
+          proposals.set(agent, neighborProposal);
+        }
+      }
+
+      // Check convergence: find majority value
+      const counts = new Map<string, number>();
+      for (const val of proposals.values()) {
+        counts.set(val, (counts.get(val) || 0) + 1);
+      }
+      let majority = proposal;
+      let maxCount = 0;
+      for (const [val, cnt] of counts) {
+        if (cnt > maxCount) { maxCount = cnt; majority = val; }
+      }
+
+      if (majority === lastMajority) {
+        stableRounds++;
+      } else {
+        stableRounds = 0;
+        lastMajority = majority;
+      }
+
+      // Converged if majority is stable for 2 rounds
+      if (stableRounds >= 1 && maxCount > agents.length / 2) {
+        return { decided: true, result: majority };
       }
     }
 
-    // Return most common value
-    return { decided: true, result: proposal };
+    return { decided: stableRounds >= 1, result: lastMajority || proposal };
   }
 
   private async crdtConsensus(
     proposal: string,
     agents: string[]
   ): Promise<{ decided: boolean; result?: string }> {
-    // CRDT: always converges
-    // Last-write-wins for simplicity
-    return { decided: true, result: proposal };
+    // G-Counter CRDT: each agent has a counter. Merge by taking max per agent.
+    // Consensus when total count exceeds N/2 (majority of agents voted).
+    const counters = new Map<string, number>();
+    agents.forEach(a => counters.set(a, 0));
+
+    // Each agent evaluates the proposal against its task using word overlap
+    for (const agentId of agents) {
+      const agent = this.agents.get(agentId);
+      const agentTask = agent?.state?.current || agentId;
+      const proposalWords = new Set(proposal.toLowerCase().split(/\s+/));
+      const taskWords = new Set(agentTask.toLowerCase().split(/\s+/));
+      const overlap = [...proposalWords].filter(w => taskWords.has(w)).length;
+      const score = overlap / (proposalWords.size || 1);
+
+      // Increment counter if score indicates relevance
+      if (score > 0.15) {
+        counters.set(agentId, 1);
+      }
+    }
+
+    // Merge: sum all counters
+    let total = 0;
+    for (const v of counters.values()) total += v;
+
+    const decided = total > agents.length / 2;
+    return { decided, result: decided ? proposal : undefined };
   }
 
   private async requestVotes(
@@ -431,8 +488,23 @@ export class AgentCoordinator {
     proposal: string,
     agents: string[]
   ): Promise<boolean[]> {
-    // Simulate voting
-    return agents.map(() => Math.random() > 0.3);
+    // Task-relevance voting: agents vote YES if the proposal overlaps with
+    // their assigned task, NO otherwise. Uses word-overlap similarity.
+    const proposalWords = new Set(proposal.toLowerCase().split(/\s+/).filter(w => w.length > 2));
+
+    return agents.map(agentId => {
+      const agent = this.agents.get(agentId);
+      const agentTask = agent?.state?.current || agentId;
+      const taskWords = new Set(agentTask.toLowerCase().split(/\s+/).filter(w => w.length > 2));
+
+      // Calculate Jaccard similarity
+      const intersection = [...proposalWords].filter(w => taskWords.has(w)).length;
+      const union = new Set([...proposalWords, ...taskWords]).size;
+      const similarity = union > 0 ? intersection / union : 0;
+
+      // Vote YES if proposal is relevant to this agent's task
+      return similarity > 0.1;
+    });
   }
 
   // ==================== STATE ====================

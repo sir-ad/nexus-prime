@@ -76,9 +76,24 @@ export class DarwinLoop {
     }
 
     /**
-     * Review a pending cycle. (In MVP, tests/builds would be validated externally or via PhantomWorker scripts)
+     * Run a build step to validate the code still compiles.
      */
-    review(cycleId: string, action: 'apply' | 'reject' | 'defer', learnings: string[] = []): DarwinCycle {
+    async validateBuild(): Promise<void> {
+        const { exec } = await import('child_process');
+        const { promisify } = await import('util');
+        const execAsync = promisify(exec);
+
+        try {
+            await execAsync('npm run build', { cwd: process.cwd() });
+        } catch (error: any) {
+            throw new Error(`Build validation failed:\n${error.stdout || error.message}`);
+        }
+    }
+
+    /**
+     * Review a pending cycle. Evaluates builds before allowing 'apply'.
+     */
+    async review(cycleId: string, action: 'apply' | 'reject' | 'defer', learnings: string[] = []): Promise<DarwinCycle> {
         const cycle = this.journal.getCycle(cycleId);
         if (!cycle) {
             throw new Error(`Darwin Cycle ${cycleId} not found.`);
@@ -86,6 +101,11 @@ export class DarwinLoop {
 
         if (cycle.outcome !== 'pending') {
             throw new Error(`Darwin Cycle ${cycleId} is already ${cycle.outcome}.`);
+        }
+
+        if (action === 'apply') {
+            // Before applying, validate that the build succeeds
+            await this.validateBuild();
         }
 
         // Update state

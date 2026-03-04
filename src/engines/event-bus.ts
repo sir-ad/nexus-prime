@@ -1,13 +1,7 @@
-/**
- * Nexus Prime Event Bus
- *
- * Centralized, strongly-typed internal event emitter.
- * Broadcasts events from all engines to the Visualization Dashboard via SSE.
- *
- * Phase: 8C (Visualization Dashboard)
- */
-
 import { EventEmitter } from 'events';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as os from 'os';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types & Interfaces
@@ -82,17 +76,27 @@ export interface NexusEvent<T extends NexusEventType = NexusEventType> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// EventBus Singleton
+// EventBus Singleton with Cross-Process JSONL Bridge
 // ─────────────────────────────────────────────────────────────────────────────
+
+const EVENTS_FILE = path.join(os.homedir(), '.nexus-prime', 'events.jsonl');
 
 class EventBusEngine {
     private emitter = new EventEmitter();
     private history: NexusEvent[] = [];
     private readonly MAX_HISTORY = 1000;
+    private seenIds = new Set<string>();
+    private fileOffset = 0;
+    private pollHandle: ReturnType<typeof setInterval> | null = null;
 
     constructor() {
         // Increase limit for many dashboard connections
         this.emitter.setMaxListeners(50);
+        // Ensure directory exists
+        const dir = path.dirname(EVENTS_FILE);
+        if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir, { recursive: true });
+        }
     }
 
     /**
@@ -111,9 +115,73 @@ class EventBusEngine {
         if (this.history.length > this.MAX_HISTORY) {
             this.history.shift();
         }
+        this.seenIds.add(event.id);
 
-        // Broadcast
+        // Broadcast in-process
         this.emitter.emit('nexus_event', event);
+
+        // Write to JSONL file for cross-process bridge
+        try {
+            fs.appendFileSync(EVENTS_FILE, JSON.stringify(event) + '\n');
+        } catch { /* ignore write errors */ }
+    }
+
+    /**
+     * Poll the JSONL file for events from other processes.
+     * Call this from DashboardServer to bridge cross-process events.
+     */
+    startFilePolling(intervalMs: number = 2000): void {
+        if (this.pollHandle) return;
+
+        // Skip to end of file initially so we don't replay old events
+        try {
+            if (fs.existsSync(EVENTS_FILE)) {
+                this.fileOffset = fs.statSync(EVENTS_FILE).size;
+            }
+        } catch { /* ignore */ }
+
+        this.pollHandle = setInterval(() => {
+            try {
+                if (!fs.existsSync(EVENTS_FILE)) return;
+                const stat = fs.statSync(EVENTS_FILE);
+                if (stat.size <= this.fileOffset) {
+                    // File was truncated or no new data
+                    if (stat.size < this.fileOffset) this.fileOffset = 0;
+                    return;
+                }
+
+                // Read only new bytes
+                const fd = fs.openSync(EVENTS_FILE, 'r');
+                const buf = Buffer.alloc(stat.size - this.fileOffset);
+                fs.readSync(fd, buf, 0, buf.length, this.fileOffset);
+                fs.closeSync(fd);
+                this.fileOffset = stat.size;
+
+                // Parse JSONL lines
+                const lines = buf.toString('utf-8').split('\n').filter(Boolean);
+                for (const line of lines) {
+                    try {
+                        const event = JSON.parse(line) as NexusEvent;
+                        if (!this.seenIds.has(event.id)) {
+                            this.seenIds.add(event.id);
+                            this.history.push(event);
+                            if (this.history.length > this.MAX_HISTORY) this.history.shift();
+                            // Broadcast to in-process listeners (SSE clients)
+                            this.emitter.emit('nexus_event', event);
+                        }
+                    } catch { /* skip malformed lines */ }
+                }
+            } catch { /* ignore poll errors */ }
+        }, intervalMs);
+        this.pollHandle.unref();
+    }
+
+    /** Stop file polling */
+    stopFilePolling(): void {
+        if (this.pollHandle) {
+            clearInterval(this.pollHandle);
+            this.pollHandle = null;
+        }
     }
 
     /**
@@ -150,8 +218,10 @@ class EventBusEngine {
      */
     clear(): void {
         this.history = [];
+        this.seenIds.clear();
     }
 }
 
 // Export a singleton instance
 export const nexusEventBus = new EventBusEngine();
+

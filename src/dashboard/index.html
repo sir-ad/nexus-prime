@@ -7,26 +7,30 @@
     <title>Nexus Prime | Dashboard</title>
     <style>
         :root {
-            /* Base Theme: Deep Matrix Terminal */
-            --bg-base: #0a0a0c;
-            --bg-surface: #121216;
-            --bg-panel: rgba(18, 18, 22, 0.7);
+            /* Premium Apple-like Dark Mode */
+            --bg-base: #000000;
+            --bg-surface: rgba(20, 20, 22, 0.7);
+            --bg-panel: rgba(30, 30, 35, 0.4);
+            --bg-card: rgba(45, 45, 55, 0.3);
+
             --primary: #00ff41;
-            /* Matrix Green */
-            --primary-dim: rgba(0, 255, 65, 0.2);
-            --primary-glow: rgba(0, 255, 65, 0.5);
-            --secondary: #008f11;
-            --text-main: #e0e0e0;
-            --text-muted: #808080;
-            --danger: #ff3333;
-            --blue: #00a8ff;
-            --magenta: #ff00ff;
-            --yellow: #ffd700;
+            /* Matrix green accent */
+            --primary-glow: rgba(0, 255, 65, 0.4);
+            --primary-dim: rgba(0, 255, 65, 0.15);
 
-            --font-mono: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
-            --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            --text-main: #f5f5f7;
+            --text-muted: #86868b;
+            --danger: #ff453a;
+            --blue: #0a84ff;
+            --magenta: #bf5af2;
+            --yellow: #ffd60a;
 
-            --border-std: 1px solid rgba(0, 255, 65, 0.15);
+            --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", "Helvetica Neue", sans-serif;
+            --font-mono: 'JetBrains Mono', "SF Mono", "Fira Code", monospace;
+
+            --border-std: 1px solid rgba(255, 255, 255, 0.1);
+            --radius-panel: 24px;
+            --radius-card: 16px;
         }
 
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;700&display=swap');
@@ -35,6 +39,8 @@
             box-sizing: border-box;
             margin: 0;
             padding: 0;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
         }
 
         body {
@@ -45,62 +51,58 @@
             display: flex;
             flex-direction: column;
             overflow: hidden;
+            /* Premium ambient background */
             background-image:
-                radial-gradient(circle at 50% 0%, var(--primary-dim) 0%, transparent 40%),
-                linear-gradient(to bottom, rgba(0, 255, 65, 0.03) 1px, transparent 1px);
-            background-size: 100% 100%, 100% 4px;
-        }
-
-        /* Scanline effect */
-        body::after {
-            content: " ";
-            display: block;
-            position: absolute;
-            top: 0;
-            left: 0;
-            bottom: 0;
-            right: 0;
-            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
-            z-index: 2;
-            background-size: 100% 2px, 3px 100%;
-            pointer-events: none;
+                radial-gradient(circle at 15% 50%, rgba(10, 132, 255, 0.1), transparent 25%),
+                radial-gradient(circle at 85% 30%, rgba(191, 90, 242, 0.1), transparent 25%),
+                radial-gradient(circle at 50% 80%, rgba(0, 255, 65, 0.05), transparent 40%);
         }
 
         header {
-            padding: 1.5rem 2rem;
-            border-bottom: var(--border-std);
+            padding: 1.5rem 3rem;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            background: var(--bg-surface);
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            border-bottom: var(--border-std);
             z-index: 10;
         }
 
         h1 {
-            font-family: var(--font-mono);
+            font-family: var(--font-sans);
             font-size: 1.5rem;
-            font-weight: 700;
-            letter-spacing: -0.5px;
+            font-weight: 600;
+            letter-spacing: -0.02em;
             color: var(--text-main);
             display: flex;
             align-items: center;
             gap: 0.75rem;
-            text-transform: uppercase;
         }
 
         h1::before {
-            content: '⚡';
-            color: var(--primary);
-            filter: drop-shadow(0 0 8px var(--primary-glow));
+            content: '';
+            display: block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--primary);
+            box-shadow: 0 0 12px var(--primary-glow);
         }
 
         .status {
-            font-family: var(--font-mono);
+            font-family: var(--font-sans);
             font-size: 0.85rem;
-            color: var(--primary);
+            font-weight: 500;
+            color: var(--text-muted);
             display: flex;
             align-items: center;
             gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: var(--bg-card);
+            border-radius: 20px;
+            border: var(--border-std);
         }
 
         .status-dot {
@@ -109,16 +111,16 @@
             border-radius: 50%;
             background-color: var(--primary);
             box-shadow: 0 0 8px var(--primary);
-            animation: pulse 2s infinite;
+            animation: pulse 2s infinite ease-in-out;
         }
 
         @keyframes pulse {
             0% {
-                box-shadow: 0 0 0 0 rgba(0, 255, 65, 0.7);
+                box-shadow: 0 0 0 0 rgba(0, 255, 65, 0.4);
             }
 
             70% {
-                box-shadow: 0 0 0 10px rgba(0, 255, 65, 0);
+                box-shadow: 0 0 0 8px rgba(0, 255, 65, 0);
             }
 
             100% {
@@ -129,8 +131,8 @@
         .layout {
             display: grid;
             grid-template-columns: 350px 1fr 350px;
-            gap: 1.5rem;
-            padding: 1.5rem;
+            gap: 2rem;
+            padding: 2rem 3rem;
             flex: 1;
             height: calc(100vh - 75px);
             z-index: 10;
@@ -139,168 +141,176 @@
         .panel {
             background: var(--bg-panel);
             border: var(--border-std);
-            border-radius: 8px;
+            border-radius: var(--radius-panel);
             display: flex;
             flex-direction: column;
             overflow: hidden;
-            backdrop-filter: blur(10px);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(30px) saturate(180%);
+            -webkit-backdrop-filter: blur(30px) saturate(180%);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1);
         }
 
         .panel-header {
-            padding: 1rem 1.25rem;
+            padding: 1.25rem 1.5rem;
             border-bottom: var(--border-std);
-            font-family: var(--font-mono);
+            font-family: var(--font-sans);
             font-size: 0.85rem;
+            font-weight: 600;
             text-transform: uppercase;
-            letter-spacing: 1px;
-            color: var(--primary);
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
             display: flex;
             justify-content: space-between;
             align-items: center;
+            background: rgba(255, 255, 255, 0.02);
         }
 
         .panel-content {
             flex: 1;
             overflow-y: auto;
-            padding: 1rem;
-            scrollbar-width: thin;
-            scrollbar-color: var(--primary-dim) transparent;
+            padding: 1.5rem;
+            scrollbar-width: none;
         }
 
         .panel-content::-webkit-scrollbar {
-            width: 6px;
-        }
-
-        .panel-content::-webkit-scrollbar-thumb {
-            background: var(--primary-dim);
-            border-radius: 3px;
+            display: none;
         }
 
         /* Metrics */
         .metric-card {
-            background: rgba(0, 255, 65, 0.05);
-            border: 1px solid rgba(0, 255, 65, 0.1);
-            border-radius: 6px;
-            padding: 1rem;
+            background: var(--bg-card);
+            border: var(--border-std);
+            border-radius: var(--radius-card);
+            padding: 1.25rem;
             margin-bottom: 1rem;
             display: flex;
             flex-direction: column;
             gap: 0.5rem;
+            transition: transform 0.2s ease, background 0.2s ease;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-2px);
+            background: rgba(60, 60, 75, 0.4);
         }
 
         .metric-label {
             font-size: 0.75rem;
+            font-weight: 500;
             color: var(--text-muted);
             text-transform: uppercase;
+            letter-spacing: 0.02em;
         }
 
         .metric-val {
             font-family: var(--font-mono);
-            font-size: 1.5rem;
-            color: var(--primary);
+            font-size: 1.75rem;
+            color: var(--text-main);
             font-weight: 700;
+            letter-spacing: -0.02em;
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
+        }
+
+        .metric-val.green {
+            color: var(--primary);
+            text-shadow: 0 0 20px var(--primary-glow);
         }
 
         /* Stream Events */
         .event-item {
             font-family: var(--font-mono);
             font-size: 0.8rem;
-            line-height: 1.4;
-            margin-bottom: 0.75rem;
-            padding-bottom: 0.75rem;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-            animation: slideIn 0.3s ease-out forwards;
+            line-height: 1.5;
+            margin-bottom: 1rem;
+            padding: 1rem;
+            background: var(--bg-card);
+            border-radius: 12px;
+            border: var(--border-std);
+            animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            opacity: 0;
+            transform: translateY(10px);
         }
 
-        @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateX(-10px);
-            }
-
+        @keyframes slideUp {
             to {
                 opacity: 1;
-                transform: translateX(0);
+                transform: translateY(0);
             }
+        }
+
+        .event-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
         }
 
         .event-time {
             color: var(--text-muted);
             font-size: 0.7rem;
-            margin-bottom: 0.2rem;
-            display: block;
         }
 
         .event-type {
-            color: var(--primary);
-            font-weight: bold;
+            font-weight: 600;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-main);
         }
 
         .event-type.memory {
+            background: rgba(10, 132, 255, 0.15);
             color: var(--blue);
         }
 
         .event-type.tokens {
+            background: rgba(255, 214, 10, 0.15);
             color: var(--yellow);
         }
 
         .event-type.phantom {
+            background: rgba(191, 90, 242, 0.15);
             color: var(--magenta);
         }
 
         .event-type.guardrail {
+            background: rgba(255, 69, 58, 0.15);
             color: var(--danger);
         }
 
         .event-data {
-            color: var(--text-main);
-            margin-top: 0.2rem;
+            color: #d1d1d6;
             white-space: pre-wrap;
             word-break: break-all;
-        }
-
-        /* Swarm UI */
-        .worker-pill {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0.75rem;
-            background: rgba(255, 0, 255, 0.05);
-            border-left: 3px solid var(--magenta);
-            margin-bottom: 0.5rem;
-            border-radius: 0 4px 4px 0;
-            font-family: var(--font-mono);
-            font-size: 0.8rem;
-        }
-
-        .worker-pill.active {
-            border-left-color: var(--primary);
-            background: rgba(0, 255, 65, 0.05);
-        }
-
-        .worker-pill.done {
-            border-left-color: var(--text-muted);
-            opacity: 0.7;
         }
 
         /* Memory Tags */
         .tag-cloud {
             display: flex;
             flex-wrap: wrap;
-            gap: 0.4rem;
+            gap: 0.5rem;
+            margin-top: 1rem;
         }
 
         .tag {
-            font-family: var(--font-mono);
-            font-size: 0.7rem;
-            padding: 0.2rem 0.5rem;
-            background: rgba(0, 168, 255, 0.1);
-            color: var(--blue);
-            border-radius: 4px;
-            border: 1px solid rgba(0, 168, 255, 0.2);
+            font-family: var(--font-sans);
+            font-size: 0.75rem;
+            font-weight: 500;
+            padding: 0.3rem 0.75rem;
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-main);
+            border-radius: 20px;
+            border: var(--border-std);
+            backdrop-filter: blur(10px);
+            transition: all 0.2s ease;
         }
 
+        .tag:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: scale(1.05);
+        }
+
+        /* Apple-esque Visualizer */
         .visualizer {
             display: flex;
             align-items: center;
@@ -309,45 +319,67 @@
             position: relative;
         }
 
-        .center-node {
-            width: 80px;
-            height: 80px;
+        .center-mesh {
+            width: 120px;
+            height: 120px;
             border-radius: 50%;
-            background: radial-gradient(circle, var(--primary) 0%, transparent 70%);
-            box-shadow: 0 0 30px var(--primary-glow);
+            background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.8), var(--primary) 40%, rgba(0, 50, 20, 0.9) 80%);
+            box-shadow:
+                0 0 40px var(--primary-glow),
+                inset 0 0 20px rgba(0, 0, 0, 0.5);
             position: absolute;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-family: var(--font-mono);
-            font-weight: bold;
-            color: #000;
             z-index: 10;
+            animation: breathe 4s ease-in-out infinite alternate;
+        }
+
+        .center-mesh::after {
+            content: "PRIME";
+            font-family: var(--font-sans);
+            font-weight: 800;
+            letter-spacing: 0.1em;
+            font-size: 0.9rem;
+            color: #000;
+            text-shadow: 0 1px 2px rgba(255, 255, 255, 0.5);
+        }
+
+        @keyframes breathe {
+            from {
+                transform: scale(0.95);
+                box-shadow: 0 0 30px var(--primary-glow);
+            }
+
+            to {
+                transform: scale(1.05);
+                box-shadow: 0 0 60px var(--primary-glow);
+            }
         }
 
         .orbit {
             position: absolute;
-            border: 1px dashed rgba(0, 255, 65, 0.2);
             border-radius: 50%;
+            border: 1px solid rgba(255, 255, 255, 0.05);
             animation: spin linear infinite;
         }
 
         .orbit-1 {
-            width: 200px;
-            height: 200px;
+            width: 240px;
+            height: 240px;
             animation-duration: 20s;
         }
 
         .orbit-2 {
-            width: 350px;
-            height: 350px;
+            width: 380px;
+            height: 380px;
             animation-duration: 35s;
             animation-direction: reverse;
         }
 
         .orbit-3 {
-            width: 500px;
-            height: 500px;
+            width: 520px;
+            height: 520px;
             animation-duration: 50s;
         }
 
@@ -358,25 +390,33 @@
         }
 
         .orbit-node {
-            width: 12px;
-            height: 12px;
+            width: 16px;
+            height: 16px;
             border-radius: 50%;
-            background: var(--blue);
             position: absolute;
-            top: -6px;
+            top: -8px;
             left: 50%;
-            box-shadow: 0 0 10px var(--blue);
             transform: translateX(-50%);
+            box-shadow: 0 0 16px currentColor;
+            background: currentColor;
+            filter: blur(1px);
+        }
+
+        .orbit-1 .orbit-node {
+            color: var(--blue);
         }
 
         .orbit-2 .orbit-node {
-            background: var(--yellow);
-            box-shadow: 0 0 10px var(--yellow);
+            color: var(--yellow);
+            top: 50%;
+            left: -8px;
+            transform: translateY(-50%);
         }
 
         .orbit-3 .orbit-node {
-            background: var(--magenta);
-            box-shadow: 0 0 10px var(--magenta);
+            color: var(--magenta);
+            top: auto;
+            bottom: -8px;
         }
     </style>
 </head>
@@ -387,27 +427,26 @@
         <h1>Nexus Prime</h1>
         <div class="status">
             <div class="status-dot" id="conn-dot"></div>
-            <span id="conn-text">SSE CONNECTED</span>
+            <span id="conn-text">Connecting...</span>
         </div>
     </header>
 
     <div class="layout">
         <!-- Left Panel: Metrics & Stats -->
         <div class="panel">
-            <div class="panel-header">System Metrics</div>
+            <div class="panel-header">System Intelligence</div>
             <div class="panel-content">
                 <div class="metric-card">
                     <span class="metric-label">Tokens Saved (HyperTune)</span>
-                    <span class="metric-val" id="val-tokens">0</span>
+                    <span class="metric-val green" id="val-tokens">0</span>
                 </div>
                 <div class="metric-card">
-                    <span class="metric-label">Memories (Cortex / Hippocampus)</span>
+                    <span class="metric-label">Memory Nodes (Cortex / Hippocampus)</span>
                     <span class="metric-val" id="val-memory">0 / 0</span>
                 </div>
 
-                <h3
-                    style="font-family: var(--font-mono); font-size: 0.8rem; margin: 1rem 0 0.5rem; color: var(--text-muted);">
-                    Active Tags</h3>
+                <div class="panel-header" style="background:transparent; padding:0; border:none; margin-top:2rem;">
+                    Active Synapses</div>
                 <div class="tag-cloud" id="tag-cloud">
                     <!-- Tags injected via JS -->
                 </div>
@@ -415,9 +454,8 @@
         </div>
 
         <!-- Center Panel: Visualization -->
-        <div class="panel">
-            <div class="panel-header">Swarm Matrix</div>
-            <div class="panel-content visualizer">
+        <div class="panel" style="border: none; background: transparent; backdrop-filter: none; box-shadow: none;">
+            <div class="visualizer">
                 <div class="orbit orbit-3">
                     <div class="orbit-node"></div>
                 </div>
@@ -427,15 +465,15 @@
                 <div class="orbit orbit-1">
                     <div class="orbit-node"></div>
                 </div>
-                <div class="center-node">PRIME</div>
+                <div class="center-mesh"></div>
             </div>
         </div>
 
         <!-- Right Panel: Thinking Stream -->
         <div class="panel">
             <div class="panel-header">
-                Thinking Stream
-                <span style="font-size: 0.7rem; color: var(--text-muted);" id="event-count">0 events</span>
+                Neural Stream
+                <span id="event-count">0 events</span>
             </div>
             <div class="panel-content" id="log-container">
                 <!-- Events injected via JS -->
@@ -444,7 +482,6 @@
     </div>
 
     <script>
-        // State
         let stats = {
             tokensSaved: 0,
             cortex: 0,
@@ -454,7 +491,6 @@
 
         const tagSet = new Set();
 
-        // DOM Elements
         const logContainer = document.getElementById('log-container');
         const countTokens = document.getElementById('val-tokens');
         const countMemory = document.getElementById('val-memory');
@@ -478,7 +514,7 @@
 
         function appendLog(event) {
             stats.eventCount++;
-            eventCountLabel.innerText = `${stats.eventCount} events`;
+            eventCountLabel.innerText = `${stats.eventCount}`;
 
             const el = document.createElement('div');
             el.className = 'event-item';
@@ -487,19 +523,19 @@
             const colorCls = getColorClass(event.type);
 
             let dataStr = JSON.stringify(event.data, null, 2);
-            // simplify format for inline viewing
             dataStr = dataStr.replace(/[{}"]/g, '').trim();
 
             el.innerHTML = `
-                <span class="event-time">[${time}]</span>
-                <span class="event-type ${colorCls}">${event.type}</span>
+                <div class="event-header">
+                    <span class="event-type ${colorCls}">${event.type}</span>
+                    <span class="event-time">${time}</span>
+                </div>
                 <div class="event-data">${dataStr}</div>
             `;
 
             logContainer.prepend(el);
 
-            // Limit to 100 items visually
-            if (logContainer.children.length > 100) {
+            if (logContainer.children.length > 50) {
                 logContainer.lastChild.remove();
             }
         }
@@ -507,7 +543,6 @@
         function processEvent(event) {
             appendLog(event);
 
-            // Update Metrics depending on event type
             if (event.type === 'tokens.optimized') {
                 stats.tokensSaved += event.data.savings;
                 countTokens.innerText = stats.tokensSaved.toLocaleString();
@@ -528,13 +563,13 @@
             tagCloud.innerHTML = Array.from(tagSet).slice(0, 15).map(t => `<span class="tag">${t}</span>`).join('');
         }
 
-        // Setup SSE connection
         function connectSSE() {
             const evtSource = new EventSource('/stream');
 
             evtSource.onopen = () => {
-                connText.innerText = 'SSE CONNECTED';
+                connText.innerText = 'Connected to Core';
                 connDot.style.backgroundColor = 'var(--primary)';
+                connDot.style.boxShadow = '0 0 12px var(--primary-glow)';
             };
 
             evtSource.onmessage = (e) => {
@@ -543,14 +578,14 @@
             };
 
             evtSource.onerror = (e) => {
-                connText.innerText = 'RECONNECTING...';
+                connText.innerText = 'Reconnecting...';
                 connDot.style.backgroundColor = 'var(--danger)';
+                connDot.style.boxShadow = '0 0 12px var(--danger)';
                 evtSource.close();
                 setTimeout(connectSSE, 3000);
             };
         }
 
-        // Boot
         connectSSE();
     </script>
 </body>

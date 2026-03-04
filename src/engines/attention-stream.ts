@@ -47,7 +47,7 @@ export interface CASStats {
 // TF-IDF Scorer for attention weighting
 // ─────────────────────────────────────────────────────────────────────────────
 
-class AttentionScorer {
+export class AttentionScorer {
     private documentFrequency: Map<string, number> = new Map();
     private totalDocuments: number = 0;
 
@@ -63,6 +63,16 @@ class AttentionScorer {
     }
 
     /**
+     * Splits text into code-aware tokens, handling CamelCase, punctuation, and whitespace.
+     */
+    static tokenize(text: string): string[] {
+        // Match CamelCase boundaries, non-word characters, and contiguous words
+        const regex = /([A-Z]?[a-z]+|[A-Z]+(?=[A-Z][a-z]|\b)|[0-9]+|[^a-zA-Z0-9\s])/g;
+        const matches = text.match(regex);
+        return matches ? matches.filter(t => t.trim().length > 0) : [];
+    }
+
+    /**
      * Compute attention weights for tokens relative to a task.
      * Uses TF-IDF + task relevance to assign weights.
      *
@@ -70,7 +80,7 @@ class AttentionScorer {
      * Lower weight = more common = gets compressed.
      */
     score(tokens: string[], task: string): number[] {
-        const taskWords = new Set(task.toLowerCase().split(/\s+/));
+        const taskWords = new Set(AttentionScorer.tokenize(task).map(t => t.toLowerCase()));
         const tokenLower = tokens.map(t => t.toLowerCase());
 
         // Term frequencies in this context
@@ -166,7 +176,7 @@ export class ContinuousAttentionStream {
 
         nexusEventBus.emit('cas.encode', {
             inputTokens: tokens.length,
-            outputTokens: finalCompressed.split(/\s+/).length,
+            outputTokens: AttentionScorer.tokenize(finalCompressed).length,
             compressionRatio
         });
 
@@ -188,10 +198,10 @@ export class ContinuousAttentionStream {
         this.totalDecodes++;
 
         nexusEventBus.emit('cas.decode', {
-            tokens: decompressed.split(/\s+/).length
+            tokens: AttentionScorer.tokenize(decompressed).length
         });
 
-        return decompressed.split(/\s+/).filter(t => t.length > 0);
+        return AttentionScorer.tokenize(decompressed);
     }
 
     /**

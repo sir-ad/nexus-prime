@@ -173,35 +173,40 @@ export class MemoryEngine {
 
   /** Flush prefrontal to DB (called on MCP shutdown) */
   flush(): void {
-    const upsert = this.db.prepare(`
-      INSERT INTO memories(id, content, priority, timestamp, tags, tier, session_id, access_count, parent_id, depth)
-    VALUES(@id, @content, @priority, @timestamp, @tags, @tier, @session_id, @access_count, @parent_id, @depth)
-      ON CONFLICT(id) DO UPDATE SET
-    priority = excluded.priority,
-      access_count = excluded.access_count,
-      tier = excluded.tier,
-      parent_id = excluded.parent_id,
-      depth = excluded.depth
-        `);
+    try {
+      const upsert = this.db.prepare(`
+        INSERT INTO memories(id, content, priority, timestamp, tags, tier, session_id, access_count, parent_id, depth)
+      VALUES(@id, @content, @priority, @timestamp, @tags, @tier, @session_id, @access_count, @parent_id, @depth)
+        ON CONFLICT(id) DO UPDATE SET
+      priority = excluded.priority,
+        access_count = excluded.access_count,
+        tier = excluded.tier,
+        parent_id = excluded.parent_id,
+        depth = excluded.depth
+          `);
 
-    const txn = this.db.transaction((items: MemoryItem[]) => {
-      for (const item of items) {
-        upsert.run({
-          id: item.id,
-          content: item.content,
-          priority: item.priority,
-          timestamp: item.timestamp,
-          tags: JSON.stringify(item.tags),
-          tier: item.tier,
-          session_id: item.sessionId ?? null,
-          access_count: item.accessCount,
-          parent_id: item.parentId ?? null,
-          depth: item.depth ?? 0
-        });
-      }
-    });
+      const txn = this.db.transaction((items: MemoryItem[]) => {
+        for (const item of items) {
+          // Sanitize fields to prevent type errors
+          upsert.run({
+            id: String(item.id),
+            content: String(item.content),
+            priority: Number(item.priority) || 0,
+            timestamp: Number(item.timestamp) || Date.now(),
+            tags: JSON.stringify(Array.isArray(item.tags) ? item.tags : []),
+            tier: String(item.tier || 'prefrontal'),
+            session_id: item.sessionId ? String(item.sessionId) : null,
+            access_count: Number(item.accessCount) || 0,
+            parent_id: item.parentId ? String(item.parentId) : null,
+            depth: Number(item.depth) || 0
+          });
+        }
+      });
 
-    txn(this.prefrontal);
+      txn(this.prefrontal);
+    } catch (err) {
+      console.error('[MemoryEngine] flush() error:', err);
+    }
   }
 
   // ─────────────────────────────────────────────────────────────────────────

@@ -38,6 +38,9 @@ export class DashboardServer {
         this.unsubscribeBus = nexusEventBus.onEvent((event: NexusEvent) => {
             this.broadcast(event);
         });
+
+        // Start polling JSONL file for cross-process events (from MCP process)
+        nexusEventBus.startFilePolling(1500);
     }
 
     /** Stop the dashboard server */
@@ -46,6 +49,8 @@ export class DashboardServer {
             this.unsubscribeBus();
             this.unsubscribeBus = null;
         }
+
+        nexusEventBus.stopFilePolling();
 
         for (const res of this.clients) {
             res.end();
