@@ -53,10 +53,10 @@ interface Guardrail {
 const GUARDRAILS: Guardrail[] = [
     {
         id: 'TOKEN_BUDGET',
-        rule: 'Token budget must stay under 100k for a single context window',
+        rule: 'Token budget must stay under 80k for a single context window',
         severity: 'error',
         check: (ctx) => {
-            const limit = 100_000;
+            const limit = 80_000;
             if (ctx.tokenCount && ctx.tokenCount > limit) {
                 return {
                     id: 'TOKEN_BUDGET',
@@ -71,10 +71,10 @@ const GUARDRAILS: Guardrail[] = [
     },
     {
         id: 'TOKEN_WARN',
-        rule: 'Warn when token usage exceeds 70k',
+        rule: 'Warn when token usage exceeds 50k',
         severity: 'warn',
         check: (ctx) => {
-            const warn = 70_000;
+            const warn = 50_000;
             if (ctx.tokenCount && ctx.tokenCount > warn) {
                 return {
                     id: 'TOKEN_WARN',
@@ -169,6 +169,58 @@ const GUARDRAILS: Guardrail[] = [
                     rule: 'Research action without memory check',
                     detail: 'You may already have context about this in memory',
                     suggestion: 'Call nexus_recall_memory first before doing external research'
+                };
+            }
+            return null;
+        }
+    },
+    {
+        id: 'GIST_PUBLISH_GUARD',
+        rule: 'Do not publish passwords, secrets, or payloads > 100k chars to Gist',
+        severity: 'error',
+        check: (ctx) => {
+            const isPublish = /\b(nexusnet_transmit|publish)\b/i.test(ctx.action);
+            if (!isPublish) return null;
+
+            if (ctx.action.length > 100_000) {
+                return {
+                    id: 'GIST_PUBLISH_GUARD',
+                    severity: 'error',
+                    rule: 'Payload exceeds 100k characters',
+                    detail: `Payload is ${ctx.action.length.toLocaleString()} characters`,
+                    suggestion: 'Summarize or truncate the payload before publishing.'
+                };
+            }
+
+            const secretsRegex = /(ghp_|sk-ant-|password|secret|\.env\b)/i;
+            if (secretsRegex.test(ctx.action)) {
+                return {
+                    id: 'GIST_PUBLISH_GUARD',
+                    severity: 'error',
+                    rule: 'Secret detected in publish payload',
+                    detail: 'Payload contains potential secrets (API keys, passwords, .env refs)',
+                    suggestion: 'Remove ALL secrets before publishing to public NexusNet Gist.'
+                };
+            }
+
+            return null;
+        }
+    },
+    {
+        id: 'MEMORY_SIZE_GUARD',
+        rule: 'Do not store raw file dumps > 10k chars in memory',
+        severity: 'error',
+        check: (ctx) => {
+            const isStore = /\bnexus_store_memory\b/i.test(ctx.action);
+            if (!isStore) return null;
+
+            if (ctx.action.length > 10_000) {
+                return {
+                    id: 'MEMORY_SIZE_GUARD',
+                    severity: 'error',
+                    rule: 'Memory > 10k chars',
+                    detail: `Memory payload is ${ctx.action.length.toLocaleString()} characters`,
+                    suggestion: 'Synthesize and summarize insights before storing them in memory.'
                 };
             }
             return null;

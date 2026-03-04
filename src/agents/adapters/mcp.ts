@@ -490,6 +490,19 @@ export class MCPAdapter implements Adapter {
                 const tags = Array.isArray(request.params.arguments?.tags)
                     ? (request.params.arguments.tags as unknown[]).map(String)
                     : [];
+
+                // Guardrail: MEMORY_SIZE_GUARD auto-check
+                const guardCtx = { action: `nexus_store_memory: ${content}` };
+                const guardCheck = guardrailEngine.check(guardCtx);
+                if (!guardCheck.passed) {
+                    return {
+                        content: [{
+                            type: 'text',
+                            text: `❌ GUARDRAIL BLOCKED: ${guardrailEngine.format(guardCheck)}`
+                        }]
+                    };
+                }
+
                 const id = this.nexusRef.storeMemory(content, priority, tags);
                 nexusEventBus.emit('memory.store', { id, priority, tags, tier: priority > 0.8 ? 'cortex' : 'hippocampus' });
                 this.telemetry.recordStore();
@@ -497,10 +510,23 @@ export class MCPAdapter implements Adapter {
                 const memStats = this.nexusRef.getMemoryStats();
                 const notification = this.telemetry.notifyStore(priority, tags, memStats);
                 const nudge = this.telemetry.planningNudge('store', { priority });
+
+                // Auto-Gist Publish Phase 8
+                let autoGistNote = '';
+                if (priority >= 0.8) {
+                    try {
+                        const publishResult = await nexusNet.publish('knowledge', { content, tags });
+                        nexusEventBus.emit('nexusnet.publish', { type: 'knowledge', byteSize: publishResult.bytes });
+                        autoGistNote = `\n🌐 Auto-Published to NexusNet Relay (ID: ${publishResult.id})`;
+                    } catch (e: any) {
+                        autoGistNote = `\n⚠️ Auto-Publish to NexusNet failed: ${e.message}`;
+                    }
+                }
+
                 return {
                     content: [{
                         type: 'text',
-                        text: `✅ Stored in Nexus memory (id: ${id}, priority: ${priority})\nTags: ${tags.join(', ') || 'none'}${notification}${nudge}`,
+                        text: `✅ Stored in Nexus memory (id: ${id}, priority: ${priority})\nTags: ${tags.join(', ') || 'none'}${autoGistNote}${notification}${nudge}`,
                     }],
                 };
             }
@@ -989,6 +1015,18 @@ export class MCPAdapter implements Adapter {
                 const type = String(request.params.arguments?.type ?? 'knowledge') as 'knowledge' | 'skill';
                 const content = String(request.params.arguments?.content ?? '');
                 const tags = Array.isArray(request.params.arguments?.tags) ? (request.params.arguments?.tags as string[]) : [];
+
+                // Guardrail: GIST_PUBLISH_GUARD auto-check
+                const guardCtx = { action: `nexusnet_transmit: ${content}` };
+                const guardCheck = guardrailEngine.check(guardCtx);
+                if (!guardCheck.passed) {
+                    return {
+                        content: [{
+                            type: 'text',
+                            text: `❌ GUARDRAIL BLOCKED: ${guardrailEngine.format(guardCheck)}`
+                        }]
+                    };
+                }
 
                 try {
                     const result = await nexusNet.publish(type, { content, tags });

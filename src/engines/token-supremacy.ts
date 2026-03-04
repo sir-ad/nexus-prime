@@ -611,45 +611,56 @@ export class TokenSupremacyEngine {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function formatReadingPlan(plan: ReadingPlan): string {
-    const lines: string[] = [
-        `📊 Token Budget Plan for: "${plan.task}"`,
-        `Total estimated: ${plan.totalEstimatedTokens.toLocaleString()} tokens`
-    ];
+    const W = 68;
+    const top = `┌─ ⚡ TOKEN SUPREMACY ${'─'.repeat(Math.max(0, W - 23))}┐`;
+    const bot = `└${'─'.repeat(W)}┘`;
+    const mid = `├${'─'.repeat(W)}┤`;
+
+    const pad = (str: string, len: number) => {
+        if (str.length > len) return str.substring(0, len - 3) + '...';
+        return str.padEnd(len);
+    };
+    const row = (left: string, right: string) => `│ ${pad(left, 24)} │ ${pad(right, W - 29)} │`;
+
+    const lines: string[] = [top];
+
+    // Header Stats
+    lines.push(row('Task', plan.task));
+    lines.push(row('Total Estimated', `${plan.totalEstimatedTokens.toLocaleString()} tokens`));
 
     if (plan.casCompression?.enabled) {
-        lines.push(`(⚡ CAS Applied: ${plan.casCompression.originalTokens.toLocaleString()} discrete tokens compressed to continuous streams, ${plan.casCompression.compressionRatio.toFixed(1)}x ratio)`);
+        lines.push(row('CAS Compression', `${plan.casCompression.compressionRatio.toFixed(1)}x (${plan.casCompression.originalTokens.toLocaleString()} → ${plan.casCompression.compressedTokens.toLocaleString()})`));
     }
 
-    lines.push(
-        `Savings vs full read: ${plan.savings.toLocaleString()} tokens (${Math.round(plan.savings / Math.max(plan.savings + plan.totalEstimatedTokens, 1) * 100)}%)`,
-        '',
-        '📋 Reading Plan:'
-    );
+    const pct = Math.round(plan.savings / Math.max(plan.savings + plan.totalEstimatedTokens, 1) * 100);
+    lines.push(row('Savings', `${plan.savings.toLocaleString()} tokens (${pct}% vs full)`));
+    lines.push(mid);
 
+    // File breakdown
     const byAction: Record<ReadAction, FileReadPlan[]> = {
         full: [], outline: [], partial: [], skip: []
     };
+    for (const fp of plan.files) byAction[fp.action].push(fp);
 
-    for (const fp of plan.files) {
-        byAction[fp.action].push(fp);
-    }
+    const formatFiles = (actionName: string, icon: string, files: FileReadPlan[]) => {
+        if (files.length === 0) return;
+        lines.push(`│ ${icon} ${pad(actionName.toUpperCase(), W - 5)} │`);
+        files.forEach(f => {
+            const shortPath = f.file.path.split('/').pop() || f.file.path;
+            let detail = f.action === 'skip' ? f.reason : `~${f.estimatedTokens}t`;
+            if (f.action === 'partial') detail = `L${f.startLine}-${f.endLine} (~${f.estimatedTokens}t)`;
+            lines.push(row(`   ${shortPath}`, detail));
+        });
+        lines.push(mid);
+    };
 
-    if (byAction.full.length > 0) {
-        lines.push('  ✅ Read fully:');
-        byAction.full.forEach(f => lines.push(`    • ${f.file.path} (~${f.estimatedTokens} tokens)`));
-    }
-    if (byAction.partial.length > 0) {
-        lines.push('  ✂️  Read partially:');
-        byAction.partial.forEach(f => lines.push(`    • ${f.file.path} lines ${f.startLine}-${f.endLine} (~${f.estimatedTokens} tokens)`));
-    }
-    if (byAction.outline.length > 0) {
-        lines.push('  🔍 Outline only:');
-        byAction.outline.forEach(f => lines.push(`    • ${f.file.path} (~${f.estimatedTokens} tokens)`));
-    }
-    if (byAction.skip.length > 0) {
-        lines.push('  ⏭️  Skip:');
-        byAction.skip.forEach(f => lines.push(`    • ${f.file.path} (${f.reason})`));
-    }
+    formatFiles('Read Fully', '✅', byAction.full);
+    formatFiles('Read Partially', '✂️', byAction.partial);
+    formatFiles('Outline Only', '🔍', byAction.outline);
+    formatFiles('Skip', '⏭️', byAction.skip);
+
+    lines.pop(); // Remove last mid line
+    lines.push(bot);
 
     return lines.join('\n');
 }
