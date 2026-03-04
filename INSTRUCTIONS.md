@@ -16,7 +16,13 @@
 5. [Agent 5: Architecture Docs Update](#agent-5-architecture-docs-update)
 6. [Agent 6: Website & Link Audit](#agent-6-website--link-audit)
 7. [Agent 7: AGENTS.md & GEMINI.md Sync](#agent-7-agentsmd--geminimd-sync)
-8. [Constants & References](#constants--references)
+8. [Agent 8: Mermaid Diagrams for Documentation](#agent-8-mermaid-diagrams-for-documentation)
+9. [Agent 9: GitHub Pages Deployment](#agent-9-github-pages-deployment)
+10. [Agent 10: Sub-Agent & Skill Definitions](#agent-10-sub-agent--skill-definitions)
+11. [Agent 11: Git Worktree Operations](#agent-11-git-worktree-operations)
+12. [Agent 12: Knowledge Base & Docs Site](#agent-12-knowledge-base--docs-site)
+13. [MCP Memory FAQ](#mcp-memory-faq)
+14. [Constants & References](#constants--references)
 
 ---
 
@@ -512,27 +518,579 @@ curl -sL -o /dev/null -w "%{http_code}" https://www.npmjs.com/package/nexus-prim
 
 ---
 
-## Orchestration Order
+## Agent 8: Mermaid Diagrams for Documentation
+
+**Goal**: Create Mermaid diagrams for README, docs, and knowledge base. These go inside markdown files using ` ```mermaid ` code blocks.
+
+### Diagram 1: Full System Architecture
+
+Put this in `README.md` under the "Architecture" heading.
+
+```mermaid
+flowchart TB
+    subgraph "AI Agents (Clients)"
+        A1["AntiGravity"]
+        A2["Claude Desktop"]
+        A3["Gemini"]
+    end
+
+    subgraph "Nexus Prime Meta-Framework"
+        MCP["MCP Adapter\n12 tools via stdio"]
+
+        subgraph "Memory Engine"
+            P["Prefrontal (7 items)"]
+            H["Hippocampus (200 items)"]
+            C["Cortex (SQLite ∞)"]
+        end
+
+        subgraph "Token Supremacy"
+            TS["Content-Aware Scoring"]
+            CAS["CAS Compression"]
+            HT["HyperTuning"]
+        end
+
+        subgraph "Phantom Swarm"
+            GP["Ghost Pass"]
+            PW["PhantomWorkers\n(Git Worktrees)"]
+            ENT["Entanglement Engine"]
+            POD["POD Network"]
+            MO["Merge Oracle"]
+        end
+
+        subgraph "Intelligence"
+            GR["Guardrails (MindKit)"]
+            ML["MetaLearner"]
+            DL["Darwin Loop"]
+            GM["Graph Memory"]
+            SC["Skill Cards"]
+        end
+
+        subgraph "Phase 9"
+            QE["Quantum Entanglement"]
+            CASS["Continuous Attention"]
+            KV["KV Bridge"]
+            BFT["Byzantine Consensus"]
+        end
+
+        DB[("memory.db")]
+    end
+
+    A1 & A2 & A3 --> MCP
+    MCP --> P --> H --> C --> DB
+    MCP --> TS --> CAS
+    MCP --> GP --> PW
+    PW <--> POD --> MO
+    ENT --> PW
+    MCP --> GR
+    C --> ML --> DL
+    C --> GM
+```
+
+### Diagram 2: Memory System Tiers
+
+Put this in `docs/knowledge-base.html` (inside a `<pre class="mermaid">` tag) and in `README.md`.
+
+```mermaid
+flowchart LR
+    subgraph "Memory Architecture"
+        direction LR
+        IN["New Memory"] --> P["Prefrontal\n7 items\nActive Working Set"]
+        P -->|"overflow"| H["Hippocampus\n200 items\nSession Context"]
+        H -->|"persist"| C["Cortex\nSQLite\nLong-term"]
+        C -->|"recall"| H
+        H -->|"promote"| P
+    end
+
+    subgraph "Recall Pipeline"
+        Q["Query"] --> EMB["TF-IDF Embedder\n128-dim vectors"]
+        EMB --> SCORE["Hybrid Scoring\nSimilarity × Priority\n× Recency × Access"]
+        SCORE --> TOP["Top-K Results"]
+    end
+
+    C --> EMB
+```
+
+### Diagram 3: Token Optimization Flow
+
+Shows how `nexus_optimize_tokens` saves 50-90% of token budget.
+
+```mermaid
+flowchart TD
+    START["Agent calls nexus_optimize_tokens"] --> SCAN["Scan listed files"]
+    SCAN --> SCORE["Score each file:\nPath keywords + Content (500 bytes)\n+ Extension relevance"]
+    SCORE --> CLASSIFY{"Relevance?"}
+    CLASSIFY -->|"High > 0.6"| FULL["✅ Read Fully"]
+    CLASSIFY -->|"Medium 0.3-0.6"| PARTIAL["✂️ Read Partially\n(hot lines only)"]
+    CLASSIFY -->|"Low 0.1-0.3"| OUTLINE["🔍 Outline Only"]
+    CLASSIFY -->|"None < 0.1"| SKIP["⏭️ Skip"]
+    FULL & PARTIAL & OUTLINE & SKIP --> BUDGET["Budget Allocator"]
+    BUDGET --> CAS_COMPRESS["CAS Compression\n(Phase 9B)"]
+    CAS_COMPRESS --> PLAN["Return ReadingPlan\n50-90% token savings"]
+```
+
+### Diagram 4: Agent Self-Awareness Loop
+
+Shows how Nexus Prime enables agent self-awareness across sessions.
+
+```mermaid
+flowchart TD
+    S1["Session N"] --> RECALL["nexus_recall_memory\nRecall prior context"]
+    RECALL --> WORK["Agent works\n(reads, edits, tests)"]
+    WORK --> STORE["nexus_store_memory\nPersist discoveries"]
+    STORE --> EVO["nexus_audit_evolution\nDetect patterns"]
+    EVO --> DARWIN["Darwin Loop\nSelf-evolving improvements"]
+    DARWIN --> DNA["Session DNA\nStructured handover"]
+    DNA --> S2["Session N+1"]
+    S2 --> RECALL
+
+    subgraph "Self-Awareness Stack"
+        RECALL
+        STORE
+        EVO
+        DARWIN
+        DNA
+    end
+```
+
+### Diagram 5: Phantom Worker Swarm
+
+```mermaid
+flowchart TD
+    TASK["Complex Task"] --> GHOST["Ghost Pass\nRisk Analysis"]
+    GHOST --> SPAWN["Spawn Workers"]
+    SPAWN --> WT1["Worker A\nisolated git worktree"]
+    SPAWN --> WT2["Worker B\nisolated git worktree"]
+    SPAWN --> WT3["Worker C\nisolated git worktree"]
+
+    WT1 & WT2 & WT3 -->|"entangled states"| ENT["Entanglement Engine\nCorrelated decisions"]
+    WT1 & WT2 & WT3 <-->|"broadcast findings"| POD["POD Network"]
+    POD --> MO["Merge Oracle\nByzantine vote"]
+    MO --> BEST["Best approach applied"]
+```
+
+### Diagram 6: Nexus Prime Language (Grain)
+
+```mermaid
+flowchart LR
+    subgraph "Super Intellect Stack"
+        direction TB
+        PH["Phantom\nWhat to build\nPRDs, releases, docs"]
+        MK["MindKit\nHow to think\n22 skills, guardrails"]
+        NP["Nexus Prime\nHow to run\nMemory, tokens, workers"]
+        GR["Grain\nHow to speak\n10 AI primitives"]
+        PH --> MK --> NP --> GR
+    end
+```
+
+### Where to Place Each Diagram
+
+| Diagram | File | Section |
+|---------|------|---------|
+| 1. System Architecture | `README.md` | "Architecture" |
+| 2. Memory Tiers | `README.md` + `docs/knowledge-base.html` | "Memory System" |
+| 3. Token Optimization | `README.md` + `docs/knowledge-base.html` | "Token Optimization" |
+| 4. Self-Awareness | `docs/knowledge-base.html` | "Self-Awareness" |
+| 5. Phantom Swarm | `README.md` | "Phantom Workers" |
+| 6. Language Stack | `README.md` | "The Super Intellect Stack" |
+
+---
+
+## Agent 9: GitHub Pages Deployment
+
+**Goal**: Deploy documentation website to GitHub Pages from the `docs/` folder.
+
+### Step 1: Enable GitHub Pages
+
+Go to: `https://github.com/sir-ad/nexus-prime/settings/pages`
+
+Set:
+- **Source**: Deploy from a branch
+- **Branch**: `main`
+- **Folder**: `/docs`
+- Click **Save**
+
+The site will be live at: `https://sir-ad.github.io/nexus-prime/`
+
+### Step 2: Create GitHub Actions Workflow for Pages
+
+Create file: `.github/workflows/pages.yml`
+
+```yaml
+name: Deploy Docs to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v4
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+      - id: deployment
+        uses: actions/deploy-pages@v4
+```
+
+### Step 3: Fix All Links in docs/
+
+Every link in `docs/index.html` and `docs/knowledge-base.html` MUST follow these rules:
+
+| Link Type | Pattern |
+|-----------|---------|
+| Internal page | `knowledge-base.html` (relative, same folder) |
+| GitHub repo | `https://github.com/sir-ad/nexus-prime` |
+| NPM | `https://www.npmjs.com/package/nexus-prime` |
+| External | Must have `target="_blank"` |
+| Anchor | Must match an `id=""` attribute in the HTML |
+
+### Step 4: Add Mermaid.js to HTML Pages
+
+Add this script to `<head>` of ALL HTML files in `docs/`:
+
+```html
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({ startOnLoad: true, theme: 'dark' });
+</script>
+```
+
+Then use `<pre class="mermaid">` tags for diagrams instead of markdown code blocks.
+
+### Step 5: Verify Deployment
+
+```bash
+# After pushing docs/ changes:
+# Wait 2-3 minutes for GitHub Pages to build
+# Then verify:
+curl -sL -o /dev/null -w "%{http_code}" https://sir-ad.github.io/nexus-prime/
+curl -sL -o /dev/null -w "%{http_code}" https://sir-ad.github.io/nexus-prime/knowledge-base.html
+```
+
+---
+
+## Agent 10: Sub-Agent & Skill Definitions
+
+**Goal**: Define the sub-agent roles and skill cards used by Nexus Prime.
+
+### Sub-Agent Roles
+
+Nexus Prime can orchestrate multiple specialized sub-agents. Each has a defined role:
+
+| Sub-Agent | Trigger | Behavior | Output |
+|-----------|---------|----------|--------|
+| **Ghost Pass Analyst** | `nexus_ghost_pass()` | Reads AST of target files, identifies risk areas, suggests approaches | Risk report + reading plan |
+| **Phantom Worker** | `nexus_spawn_workers()` | Operates in isolated git worktree, executes task independently | `{ learnings, confidence, diff }` |
+| **Merge Oracle** | After all workers finish | Byzantine vote on worker outputs, picks highest-confidence | Winning diff + merge decision |
+| **Evolution Auditor** | `nexus_audit_evolution()` | Scans memory for recurring failures, identifies hotspot files | Pattern report + recommendations |
+| **Guardrail Enforcer** | `nexus_mindkit_check()` | Validates proposed actions against 6 machine-checked rules | PASS/FAIL + score 0-100 |
+| **Token Budget Planner** | `nexus_optimize_tokens()` | Scores files by relevance, builds token-efficient reading plan | ReadingPlan with 50-90% savings |
+| **Memory Librarian** | `nexus_store/recall_memory()` | Manages 3-tier memory, TF-IDF recall, Zettelkasten linking | Stored/recalled memories |
+| **CAS Compressor** | `nexus_cas_compress()` | Converts discrete tokens to continuous attention streams | AttentionFluid with compression ratio |
+| **Entanglement Coordinator** | `nexus_entangle()` | Creates quantum-inspired correlated agent states | MeasurementResult with strategy index |
+| **KV Bridge Manager** | `nexus_kv_bridge_status/adapt()` | Manages vLLM/Ollama KV cache bridge with Byzantine consensus | Bridge metrics + adaptation status |
+
+### Skill Card Format
+
+Skill cards are stored in `src/engines/skill-card.ts`. Each card defines:
+
+```typescript
+interface SkillCard {
+  name: string;             // e.g., "debug_memory_leak"
+  description: string;      // What this skill does
+  triggerPatterns: string[]; // Keywords that activate this skill
+  steps: string[];          // Ordered execution steps
+  confidence: number;       // 0-1, how reliable this skill is
+  usageCount: number;       // How many times it's been used
+  lastUsed: number;         // Timestamp
+}
+```
+
+### Default Skill Cards to Document
+
+| Skill | Trigger | Steps |
+|-------|---------|-------|
+| `debug_typescript_error` | "tsc error", "type mismatch" | 1. Read error message 2. Find file:line 3. Check type definitions 4. Fix type 5. Run build |
+| `optimize_token_budget` | "token", "budget", "context" | 1. Call nexus_optimize_tokens 2. Follow reading plan 3. Store findings |
+| `parallel_refactor` | "refactor 3+ files" | 1. Ghost Pass 2. Spawn workers 3. Wait for MergeOracle 4. Apply winner |
+| `memory_recall_pattern` | "remember", "last session" | 1. nexus_recall_memory(query, k=8) 2. Trust results 3. Skip re-reading |
+| `safe_destructive_op` | "delete", "drop", "remove" | 1. nexus_mindkit_check(isDestructive=true) 2. If PASS, proceed 3. If FAIL, abort |
+
+### Where to Document
+
+1. Add a "Sub-Agents" section to `README.md` with the sub-agent table
+2. Add a "Skill Cards" section to `docs/knowledge-base.html`
+3. Add the skill card interface to `AGENTS.md`
+
+---
+
+## Agent 11: Git Worktree Operations
+
+**Goal**: Use git worktrees for parallel isolated development.
+
+### What Are Git Worktrees?
+
+Git worktrees let you check out multiple branches simultaneously in separate directories. Nexus Prime's `PhantomWorker` uses them to run parallel tasks without conflicts.
+
+### Creating a Worktree
+
+```bash
+# Create a worktree for a specific task
+git worktree add ../nexus-worker-A -b worker/task-A
+
+# Create another parallel worktree
+git worktree add ../nexus-worker-B -b worker/task-B
+```
+
+### Working in a Worktree
+
+```bash
+# Switch to worktree A
+cd ../nexus-worker-A
+
+# Make changes, build, test
+npm run build && npm run test
+
+# Commit changes
+git add . && git commit -m "feat(worker-A): implement approach A"
+```
+
+### Merging Worktree Results
+
+```bash
+# Go back to main repo
+cd /Users/starlord/nexus-prime
+
+# Merge the winning approach
+git merge worker/task-A
+
+# Clean up worktrees
+git worktree remove ../nexus-worker-A
+git worktree remove ../nexus-worker-B
+
+# Delete branches
+git branch -d worker/task-A worker/task-B
+```
+
+### List Active Worktrees
+
+```bash
+git worktree list
+```
+
+### When to Use Worktrees
+
+| Scenario | Use Worktree? |
+|----------|---------------|
+| Editing 1-2 files | ❌ No |
+| Refactoring 3+ interrelated files | ✅ Yes |
+| Trying 2 different approaches | ✅ Yes |
+| Testing a risky change | ✅ Yes |
+| Bug fix on a different branch | ✅ Yes |
+
+### Integration with Phantom Workers
+
+When `nexus_spawn_workers` is called, it internally:
+1. Creates worktrees: `git worktree add /tmp/nexus-worker-{id} -b phantom/{id}`
+2. Runs the task in each worktree independently
+3. Workers broadcast findings via POD Network
+4. MergeOracle evaluates and picks the winner
+5. Winning changes are merged back to main
+6. Worktrees are cleaned up: `git worktree remove`
+
+---
+
+## Agent 12: Knowledge Base & Docs Site
+
+**Goal**: Build comprehensive documentation site hosted on GitHub Pages.
+
+### Required Pages
+
+The `docs/` folder must contain these files:
+
+| File | Purpose |
+|------|---------|
+| `index.html` | Main landing page — overview, features, quick start |
+| `knowledge-base.html` | Technical deep-dive — all diagrams, engine details |
+| `architecture.html` | **[NEW]** Full architecture reference with interactive diagrams |
+| `api-reference.html` | **[NEW]** All 12 MCP tools with parameters and examples |
+| `changelog.html` | **[NEW]** Version history and release notes |
+
+### index.html Requirements
+
+1. Hero section with project name, tagline, badges
+2. "Get Started" with 3-step install
+3. Feature grid (6 cards): Memory, Tokens, Workers, Guardrails, Evolution, Phase 9
+4. Ecosystem section linking to Phantom, MindKit, Grain
+5. Footer with GitHub, NPM, License links
+6. **ALL links must work** — no 404s
+
+### knowledge-base.html Requirements
+
+1. All 6 Mermaid diagrams from Agent 8
+2. Memory System deep-dive (3-tier explanation)
+3. Token Optimization explainer (how scoring works)
+4. Self-Awareness Loop (how sessions connect)
+5. Phantom Worker flow (worktrees, POD, MergeOracle)
+6. Phase 9 Innovation Vectors (Entanglement, CAS, KV Bridge)
+7. Sub-Agent & Skill Card reference table
+
+### architecture.html Content
+
+1. Full system architecture Mermaid diagram
+2. Engine-by-engine breakdown table:
+
+| Engine | File | Purpose | Phase |
+|--------|------|---------|-------|
+| MemoryEngine | `memory.ts` | 3-tier persistent memory | Core |
+| TokenSupremacy | `token-supremacy.ts` | Content-aware token optimization | Core |
+| Embedder | `embedder.ts` | TF-IDF 128-dim vectors | Core |
+| GuardrailsBridge | `guardrails-bridge.ts` | MindKit sync + rule enforcement | Core |
+| MetaLearner | `meta-learner.ts` | MAML-based adaptive learning | Core |
+| CacheManager | `cache-manager.ts` | Agent delta caching | Core |
+| ContextAssembler | `context-assembler.ts` | File chunking + context building | Core |
+| EventBus | `event-bus.ts` | Cross-engine event system | Core |
+| PODNetwork | `pod-network.ts` | Worker communication | Phantom |
+| SessionDNA | `session-dna.ts` | Structured session handover | Phase 8 |
+| SkillCard | `skill-card.ts` | Transferable agent patterns | Phase 8 |
+| DarwinLoop | `darwin-loop.ts` | Self-evolving code improvements | Phase 8 |
+| GraphMemory | `graph-memory.ts` | Knowledge graph storage | Phase 8 |
+| NexusNetRelay | `nexusnet-relay.ts` | Cross-machine federation | Phase 8 |
+| Benchmark | `benchmark.ts` | Performance measurement | Phase 8 |
+| Entanglement | `entanglement.ts` | Quantum-inspired agent correlation | Phase 9A |
+| HilbertSpace | `hilbert-space.ts` | Hilbert math (tensor, Born rule) | Phase 9A |
+| AttentionStream | `attention-stream.ts` | Continuous token compression | Phase 9B |
+| PatternCodebook | `pattern-codebook.ts` | Learned compression dictionary | Phase 9B |
+| KVBridge | `kv-bridge.ts` | vLLM/Ollama inference bridge | Phase 9C |
+| ByzantineConsensus | `byzantine-consensus.ts` | PBFT multi-agent sync | Phase 9C |
+
+3. Data flow diagram showing request lifecycle
+4. EventBus event catalog (all event types by phase)
+
+### api-reference.html Content
+
+For each of the 12 MCP tools, document:
+
+```
+Tool Name: nexus_recall_memory
+Description: Semantic recall from 3-tier memory
+Parameters:
+  - query (string, required): What to search for
+  - k (number, optional, default=5): Number of results
+Returns: Array of memories with content, priority, tags, score
+Example:
+  nexus_recall_memory({ query: "sqlite memory bug", k: 8 })
+When to Use: Session start, mid-session when you need prior context
+```
+
+### HTML Template Rules
+
+1. Use dark theme (background: `#0f172a`, text: `#e2e8f0`)
+2. Include Mermaid.js CDN script (see Agent 9)
+3. Navigation bar must link to ALL docs pages
+4. Every page must have a "Back to GitHub" link
+5. Use `<pre class="mermaid">` for Mermaid diagrams in HTML
+6. Responsive design — must work on mobile
+7. Syntax highlighting via Prism.js or Highlight.js
+
+### Navigation Structure
+
+All pages must have this nav bar:
+
+```html
+<nav>
+  <a href="index.html">Home</a>
+  <a href="knowledge-base.html">Knowledge Base</a>
+  <a href="architecture.html">Architecture</a>
+  <a href="api-reference.html">API Reference</a>
+  <a href="changelog.html">Changelog</a>
+  <a href="https://github.com/sir-ad/nexus-prime">GitHub</a>
+  <a href="https://www.npmjs.com/package/nexus-prime">NPM</a>
+</nav>
+```
+
+---
+
+## MCP Memory FAQ
+
+**Q: When I call `nexus_recall_memory`, it shows old "CRITICAL BUG" messages. Is something broken?**
+
+**A: No, this is normal.** The memory system recalls ALL semantically relevant memories, including historical ones about bugs that have since been fixed. The fix is documented in later memories (e.g., "Session 2026-03-03 Phase 3 COMPLETE: All 9 tasks done. P0: Token optimizer 0→100%").
+
+**How to interpret recall results:**
+
+1. Look for the MOST RECENT session-summary memory — it has the current state
+2. If a memory says "CRITICAL BUG" but a later memory says "FIXED" — it's fixed
+3. Historical memories are valuable context — they explain WHY code is written a certain way
+4. If unsure, check the actual code — `git log --oneline -10` shows recent changes
+
+**Q: Why does it recall 43+ calls and 700+ Zettel links?**
+
+**A: That's the telemetry footer.** It shows:
+- `43 calls` = total MCP calls in this session
+- `766 Zettel links` = total cross-references in the knowledge graph
+- This is healthy and means memory is working well
+
+**Q: How do I clear old memories?**
+
+**A:** Delete the SQLite database: `rm ~/.nexus-prime/memory.db` and restart. Only do this if you want a complete fresh start.
+
+---
+
+## Orchestration Order (Updated)
 
 When running all agents, execute in this order:
 
 ```
-1. Agent 6: Website & Link Audit    (audit first, understand what's broken)
-2. Agent 5: Architecture Docs       (update AGENTS.md, GEMINI.md tool counts)
-3. Agent 4: README Rewrite          (the big README rewrite)
-4. Agent 7: Protocol Sync           (final sync pass)
-5. Agent 1: Git Commit & Push       (commit everything)
-6. Agent 2: GitHub Release          (tag and release)
-7. Agent 3: NPM Publish             (automatic via CI, or manual)
+Phase 1 — Audit & Research:
+  1. Agent 6:  Website & Link Audit
+  2. Agent 11: Git Worktree Setup (create worktree for docs work)
+
+Phase 2 — Content Creation:
+  3. Agent 8:  Mermaid Diagrams (create all 6 diagrams)
+  4. Agent 10: Sub-Agent & Skill Definitions
+  5. Agent 5:  Architecture Docs Update
+  6. Agent 4:  README Rewrite
+
+Phase 3 — Website & Docs:
+  7. Agent 12: Knowledge Base & Docs Site
+  8. Agent 9:  GitHub Pages Deployment
+  9. Agent 7:  Protocol Sync (GEMINI.md + AGENTS.md)
+
+Phase 4 — Ship:
+  10. Agent 1: Git Commit & Push
+  11. Agent 2: GitHub Release
+  12. Agent 3: NPM Publish
 ```
 
-### Dependency Graph
+### Updated Dependency Graph
 
 ```
-Agent 6 (audit) ──→ Agent 5 (arch) ──→ Agent 4 (readme) ──→ Agent 7 (sync)
-                                                                    │
-                                                                    ▼
-                                                        Agent 1 (commit) ──→ Agent 2 (release) ──→ Agent 3 (npm)
+Phase 1:  Agent 6 ──→ Agent 11 (worktree)
+              │
+Phase 2:      ├──→ Agent 8 (diagrams) ──→ Agent 10 (skills) ──→ Agent 5 (arch)
+              │                                                      │
+              │                                                      ▼
+              └──────────────────────────────────────────────→ Agent 4 (readme)
+                                                                     │
+Phase 3:                                                             ▼
+                                                        Agent 12 (docs) ──→ Agent 9 (pages) ──→ Agent 7 (sync)
+                                                                                                      │
+Phase 4:                                                                                              ▼
+                                                                                         Agent 1 (commit) ──→ Agent 2 (release) ──→ Agent 3 (npm)
 ```
 
 ---
@@ -566,6 +1124,11 @@ node dist/cli.js mcp
 
 # Run dashboard
 node dist/cli.js start
+
+# Git worktrees
+git worktree add ../nexus-worker-A -b worker/task-A
+git worktree list
+git worktree remove ../nexus-worker-A
 ```
 
 ---
@@ -580,7 +1143,11 @@ node dist/cli.js start
 | `git push` rejected | Pull first: `git pull --rebase origin main` |
 | Dashboard won't load | Ensure `cp src/dashboard/index.html dist/dashboard/` ran during build |
 | Memory DB locked | Kill other `nexus-prime` processes: `pkill -f "cli.js mcp"` |
+| GitHub Pages 404 | Check Settings > Pages > Source is `main` branch, `/docs` folder |
+| Mermaid not rendering | Ensure Mermaid.js CDN script is in `<head>` |
+| Worktree conflict | `git worktree prune` then retry |
+| Memory shows old bugs | Normal — check most recent session-summary memory for current state |
 
 ---
 
-*Generated: 2026-03-04 | Nexus Prime v0.2.0 | 29 engines, 12 MCP tools, 21+ tests*
+*Generated: 2026-03-04 | Nexus Prime v0.2.0 | 29 engines, 12 MCP tools, 21+ tests | 12 agent tasks*
