@@ -1,181 +1,203 @@
 # 🧬 Nexus Prime
 
-**The Meta-Framework for Autonomous AI Agents.**
-
-Nexus Prime is an advanced MCP (Model Context Protocol) server that transforms standard AI agents into persistent, self-aware, and token-efficient entities. It provides a shared memory cortex, parallel "Phantom Worker" orchestration, and machine-checked guardrails that run as a background OS for your AI session.
+**Give your AI agent a brain that persists, thinks, and learns.**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/Node.js-22%2B-green.svg)](https://nodejs.org)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue.svg)](https://typescriptlang.org)
-[![Version](https://img.shields.io/badge/version-0.3.0-orange.svg)](CHANGELOG.md)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.3-blue.svg)](https://typescriptlang.org)
+[![MCP Tools](https://img.shields.io/badge/MCP_Tools-20-orange.svg)](#-20-mcp-tools)
+[![Engines](https://img.shields.io/badge/Engines-30-purple.svg)](#-system-architecture)
 
 ---
 
-## 🏗️ The Super Intellect Stack
+## The Problem
 
-Nexus Prime is the operational core of the **Sir-Ad AI Ecosystem**, bridges the gap between raw code and high-level reasoning.
+Every AI agent session starts with **total amnesia**. Your agent forgets yesterday's bug fix. It wastes 80% of its context window re-reading files it already understood. And when a task is complex enough to need multiple approaches, it works alone — sequentially, slowly.
 
-```mermaid
-graph BT
-    L1["File / Raw Code"] --- L2["JSON Objects"]
-    L2 --- L3["MCP Tools"]
-    L3 --- L4["Grain Primitives"]
-    L4 --- L5["Thought (Natural Language)"]
-    
-    subgraph Stack["Nexus Prime Layer"]
-        L3
-        L4
-    end
-    
-    style Stack fill:#1e1e2e,stroke:#89b4fa,stroke-width:2px
+## The Solution
+
+Nexus Prime is an **MCP server** that runs alongside your AI agent and gives it four superpowers:
+
+| Superpower | What It Does |
+|:---|:---|
+| **🧠 Persistent Memory** | 3-tier knowledge system (Prefrontal → Hippocampus → Cortex). 820+ Zettelkasten links. Survives restarts. |
+| **⚡ Token Supremacy** | HyperTune™ optimizer reads only the relevant chunks. 50-90% context window savings. |
+| **🐝 Phantom Swarms** | Parallel workers in isolated Git Worktrees. Ghost Pass risk analysis → Spawn → Byzantine Merge. |
+| **🛡️ MindKit Guardrails** | Machine-checked safety. Scores 0-100. Blocks destructive ops before they happen. |
+
+---
+
+## ⚡ 30-Second Quickstart
+
+```bash
+# Clone and build
+git clone https://github.com/sir-ad/nexus-prime.git
+cd nexus-prime && npm install && npm run build
+
+# Verify
+npm test  # 19/19 passed
 ```
 
-| Project | Role | description |
-| :--- | :--- | :--- |
-| **Phantom** | PM | "What to build" — High-level orchestration & release management. |
-| **MindKit** | Skills | "How to think" — Routing, skill-cards, and semantic guardrails. |
-| **Nexus Prime**| OS | "How to run" — Memory, token optimization, parallel workers. |
-| **Grain** | Language | "How to speak" — Universal AI primitives and CAS compression. |
+Add to your agent's MCP config (Cursor, Claude Desktop, etc.):
+
+```json
+{
+  "nexus-prime": {
+    "command": "node",
+    "args": ["/path/to/nexus-prime/dist/cli.js", "mcp"]
+  }
+}
+```
+
+Call `nexus_memory_stats()` from your agent to confirm the cortex is online.
 
 ---
 
-## ✨ Key Capabilities
+## 📊 Real-Time Dashboard
 
-### 🧠 3-Tier Persistent Memory
-Stop the "Cold Start" problem. Nexus Prime stores every insight, bug fix, and architectural decision across sessions.
-- **Prefrontal Cortex**: Immediate working set (Active).
-- **Hippocampus**: Recent session history (Cached).
-- **Cortex**: Long-term SQLite-backed knowledge (Persistent).
+Nexus Prime includes a **built-in visualization dashboard** powered by Server-Sent Events (SSE). Watch your agent's memory stores, token optimizations, phantom dispatches, and guardrail checks stream in real time — 42 event types, zero polling.
 
-### ⚡ Token Supremacy
-Drastically reduce context window costs using **HyperTune™** logic.
-- **50-90% Savings**: Agents read only the most relevant chunks of files.
-- **Greedy Knapsack Optimization**: Maximize information gain within a fixed token budget.
+```bash
+npm start  # Opens dashboard at localhost:3000
+```
 
-### 🐝 Phantom Worker Swarms
-Parallelize complex tasks using **Git Worktrees**.
-- **Ghost Pass**: Read-only risk analysis and pre-flight planning.
-- **Spawn Workers**: Dispatches parallel agents to explore different strategies simultaneously.
-- **Merge Oracle**: Byzantine consensus to synthesize the most robust solution.
-
-### 🛡️ MindKit Guardrails
-Machine-checked safety before destructive operations.
-- Scores actions 0-100 against safety protocols.
-- Blocks destructive commands (e.g., `rm -rf`) and context window blowouts.
+![Dashboard Preview](docs/dashboard-preview.png)
 
 ---
 
-## 🛠️ MCP Toolset (20 Tools)
+## 🛠️ 20 MCP Tools
 
-Nexus Prime exposes 20 powerful tools to your agent.
+Every capability is a native MCP tool. No SDK, no REST — just function calls.
 
 ### 💾 Memory & Knowledge
-- `nexus_store_memory`: Persist insights to long-term cortex.
-- `nexus_recall_memory`: Vector-search prior session findings.
-- `nexus_memory_stats`: Monitor cortex health and Zettelkasten links.
-- `nexus_graph_query`: Traverse the knowledge graph via BFS/DFS.
+| Tool | Purpose |
+|:---|:---|
+| `nexus_store_memory` | Persist insights with priority + tags to long-term cortex |
+| `nexus_recall_memory` | Semantic vector search — finds "login bug" when you search "auth issue" |
+| `nexus_memory_stats` | Tier counts, Zettelkasten density, session telemetry |
+| `nexus_graph_query` | BFS/DFS traversal of the knowledge graph |
 
-### 🚀 Optimization & Performance
-- `nexus_optimize_tokens`: Generate optimized file-reading plans.
-- `nexus_hypertune_max`: Deep chunk-level relevance optimization.
-- `nexus_cas_compress`: Compress token streams via Continuous Attention.
-- `nexus_kv_bridge_status`: Monitor Adaptive KV Cache performance.
+### ⚡ Optimization
+| Tool | Purpose |
+|:---|:---|
+| `nexus_optimize_tokens` | Generate READ/OUTLINE/SKIP file plans before wasting tokens |
+| `nexus_hypertune_max` | Chunk-level relevance via greedy knapsack optimization |
+| `nexus_cas_compress` | Continuous Attention Stream compression with learned codebooks |
+| `nexus_kv_bridge_status` | KV Cache compression ratios and consensus |
 
-### 🤖 Autonomy & Orchestration
-- `nexus_ghost_pass`: Pre-flight risk and approach analysis.
-- `nexus_spawn_workers`: Dispatch parallel Phantom workers.
-- `nexus_audit_evolution`: Identify recurring failure hotspots.
-- `nexus_session_dna`: Snapshot state for perfect session handover.
+### 🤖 Autonomy
+| Tool | Purpose |
+|:---|:---|
+| `nexus_ghost_pass` | Read-only pre-flight risk analysis |
+| `nexus_spawn_workers` | Parallel Phantom Workers in isolated Git Worktrees |
+| `nexus_audit_evolution` | Find recurring failure hotspots |
+| `nexus_session_dna` | Structured state snapshots for session handover |
 
-### 🧬 Self-Improvement
-- `nexus_darwin_propose`: Propose core engine improvements.
-- `nexus_darwin_review`: Apply validated self-modifications.
-- `nexus_skill_register`: Declaratively register new skill cards.
+### 🧬 Self-Improvement & Federation
+| Tool | Purpose |
+|:---|:---|
+| `nexus_darwin_propose` | Propose engine improvements via evolutionary loop |
+| `nexus_darwin_review` | Validate self-modifications before applying |
+| `nexus_skill_register` | Register new Skill Cards declaratively |
+| `nexus_net_publish` | Publish knowledge to NexusNet (GitHub Gist federation) |
+| `nexus_net_sync` | Sync learnings from other Nexus Prime instances |
+| `nexus_entangle` | Quantum-inspired entangled state between cooperating agents |
 
 ---
 
 ## 📐 System Architecture
 
+```
+30 Engine Files · 20 MCP Tools · 3 Communication Channels · 42 Event Types
+```
+
 ```mermaid
 flowchart TB
-    User["Agent (AntiGravity)"]:::client
-    
-    subgraph Nexus["Nexus Prime runtime"]
+    Agent["🤖 Your Agent"]:::client
+    subgraph NP["Nexus Prime"]
         MCP["MCP Adapter"]:::adapter
-        
-        subgraph Core["Core Engines"]
-            direction TB
-            Memory["Memory Engine<br/>(3-tier)"]:::engine
-            Tokens["Token Supremacy<br/>(HyperTune)"]:::engine
-            Guard["MindKit Bridge<br/>(Machine Checked)"]:::engine
+        subgraph Engines["Core"]
+            Mem["Memory (3-tier)"]:::e
+            Tok["Token Supremacy"]:::e
+            Guard["MindKit"]:::e
+            Graph["Graph Memory"]:::e
         end
-        
-        subgraph Phase9["Innovation Layer"]
-            direction RL
-            Entangle["Entanglement Engine<br/>(Agent Telepathy)"]:::innovation
-            CAS["CAS Engine<br/>(Continuous Attention)"]:::innovation
-            KV["KV-Bridge<br/>(Aggressive Compression)"]:::innovation
+        subgraph P9["Phase 9"]
+            Ent["Entanglement"]:::p9
+            CAS["CAS"]:::p9
+            KV["KV-Bridge"]:::p9
+        end
+        subgraph UX["Interaction"]
+            EB["Event Bus (42 types)"]:::ux
+            Dash["SSE Dashboard"]:::ux
         end
     end
-    
     subgraph Swarm["Phantom Swarm"]
-        GP["Ghost Pass"]:::swarm
-        PW["Workers (Worktrees)"]:::swarm
-        OR["Merge Oracle"]:::swarm
+        Ghost["Ghost Pass"]:::sw
+        Workers["Workers (Worktrees)"]:::sw
+        POD["POD Network"]:::sw
+        Oracle["Merge Oracle"]:::sw
     end
-    
-    User <--> MCP
-    MCP <--> Core
-    Core <--> Phase9
+    Net["NexusNet (Gist Relay)"]:::net
+    Agent <--> MCP
+    MCP <--> Engines
+    MCP <--> P9
     MCP <--> Swarm
-    
+    Engines <--> UX
+    MCP <--> Net
     classDef client fill:#000,stroke:#00ff88,color:#00ff88
-    classDef adapter fill:#1a1a1a,stroke:#00d4ff,color:#00d4ff
-    classDef engine fill:#1a1a1a,stroke:#8b5cf6,color:#8b5cf6
-    classDef innovation fill:#2e1065,stroke:#d946ef,color:#d946ef
-    classDef swarm fill:#450a0a,stroke:#ef4444,color:#ef4444
+    classDef adapter fill:#0d1828,stroke:#00d4ff,color:#00d4ff
+    classDef e fill:#0d1828,stroke:#8b5cf6,color:#8b5cf6
+    classDef p9 fill:#1a0a2e,stroke:#d946ef,color:#d946ef
+    classDef sw fill:#1a0a0a,stroke:#ef4444,color:#ef4444
+    classDef ux fill:#0a1a1a,stroke:#fbbf24,color:#fbbf24
+    classDef net fill:#0a0a1a,stroke:#00d4ff,color:#00d4ff
 ```
+
+### UX Interaction Layer
+
+| Channel | Mechanism | Scope |
+|:---|:---|:---|
+| **Event Bus** | Strongly-typed emitter → SSE → Dashboard | Within process |
+| **POD Network** | File-backed pub/sub with confidence scoring | Between workers |
+| **NexusNet Relay** | GitHub Gist as federated message relay | Cross-machine |
 
 ---
 
 ## 📂 Project Structure
 
-```bash
+```
 nexus-prime/
 ├── src/
-│   ├── agents/          # Agent adapters (MCP, CLI)
-│   ├── engines/         # 30+ Core logic engines (Memory, Tokens, CAS)
-│   ├── phantom/         # Parallel worker orchestration
-│   └── index.ts         # Main entry point
-├── docs/                # Documentation & Architecture diagrams
-├── scripts/             # Utility & setup scripts
-└── .nexus-prime/        # Persistent local memory (SQLite)
+│   ├── agents/adapters/   # MCP adapter (1,159 lines, 20 tool handlers)
+│   ├── engines/           # 30 core engines (Memory, Tokens, CAS, Graph...)
+│   ├── phantom/           # Ghost Pass, Workers, Merge Oracle, Coordinator
+│   ├── dashboard/         # Real-time SSE visualization
+│   └── index.ts           # Main entry
+├── docs/                  # Single-page documentation website
+├── test/                  # Automated test suite
+└── .nexus-prime/          # Local SQLite memory (persists across restarts)
 ```
 
 ---
 
-## 🚀 Quick Start
+## 🌐 The Sir-Ad Ecosystem
 
-### 1. Installation
-```bash
-npm install -g nexus-prime
-```
-
-### 2. Configure MCP (Optional)
-Add this to your IDE/Agent configuration (e.g., Cursor, Claude Desktop):
-
-```json
-"nexus-prime": {
-  "command": "node",
-  "args": ["/path/to/nexus-prime/dist/cli.js", "mcp"]
-}
-```
-
-### 3. Verification
-Call `nexus_memory_stats` to ensure the memory cortex is online.
+| Project | Role | What it does |
+|:---|:---|:---|
+| **Phantom** | PM | "What to build" — Orchestration & release management |
+| **MindKit** | Skills | "How to think" — Routing, skill-cards, semantic guardrails |
+| **Nexus Prime** | OS | "How to run" — Memory, tokens, workers, federation |
+| **Grain** | Language | "How to speak" — Universal AI primitives, CAS compression |
 
 ---
 
 ## 📜 License
 
 MIT © [Sir-Ad](https://github.com/sir-ad)
+
+---
+
+<p align="center">
+  <strong>Built with 30 engines, 20 tools, and zero compromises.</strong>
+</p>
