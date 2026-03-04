@@ -20,6 +20,7 @@ import { randomUUID } from 'crypto';
 import type { MemoryEngine } from '../engines/memory.js';
 import { MergeOracle } from './merge-oracle.js';
 export { MergeOracle };
+import { entanglementEngine } from '../engines/index.js';
 import {
     TokenSupremacyEngine,
     type FileRef,
@@ -192,6 +193,11 @@ export class PhantomWorker {
         const startTime = Date.now();
 
         try {
+            // [Phase 9A] Pre-fork entangled state setup
+            entanglementEngine.entangle([this.workerId]);
+            // Initial entanglement measurement (collapse) for this worker
+            entanglementEngine.measure(task.id, this.workerId);
+
             // Create isolated worktree
             await this.createWorktree();
 

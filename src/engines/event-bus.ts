@@ -29,7 +29,19 @@ export type NexusEventType =
     | 'session.dna'
     | 'skill.register'
     | 'nexusnet.publish'
-    | 'nexusnet.sync';
+    | 'nexusnet.sync'
+    // Phase 9A: Quantum-Inspired Entanglement
+    | 'entanglement.create'
+    | 'entanglement.collapse'
+    | 'entanglement.correlate'
+    // Phase 9B: Continuous Attention Streams
+    | 'cas.encode'
+    | 'cas.decode'
+    | 'cas.pattern_learned'
+    // Phase 9C: AdaptiveKV Bridge
+    | 'kv.merge'
+    | 'kv.adapt'
+    | 'kv.consensus';
 
 export interface NexusEventPayloads {
     'system.boot': { version: string; toolsCount: number };
@@ -48,6 +60,18 @@ export interface NexusEventPayloads {
     'skill.register': { name: string; id: string };
     'nexusnet.publish': { type: string; byteSize: number };
     'nexusnet.sync': { newItemsCount: number };
+    // Phase 9A
+    'entanglement.create': { stateId: string; agents: number; dimension: number; type: string };
+    'entanglement.collapse': { stateId: string; agentId: string; strategy: number; probability: number; remainingAgents: number };
+    'entanglement.correlate': { stateId: string; pairs: number; avgCorrelation: number };
+    // Phase 9B
+    'cas.encode': { inputTokens: number; outputTokens: number; compressionRatio: number };
+    'cas.decode': { tokens: number };
+    'cas.pattern_learned': { pattern: string; codebookSize: number };
+    // Phase 9C
+    'kv.merge': { layerPair: string; compressionRatio: number };
+    'kv.adapt': { taskType: string; shots: number; adaptationTime: number };
+    'kv.consensus': { agents: number; syncOverhead: number; conflicts: number };
 }
 
 export interface NexusEvent<T extends NexusEventType = NexusEventType> {

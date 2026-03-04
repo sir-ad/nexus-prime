@@ -33,3 +33,18 @@ export {
   EXPECTED_RESULTS
 } from './benchmark.js';
 export type { BenchmarkResult } from './benchmark.js';
+
+// Phase 9A: Quantum-Inspired Entanglement
+export { EntanglementEngine, entanglementEngine } from './entanglement.js';
+export type { EntangledState, MeasurementResult, CorrelationEntry } from './entanglement.js';
+
+// Phase 9B: Continuous Attention Streams
+export { PatternCodebook } from './pattern-codebook.js';
+export { ContinuousAttentionStream } from './attention-stream.js';
+export type { AttentionFluid, CASStats } from './attention-stream.js';
+
+// Phase 9C: AdaptiveKVMerge Bridge
+export { ByzantineConsensus } from './byzantine-consensus.js';
+export type { ConsensusProposal, ConsensusResult } from './byzantine-consensus.js';
+export { KVBridge, createKVBridge } from './kv-bridge.js';
+export type { KVBridgeConfig, MergeDecision, BridgeMetrics } from './kv-bridge.js';

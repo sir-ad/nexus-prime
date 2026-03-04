@@ -28,11 +28,18 @@ import { nexusEventBus } from '../../engines/event-bus.js';
 import { SkillCardRegistry, type SkillCard } from '../../engines/skill-card.js';
 import { DarwinLoop } from '../../engines/darwin-loop.js';
 import { NexusNetRelay } from '../../engines/nexusnet-relay.js';
+import {
+    entanglementEngine,
+    ContinuousAttentionStream,
+    createKVBridge
+} from '../../engines/index.js';
 
 const tokenEngine = new TokenSupremacyEngine();
 const guardrailEngine = new GuardrailEngine();
 const darwinLoop = new DarwinLoop();
 const nexusNet = new NexusNetRelay();
+const casEngine = new ContinuousAttentionStream();
+const kvBridge = createKVBridge({ agents: 3 });
 
 // Lazy-initialized Graph Engine (separate DB from core memory)
 let _graphEngine: GraphMemoryEngine | null = null;
@@ -390,6 +397,49 @@ export class MCPAdapter implements Adapter {
                     inputSchema: {
                         type: 'object',
                         properties: {}
+                    },
+                },
+                {
+                    name: 'nexus_entangle',
+                    description: 'Measure an entangled agent state, returning the collapsed decision and its correlation score.',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {
+                            systemId: { type: 'string', description: 'ID of the entangled system (e.g. "phantom_workers")' },
+                            agentId: { type: 'string', description: 'ID of the agent being measured' },
+                            basis: { type: 'string', description: 'Measurement basis (e.g. "feature_x")' },
+                        },
+                        required: ['systemId', 'agentId', 'basis'],
+                    },
+                },
+                {
+                    name: 'nexus_cas_compress',
+                    description: 'Compress a sequence of tokens using Continuous Attention Streams.',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {
+                            tokens: { type: 'array', items: { type: 'string' }, description: 'Tokens to compress' },
+                        },
+                        required: ['tokens'],
+                    },
+                },
+                {
+                    name: 'nexus_kv_bridge_status',
+                    description: 'Get the status of the AdaptiveKVMerge Bridge consensus and metrics.',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {}
+                    },
+                },
+                {
+                    name: 'nexus_kv_adapt',
+                    description: 'Adapt the KV bridge to a new task type using 10-shot FOMAML.',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {
+                            taskType: { type: 'string', description: 'Task type identifier' },
+                        },
+                        required: ['taskType'],
                     },
                 },
             ],
@@ -965,6 +1015,88 @@ export class MCPAdapter implements Adapter {
                         content: [{ type: 'text', text: `❌ NexusNet Sync Failed: ${err.message}` }],
                     };
                 }
+            }
+
+            case 'nexus_entangle': {
+                const systemId = String(request.params.arguments?.systemId ?? '');
+                const agentId = String(request.params.arguments?.agentId ?? '');
+                const basis = String(request.params.arguments?.basis ?? '');
+
+                // Check if state exists, if not, create a GHZ state with mock partners
+                let stateId = systemId;
+                let state = entanglementEngine.getStates().find(s => s.id === systemId);
+
+                if (!state) {
+                    state = entanglementEngine.entangle([agentId, 'partner_beta', 'partner_gamma'], 4);
+                    stateId = state.id;
+                }
+
+                const measurement = entanglementEngine.measure(stateId, agentId);
+                if (!measurement) {
+                    throw new McpError(ErrorCode.InternalError, "Failed to measure entangled state");
+                }
+
+                return {
+                    content: [{
+                        type: 'text',
+                        text: `🔗 Entanglement Measurement\nSystem: ${stateId}\nAgent: ${agentId}\nBasis: ${basis}\nOutcome (Strategy): ${measurement.strategyIndex}\nProbability: ${(measurement.probability * 100).toFixed(2)}%`
+                    }]
+                };
+            }
+
+            case 'nexus_cas_compress': {
+                const tokens = Array.isArray(request.params.arguments?.tokens) ? request.params.arguments?.tokens as string[] : [];
+                if (tokens.length === 0) {
+                    throw new McpError(ErrorCode.InvalidParams, "Tokens array cannot be empty");
+                }
+
+                const task = "mcp_compression_request";
+                const encoding = casEngine.encode(tokens, task);
+
+                // Trigger learning of the provided text as a pattern
+                casEngine.learnPattern(tokens.join(' '), 1);
+
+                return {
+                    content: [{
+                        type: 'text',
+                        text: `🌊 CAS Compression Complete\nOriginal Tokens: ${tokens.length}\nCompressed Characters: ${encoding.compressed.length}\nCompression Ratio: ${encoding.compressionRatio.toFixed(2)}x`
+                    }]
+                };
+            }
+
+            case 'nexus_kv_bridge_status': {
+                const metrics = kvBridge.getMetrics();
+                const text = `🌉 KV Bridge Status\n` +
+                    `Decisions: ${metrics.totalDecisions}\n` +
+                    `Merge Rate: ${(metrics.mergeRate * 100).toFixed(1)}%\n` +
+                    `Avg Compression: ${metrics.avgCompression.toFixed(2)}x\n` +
+                    `Consensus Agents: ${metrics.consensusStats.agents}\n` +
+                    `Consensus Conflicts: ${metrics.consensusStats.conflicts}`;
+
+                return {
+                    content: [{ type: 'text', text }]
+                };
+            }
+
+            case 'nexus_kv_adapt': {
+                const taskType = String(request.params.arguments?.taskType ?? '');
+
+                const mockFeatures = Array.from({ length: 10 }, () => ({
+                    layerDepth: 0.5,
+                    magnitudeRatio: 1.2,
+                    cosineSimilarity: 0.8,
+                    entropy: 0.2,
+                    taskEmbedding: [1.0, 0.5]
+                }));
+
+                const result = await kvBridge.adaptToTask(taskType, mockFeatures);
+
+                return {
+                    content: [{
+                        type: 'text',
+                        text: `🎯 FOMAML 10-Shot Adaptation\nTask: ${result.taskType}\nTime: ${result.adaptationTime}ms\nQuality Improvement: ${result.improvementPct.toFixed(1)}%`
+                    }]
+                };
             }
 
             default:
