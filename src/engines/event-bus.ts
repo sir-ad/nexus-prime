@@ -155,10 +155,21 @@ class EventBusEngine {
                 const buf = Buffer.alloc(stat.size - this.fileOffset);
                 fs.readSync(fd, buf, 0, buf.length, this.fileOffset);
                 fs.closeSync(fd);
-                this.fileOffset = stat.size;
+
+                // Ensure we only process complete lines (ending in \n)
+                const chunk = buf.toString('utf-8');
+                const lastNewline = chunk.lastIndexOf('\n');
+
+                if (lastNewline === -1) {
+                    // No complete line yet, wait for next tick
+                    return;
+                }
+
+                const validChunk = chunk.substring(0, lastNewline);
+                this.fileOffset += Buffer.byteLength(validChunk) + 1; // +1 for the newline
 
                 // Parse JSONL lines
-                const lines = buf.toString('utf-8').split('\n').filter(Boolean);
+                const lines = validChunk.split('\n').filter(Boolean);
                 for (const line of lines) {
                     try {
                         const event = JSON.parse(line) as NexusEvent;

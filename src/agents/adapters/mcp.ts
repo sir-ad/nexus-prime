@@ -451,6 +451,47 @@ export class MCPAdapter implements Adapter {
                         required: ['taskType'],
                     },
                 },
+                // ── Advanced UX Interaction Layer ────────────────────────────────
+                {
+                    name: 'nexus_decompose_task',
+                    description: 'Decompose a complex task into a structured execution plan. Prints a visual ASCII tree to the CLI to keep the user informed. Call this before embarking on multi-step work.',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {
+                            goal: { type: 'string', description: 'The overarching core goal' },
+                            steps: {
+                                type: 'array',
+                                items: { type: 'string' },
+                                description: 'The sequence of steps to execute'
+                            }
+                        },
+                        required: ['goal', 'steps'],
+                    },
+                },
+                {
+                    name: 'nexus_request_affirmation',
+                    description: 'Pause execution and explicitly ask the human user for affirmation to proceed. Creates a highly visible RED/YELLOW warning block in the CLI. Use this before major, destructive, or ambiguous operations.',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {
+                            message: { type: 'string', description: 'The question or warning for the user' },
+                            severity: { type: 'string', enum: ['warning', 'critical'], description: 'Severity of the checkpoint' },
+                        },
+                        required: ['message', 'severity'],
+                    },
+                },
+                {
+                    name: 'nexus_assemble_context',
+                    description: 'Declare the active working set of files explicitly to the user. Outputs a visual map of the loaded context dependencies.',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {
+                            files: { type: 'array', items: { type: 'string' }, description: 'List of files currently focused on' },
+                            reason: { type: 'string', description: 'Why this context was assembled' }
+                        },
+                        required: ['files', 'reason'],
+                    },
+                },
             ],
         }));
 
@@ -523,6 +564,14 @@ export class MCPAdapter implements Adapter {
                     }
                 }
 
+                // Console ASCII UI
+                const wStore = 68;
+                console.error(`\n\x1b[36m┌─ 🧠 CORTEX MEMORY STORED ${'─'.repeat(Math.max(0, wStore - 27))}┐\x1b[0m`);
+                console.error(`\x1b[36m│\x1b[0m \x1b[2mPriority:\x1b[0m ${priority.toFixed(2).padEnd(5)} \x1b[2mTags:\x1b[0m ${tags.join(', ').substring(0, 31).padEnd(31)} \x1b[36m│\x1b[0m`);
+                console.error(`\x1b[36m│\x1b[0m \x1b[3m${content.substring(0, 56).padEnd(56, ' ').replace(/\n/g, ' ')}...\x1b[0m \x1b[36m│\x1b[0m`);
+                if (autoGistNote) console.error(`\x1b[36m│\x1b[0m \x1b[33m${autoGistNote.replace('\n', '').substring(0, 62).padEnd(64, ' ')}\x1b[36m│\x1b[0m`);
+                console.error(`\x1b[36m└${'─'.repeat(wStore)}┘\x1b[0m\n`);
+
                 return {
                     content: [{
                         type: 'text',
@@ -541,6 +590,13 @@ export class MCPAdapter implements Adapter {
                 const memStats = this.nexusRef.getMemoryStats();
                 const notification = this.telemetry.notifyRecall(memories.length, query, memStats);
                 const nudge = this.telemetry.planningNudge('recall', { count: memories.length });
+                // Console ASCII UI
+                const wRecall = 68;
+                console.error(`\n\x1b[35m┌─ 🔍 CORTEX MEMORY RECALL ${'─'.repeat(Math.max(0, wRecall - 27))}┐\x1b[0m`);
+                console.error(`\x1b[35m│\x1b[0m \x1b[2mQuery:\x1b[0m ${query.replace(/\n/g, ' ').substring(0, 57).padEnd(59, ' ')} \x1b[35m│\x1b[0m`);
+                console.error(`\x1b[35m│\x1b[0m \x1b[2mRetrieved:\x1b[0m ${memories.length.toString().padEnd(55, ' ')} \x1b[35m│\x1b[0m`);
+                console.error(`\x1b[35m└${'─'.repeat(wRecall)}┘\x1b[0m\n`);
+
                 return {
                     content: [{
                         type: 'text',
@@ -689,6 +745,16 @@ export class MCPAdapter implements Adapter {
                 nexusEventBus.emit('ghost.pass', { task: goal, risks: report.riskAreas.length, workers: report.workerAssignments.length });
 
                 const ghostNudge = this.telemetry.planningNudge('ghost_pass', { risks: report.riskAreas.length });
+
+                // Console ASCII UI
+                const wGhost = 68;
+                const rCount = report.riskAreas.length;
+                console.error(`\n\x1b[33m┌─ 👻 GHOST PASS PRE-FLIGHT ${'─'.repeat(Math.max(0, wGhost - 28))}┐\x1b[0m`);
+                console.error(`\x1b[33m│\x1b[0m \x1b[2mTask:\x1b[0m ${goal.replace(/\n/g, ' ').substring(0, 58).padEnd(60, ' ')} \x1b[33m│\x1b[0m`);
+                console.error(`\x1b[33m│\x1b[0m ${rCount > 0 ? `\x1b[31m⚠️  ${rCount} Risks Detected\x1b[0m` : '✅ No obvious risks'}`.padEnd(76, ' ') + `\x1b[33m│\x1b[0m`);
+                console.error(`\x1b[33m│\x1b[0m \x1b[2mWorkers Suggested:\x1b[0m ${report.workerAssignments.length.toString().padEnd(46, ' ')} \x1b[33m│\x1b[0m`);
+                console.error(`\x1b[33m└${'─'.repeat(wGhost)}┘\x1b[0m\n`);
+
                 return { content: [{ type: 'text', text: text + ghostNudge }] };
             }
 
@@ -767,6 +833,13 @@ export class MCPAdapter implements Adapter {
 
                 // NEW: Agent Learning Loop
                 await this.nexusRef.analyzeLearning(goal, decision);
+
+                // Console ASCII UI
+                const wSwarm = 68;
+                console.error(`\n\x1b[32m┌─ 🐝 PHANTOM SWARM MERGED ${'─'.repeat(Math.max(0, wSwarm - 27))}┐\x1b[0m`);
+                console.error(`\x1b[32m│\x1b[0m \x1b[2mWorkers:\x1b[0m ${results.length.toString().padEnd(5, ' ')} \x1b[2mConfidence:\x1b[0m ${decision.confidence.toFixed(2).padEnd(36)} \x1b[32m│\x1b[0m`);
+                console.error(`\x1b[32m│\x1b[0m \x1b[2mAction:\x1b[0m ${decision.action.padEnd(57, ' ')} \x1b[32m│\x1b[0m`);
+                console.error(`\x1b[32m└${'─'.repeat(wSwarm)}┘\x1b[0m\n`);
 
                 return {
                     content: [{
@@ -1062,6 +1135,79 @@ export class MCPAdapter implements Adapter {
                         content: [{ type: 'text', text: `❌ NexusNet Sync Failed: ${err.message}` }],
                     };
                 }
+            }
+
+            case 'nexus_decompose_task': {
+                const goal = String(request.params.arguments?.goal ?? '');
+                const steps = Array.isArray(request.params.arguments?.steps)
+                    ? (request.params.arguments?.steps as string[])
+                    : [];
+
+                // Console ASCII UI
+                const wTask = 68;
+                console.error(`\n\x1b[36m┌─ 📋 TASK DECOMPOSITION ${'─'.repeat(Math.max(0, wTask - 25))}┐\x1b[0m`);
+                console.error(`\x1b[36m│\x1b[0m \x1b[2mGoal:\x1b[0m ${goal.replace(/\n/g, ' ').substring(0, 58).padEnd(60, ' ')} \x1b[36m│\x1b[0m`);
+                console.error(`\x1b[36m├${'─'.repeat(wTask)}┤\x1b[0m`);
+                steps.forEach((step, idx) => {
+                    const prefix = idx === steps.length - 1 ? '└──' : '├──';
+                    console.error(`\x1b[36m│\x1b[0m ${prefix} ${step.substring(0, 62).padEnd(64, ' ')} \x1b[36m│\x1b[0m`);
+                });
+                console.error(`\x1b[36m└${'─'.repeat(wTask)}┘\x1b[0m\n`);
+
+                const text = `📋 Task Decomposed: ${goal}\n\n` + steps.map((s, i) => `${i + 1}. ${s}`).join('\n');
+                return { content: [{ type: 'text', text }] };
+            }
+
+            case 'nexus_request_affirmation': {
+                const message = String(request.params.arguments?.message ?? '');
+                const severity = String(request.params.arguments?.severity ?? 'warning');
+
+                const color = severity === 'critical' ? '\x1b[31m' : '\x1b[33m'; // Red or Yellow
+                const title = severity === 'critical' ? '🛑 CRITICAL AFFIRMATION REQUIRED' : '⚠️  AFFIRMATION REQUIRED';
+                const wAffirm = 68;
+
+                console.error(`\n${color}┌─ ${title} ${'─'.repeat(Math.max(0, wAffirm - title.length - 4))}┐\x1b[0m`);
+
+                // Wrap message nicely
+                const words = message.split(' ');
+                let line = '';
+                for (const word of words) {
+                    if (line.length + word.length + 1 > 64) {
+                        console.error(`${color}│\x1b[0m ${line.padEnd(66, ' ')} ${color}│\x1b[0m`);
+                        line = word;
+                    } else {
+                        line += (line ? ' ' : '') + word;
+                    }
+                }
+                if (line) {
+                    console.error(`${color}│\x1b[0m ${line.padEnd(66, ' ')} ${color}│\x1b[0m`);
+                }
+                console.error(`${color}├${'─'.repeat(wAffirm)}┤\x1b[0m`);
+                console.error(`${color}│\x1b[0m ⏳ PAUSED: Waiting for human user to reply in chat...${' '.padEnd(12, ' ')} ${color}│\x1b[0m`);
+                console.error(`${color}└${'─'.repeat(wAffirm)}┘\x1b[0m\n`);
+
+                return { content: [{ type: 'text', text: `⏸️ PAUSED for affirmation.\nMessage: ${message}\nSeverity: ${severity}\n\nPlease ask the user in chat and wait for a response.` }] };
+            }
+
+            case 'nexus_assemble_context': {
+                const files = Array.isArray(request.params.arguments?.files)
+                    ? (request.params.arguments?.files as string[])
+                    : [];
+                const reason = String(request.params.arguments?.reason ?? '');
+
+                const wCtx = 68;
+                console.error(`\n\x1b[34m┌─ 📂 CONTEXT ASSEMBLED ${'─'.repeat(Math.max(0, wCtx - 24))}┐\x1b[0m`);
+                console.error(`\x1b[34m│\x1b[0m \x1b[2mReason:\x1b[0m ${reason.replace(/\n/g, ' ').substring(0, 56).padEnd(58, ' ')} \x1b[34m│\x1b[0m`);
+                console.error(`\x1b[34m├${'─'.repeat(wCtx)}┤\x1b[0m`);
+                files.forEach((file, idx) => {
+                    const prefix = idx === files.length - 1 ? '└──' : '├──';
+                    const displayPath = file.length > 62 ? '...' + file.substring(file.length - 59) : file;
+                    console.error(`\x1b[34m│\x1b[0m ${prefix} ${displayPath.padEnd(64, ' ')} \x1b[34m│\x1b[0m`);
+                });
+                console.error(`\x1b[34m└${'─'.repeat(wCtx)}┘\x1b[0m\n`);
+
+                const text = `📂 Context Assembled. Reason: ${reason}\n\n` + files.map(f => `- ${f}`).join('\n');
+                return { content: [{ type: 'text', text }] };
             }
 
             case 'nexus_entangle': {

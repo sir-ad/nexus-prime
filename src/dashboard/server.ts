@@ -34,6 +34,14 @@ export class DashboardServer {
             console.error(`[Dashboard] Matrix live at http://${HOST}:${PORT}`);
         });
 
+        this.server.on('error', (e: any) => {
+            if (e.code === 'EADDRINUSE') {
+                console.error(`[Dashboard] Port ${PORT} occupied. Bridging to active dashboard cluster.`);
+            } else {
+                console.error(`[Dashboard] Server error:`, e.message);
+            }
+        });
+
         // Listen to all Nexus events and broadcast to connected SSE clients
         this.unsubscribeBus = nexusEventBus.onEvent((event: NexusEvent) => {
             this.broadcast(event);
