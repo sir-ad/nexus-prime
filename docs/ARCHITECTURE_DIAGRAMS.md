@@ -121,4 +121,53 @@ graph BT
     subgraph Stack["Nexus Prime Layer"]
         L4
     end
+
+## 7. Request Handling Lifecycle (Detailed)
+
+```mermaid
+sequenceDiagram
+    participant U as User / Agent (Cursor/Claude)
+    participant M as MCP Adapter
+    participant G as MindKit Guardrails
+    participant T as Token Optimizer
+    participant E as Core Engines (Memory/Evolution)
+    participant W as Phantom Workers
+    
+    U->>M: Call Tool (e.g., nexus_spawn_workers)
+    M->>G: nexus_mindkit_check(action, files)
+    G->>G: Static AST Analysis
+    G-->>M: PASS (Score: 0.95)
+    M->>T: nexus_optimize_tokens(task, files)
+    T->>T: Greedy Knapsack Optimization
+    T-->>M: Reading Plan (READ/OUTLINE/SKIP)
+    M->>E: Execute Logic
+    E->>E: Memory Recall (Semantic/Vector)
+    E->>W: Spawn parallel worktrees (Git Worktrees)
+    W-->>E: POD Network Learning Broadcast
+    E->>E: Merge Oracle (Synthesis)
+    E->>E: Store Experience (Hippocampus -> Cortex)
+    E-->>M: Final Result (Confidence: 0.9)
+    M-->>U: JSON-RPC Response
+```
+
+## 8. Language Specifications & Semantic Encoding
+
+Nexus Prime's internal representation uses oscillatory wave patterns to represent code logic across different languages.
+
+```mermaid
+flowchart LR
+    File["Source Code (.ts, .py, .go)"] --> Parse["Structural Parsing (AST/Logic)"]
+    Parse --> Signature["Identify Functional Signatures"]
+    Signature --> Encode["WaveEncoder (Oscillatory Patterns)"]
+    
+    subgraph Semantic["Universal Semantic Layer"]
+        Encode --> Wave["WavePattern { amplitude, phase, freq }"]
+        Wave --> Energy["Attention Equilibrium (TF-IDF/Graph)"]
+    end
+    
+    Energy --> Decode["Pattern Decoder"]
+    Decode --> Action["Agent Execution / Tool Output"]
+    
+    style Semantic fill:#0f172a,stroke:#3b82f6,color:#fff
+```
 ```

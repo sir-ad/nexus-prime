@@ -222,6 +222,59 @@ Action: Require Human Affirmation.
 
 ---
 
+## 🛠️ Architecture Deep Dive
+
+### 1. Request Handling Lifecycle
+
+Nexus Prime processes requests through a multi-layered cognitive stack, ensuring every action is optimized, checked for safety, and stored in long-term memory.
+
+```mermaid
+sequenceDiagram
+    participant U as User / Agent (Cursor/Claude)
+    participant M as MCP Adapter
+    participant G as MindKit Guardrails
+    participant T as Token Optimizer
+    participant E as Core Engines (Memory/Evolution)
+    participant W as Phantom Workers
+    
+    U->>M: Call Tool (e.g., nexus_spawn_workers)
+    M->>G: nexus_mindkit_check()
+    G-->>M: PASS / FAIL
+    M->>T: nexus_optimize_tokens()
+    T-->>M: Reading Plan (READ/OUTLINE/SKIP)
+    M->>E: Execute Logic
+    E->>W: Spawn parallel worktrees (if needed)
+    W-->>E: Results
+    E->>E: Store Experience (Cortex/Zettelkasten)
+    E-->>M: Final Result
+    M-->>U: JSON-RPC Response
+```
+
+### 2. Language Specifications & Semantic Encoding
+
+Nexus Prime is language-agnostic. It treats code as a structural expression of intent, encoding multi-modal inputs into a universal semantic wave pattern.
+
+```mermaid
+flowchart LR
+    File["Source Code (.ts, .py, .go)"] --> Parse["Structural Parsing (AST/Logic)"]
+    Parse --> Signature["Identify Functional Signatures"]
+    Signature --> Encode["WaveEncoder (Oscillatory Patterns)"]
+    
+    subgraph Semantic["Universal Semantic Layer"]
+        Encode --> Wave["Semantic Wave Pattern"]
+        Wave --> Energy["Attention Equilibrium"]
+    end
+    
+    Energy --> Decode["Pattern Decoder"]
+    Decode --> Action["Agent Execution / Tool Output"]
+    
+    style Semantic fill:#0f172a,stroke:#3b82f6,color:#fff
+```
+
+---
+
+---
+
 ## 🌐 NexusNet Platform Integration
 
 Deploy swarms beyond localhost via NexusNet federation. Share atomic insights via the **GitHub Gist Relay**.
