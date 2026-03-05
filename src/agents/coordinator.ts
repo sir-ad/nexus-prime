@@ -416,10 +416,15 @@ export class AgentCoordinator {
         const neighborIdx = Math.floor(Math.random() * agents.length);
         const neighbor = agents[neighborIdx];
 
-        // Adopt neighbor's proposal if it's longer (more detailed)
+        // Adopt neighbor's proposal if it's more similar to the original goal OR more detailed
         const myProposal = proposals.get(agent) || proposal;
         const neighborProposal = proposals.get(neighbor) || proposal;
-        if (neighborProposal.length > myProposal.length) {
+
+        // Simple similarity-weighted length adoption
+        const mySim = this.calculateSimilarity(myProposal, proposal);
+        const neighborSim = this.calculateSimilarity(neighborProposal, proposal);
+
+        if (neighborSim > mySim || (neighborSim === mySim && neighborProposal.length > myProposal.length)) {
           proposals.set(agent, neighborProposal);
         }
       }
@@ -460,17 +465,14 @@ export class AgentCoordinator {
     const counters = new Map<string, number>();
     agents.forEach(a => counters.set(a, 0));
 
-    // Each agent evaluates the proposal against its task using word overlap
+    // Each agent evaluates the proposal against its task using Jaccard similarity
     for (const agentId of agents) {
       const agent = this.agents.get(agentId);
       const agentTask = agent?.state?.current || agentId;
-      const proposalWords = new Set(proposal.toLowerCase().split(/\s+/));
-      const taskWords = new Set(agentTask.toLowerCase().split(/\s+/));
-      const overlap = [...proposalWords].filter(w => taskWords.has(w)).length;
-      const score = overlap / (proposalWords.size || 1);
+      const similarity = this.calculateSimilarity(proposal, agentTask);
 
-      // Increment counter if score indicates relevance
-      if (score > 0.15) {
+      // Increment counter if similarity indicates high relevance
+      if (similarity > 0.25) {
         counters.set(agentId, 1);
       }
     }
@@ -488,23 +490,24 @@ export class AgentCoordinator {
     proposal: string,
     agents: string[]
   ): Promise<boolean[]> {
-    // Task-relevance voting: agents vote YES if the proposal overlaps with
-    // their assigned task, NO otherwise. Uses word-overlap similarity.
-    const proposalWords = new Set(proposal.toLowerCase().split(/\s+/).filter(w => w.length > 2));
-
     return agents.map(agentId => {
       const agent = this.agents.get(agentId);
       const agentTask = agent?.state?.current || agentId;
-      const taskWords = new Set(agentTask.toLowerCase().split(/\s+/).filter(w => w.length > 2));
+      const similarity = this.calculateSimilarity(proposal, agentTask);
 
-      // Calculate Jaccard similarity
-      const intersection = [...proposalWords].filter(w => taskWords.has(w)).length;
-      const union = new Set([...proposalWords, ...taskWords]).size;
-      const similarity = union > 0 ? intersection / union : 0;
-
-      // Vote YES if proposal is relevant to this agent's task
-      return similarity > 0.1;
+      // Vote YES if proposal is strongly relevant to this agent's task
+      return similarity > 0.2;
     });
+  }
+
+  private calculateSimilarity(str1: string, str2: string): number {
+    const words1 = new Set(str1.toLowerCase().split(/\s+/).filter(w => w.length > 2));
+    const words2 = new Set(str2.toLowerCase().split(/\s+/).filter(w => w.length > 2));
+
+    const intersection = [...words1].filter(w => words2.has(w)).length;
+    const union = new Set([...words1, ...words2]).size;
+
+    return union > 0 ? intersection / union : 0;
   }
 
   // ==================== STATE ====================

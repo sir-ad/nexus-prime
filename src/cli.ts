@@ -12,6 +12,7 @@ import {
   formatReadingPlan
 } from './engines/token-supremacy.js';
 import { statSync } from 'fs';
+import { PODNetwork } from './engines/pod-network.js';
 
 
 const tokenEngine = new TokenSupremacyEngine();
@@ -111,6 +112,7 @@ program
       console.error('Flushing memory to disk...');
       nexus?.flushMemory();
       if (nexus) await nexus.stop();
+      PODNetwork.instance?.destroy();
       process.exit(0);
     };
 

@@ -394,14 +394,14 @@ export class TokenSupremacyEngine {
             }
         }
 
-        // ── Content-aware scoring (first 500 bytes) — weighted heavily ──
+        // ── Content-aware scoring (first 2000 bytes) — weighted heavily ──
         let contentBonus = 0;
         try {
             const fullPath = path.isAbsolute(filePath) ? filePath : path.join(process.cwd(), filePath);
             if (fs.existsSync(fullPath)) {
                 const fd = fs.openSync(fullPath, 'r');
-                const buffer = Buffer.alloc(500);
-                const bytesRead = fs.readSync(fd, buffer, 0, 500, 0);
+                const buffer = Buffer.alloc(2000);
+                const bytesRead = fs.readSync(fd, buffer, 0, 2000, 0);
                 fs.closeSync(fd);
 
                 const content = buffer.toString('utf-8', 0, bytesRead).toLowerCase();
@@ -582,11 +582,12 @@ export class TokenSupremacyEngine {
             }
         }
 
-        // [Phase 9B] Simulate CAS compression on the assembled context
-        const mockTokens = new Array(totalTokens).fill('token');
-        const casEncoding = this.casEngine.encode(mockTokens, task);
-        const compressedTokens = Math.max(1, Math.round(casEncoding.compressed.length / 4));
-        const compressionRatio = totalTokens / compressedTokens;
+        // [Phase 9B] Apply CAS compression on the actual assembled context
+        const assembledContent = assembly.selected.map(c => c.content).join('\n');
+        const realTokens = this.extractKeywords(assembledContent);
+        const casEncoding = this.casEngine.encode(realTokens, task);
+        const compressedTokens = Math.max(1, casEncoding.compressed.length);
+        const compressionRatio = realTokens.length / compressedTokens;
 
         const plan: ReadingPlan = {
             task,

@@ -18,8 +18,10 @@ export class PODNetwork {
     private subscribers: Map<string, Set<(msg: PodMessage) => void>> = new Map();
     private podPath: string;
     private pollHandle: ReturnType<typeof setInterval> | null = null;
+    public static instance: PODNetwork;
 
     constructor() {
+        PODNetwork.instance = this;
         this.podPath = path.join(os.homedir(), '.nexus-prime', 'pod.json');
         if (!fs.existsSync(path.dirname(this.podPath))) {
             fs.mkdirSync(path.dirname(this.podPath), { recursive: true });
