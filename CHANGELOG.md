@@ -2,6 +2,16 @@
 
 All notable changes to Nexus Prime will be documented in this file.
 
+## [1.3.0] - 2026-03-05
+
+### Added
+- **Deep-Tech Documentation Overhaul**: Completely rewrote the `README.md` and `docs/index.html` adopting a granular, intellectual, brutalist aesthetic. Shifted from "meta-leader" metaphors to structural, system-level descriptions (Information Architecture, Memory Topology, Swarm Topology).
+- **Five Pillars of Agent Intelligence**: Promoted the **Entanglement Engine (Phase 9A)** to a top-level feature. Agents now share a quantum-state vector in a Hilbert space, collapsing via Born rule sampling for correlated decisions without explicit IPC.
+- **Merge Oracle**: Heavily documented the Oracle's use of Byzantine consensus, Pearson correlation, and AST-level Hierarchical Synthesis.
+- **Advanced CLI UX visualizations**: Added new MCP tools (`nexus_decompose_task` and `nexus_assemble_context`) that output beautiful ASCII data trees directly into the agent's CLI feed.
+- **Executive HITL Checkpoints**: Implemented `nexus_request_affirmation` for blocking dangerous operations behind explicit human approval in the chat.
+- **Auto-Gist Syncing**: `nexus_store_memory` now automatically relays high-priority (>=0.8) findings to a GitHub Gist vault.
+
 ## [1.2.0] - 2026-03-04
 
 ### Added
