@@ -309,9 +309,10 @@ flowchart LR
  
  ---
  
+ ![Nexus Swarm v1.5](docs/assets/screenshots/dashboard_v1.5.png)
  ## 🚀 Nexus Swarm v1.5 "Intelligence Expansion"
- 
- The Nexus Layer introduces **Mandatory Induction**. Any complex goal (>50 chars) automatically induces an army of specialized agents by default.
+ The first meta-framework with **Mandatory Induction** and **Thermodynamic Memory**.
+ Any complex goal (>50 chars) automatically induces an army of specialized agents by default.
  
  ```yaml
  # Example .nxl configuration
