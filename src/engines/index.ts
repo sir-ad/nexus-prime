@@ -48,3 +48,6 @@ export { ByzantineConsensus } from './byzantine-consensus.js';
 export type { ConsensusProposal, ConsensusResult } from './byzantine-consensus.js';
 export { KVBridge, createKVBridge } from './kv-bridge.js';
 export type { KVBridgeConfig, MergeDecision, BridgeMetrics } from './kv-bridge.js';
+// Phase 10: Nexus Layer & NXL
+export { NXLInterpreter, nxl } from './nxl-interpreter.js';
+export type { AgentArchetype, SwarmConfig } from './nxl-interpreter.js';
