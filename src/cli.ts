@@ -26,7 +26,7 @@ let nexus: NexusPrime | null = null;
 program
   .name('nexus-prime')
   .description('🧬 Nexus Prime - The Self-Evolving Agent Operating System')
-  .version('0.1.0');
+  .version('1.5.0-alpha.1');
 
 program
   .command('init')
