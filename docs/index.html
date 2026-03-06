@@ -897,7 +897,7 @@
       Watch the swarm in action.</p>
     <div class="hero-image-container"
       style="margin-top: 3rem; border: 1px solid rgba(0, 255, 65, 0.2); border-radius: 20px; overflow: hidden; box-shadow: 0 0 50px rgba(0, 255, 65, 0.1);">
-      <img src="assets/screenshots/dashboard_v1.5.png" alt="Nexus Prime v1.5 Dashboard"
+      <img src="./assets/screenshots/dashboard_v1.5.png" alt="Nexus Prime v1.5 Dashboard"
         style="width: 100%; display: block;">
     </div>
     <div class="hero-actions fade-up delay-3">
@@ -1051,7 +1051,7 @@
                   Swarm --> POD
                   POD --> OR
                   <div class="architecture-diagram" style="margin-top: 4rem; text-align: center;">
-                    <img src="assets/screenshots/swarm_trace.png" alt="Swarm Induction Trace"
+                    <img src="./assets/screenshots/swarm_trace.png" alt="Swarm Induction Trace"
                       style="max-width: 100%; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);">
                     <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 1rem;">Mandatory Induction: A
                       7-worker swarm coordinating via POD Network.</p>
@@ -1231,17 +1231,10 @@
     </p>
 
     <div class="install-block">
-      <span class="comment"># Clone and build</span><br>
-      <span class="cmd">git clone</span> https://github.com/sir-ad/nexus-prime.git<br>
-      <span class="cmd">cd</span> nexus-prime<br>
-      <span class="cmd">npm install</span> && <span class="cmd">npm run build</span><br><br>
-      <span class="comment"># Add to your agent's MCP config</span><br>
-      {<br>
-      &nbsp;&nbsp;<span class="flag">"nexus-prime"</span>: {<br>
-      &nbsp;&nbsp;&nbsp;&nbsp;<span class="flag">"command"</span>: "node",<br>
-      &nbsp;&nbsp;&nbsp;&nbsp;<span class="flag">"args"</span>: ["/path/to/nexus-prime/dist/cli.js", "mcp"]<br>
-      &nbsp;&nbsp;}<br>
-      }<br><br>
+      <span class="comment"># Install via NPM</span><br>
+      <span class="cmd">npm i -g</span> nexus-prime<br><br>
+      <span class="comment"># OR use NPX directly</span><br>
+      <span class="cmd">npx</span> nexus-prime mcp<br><br>
       <span class="comment"># Verify — call from your agent</span><br>
       <span class="cmd">nexus_memory_stats()</span> <span class="comment"># → Returns cortex health</span>
     </div>

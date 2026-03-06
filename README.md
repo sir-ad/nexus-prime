@@ -10,6 +10,17 @@
 
 ---
 
+### ⚡ Quick Install
+```bash
+# Global installation (recommended)
+npm i -g nexus-prime
+
+# Run directly
+npx nexus-prime mcp
+```
+
+---
+
 **Nexus Prime** is a hyper-optimized, distributed, Byzantine-fault-tolerant cognitive operating system. Exposed as an MCP (Model Context Protocol) server or integrated programmatically, it provides single and multi-agent systems with **permanent memory, mathematically optimized context limits, safety guardrails, and massively parallel Git-worktree execution.**
 
 ### Supported MCP Clients
@@ -309,7 +320,7 @@ flowchart LR
  
  ---
  
- ![Nexus Swarm v1.5](docs/assets/screenshots/dashboard_v1.5.png)
+ ![Nexus Swarm v1.5](./docs/assets/screenshots/dashboard_v1.5.png)
  ## 🚀 Nexus Swarm v1.5 "Intelligence Expansion"
  The first meta-framework with **Mandatory Induction** and **Thermodynamic Memory**.
  Any complex goal (>50 chars) automatically induces an army of specialized agents by default.
