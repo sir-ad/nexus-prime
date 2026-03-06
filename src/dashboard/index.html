@@ -354,6 +354,60 @@
             word-break: break-all;
         }
 
+        /* Ecosystem Status */
+        .ecosystem-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            margin-top: 1rem;
+        }
+
+        .tool-card {
+            background: var(--bg-card);
+            border: var(--border-std);
+            border-radius: 12px;
+            padding: 0.75rem 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: all 0.2s ease;
+        }
+
+        .tool-card:hover {
+            background: rgba(255, 255, 255, 0.05);
+            transform: translateX(5px);
+        }
+
+        .tool-info {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .tool-name {
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .tool-status {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .indicator {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--text-muted);
+        }
+
+        .indicator.active {
+            background: var(--primary);
+            box-shadow: 0 0 8px var(--primary-glow);
+        }
+
         @keyframes slideUp {
             from {
                 opacity: 0;
@@ -406,35 +460,69 @@
                 <div class="metric-card">
                     <span class="metric-label" style="color:var(--primary)">Tokens Saved</span>
                     <span class="metric-val" style="color:var(--primary)" id="val-saved">0</span>
+                    <div class="metric-card"
+                        style="padding-top: 2rem; border-top: var(--border-std); background: transparent; border: none; border-radius: 0;">
+                        <span class="metric-label">Connected Ecosystem</span>
+                        <div class="ecosystem-grid">
+                            <div class="tool-card">
+                                <div class="tool-info">
+                                    <div class="indicator active"></div>
+                                    <span class="tool-name">Cursor</span>
+                                </div>
+                                <span class="tool-status">Active</span>
+                            </div>
+                            <div class="tool-card">
+                                <div class="tool-info">
+                                    <div class="indicator active"></div>
+                                    <span class="tool-name">Claude Code</span>
+                                </div>
+                                <span class="tool-status">Active</span>
+                            </div>
+                            <div class="tool-card">
+                                <div class="tool-info">
+                                    <div class="indicator"></div>
+                                    <span class="tool-name">Opencode</span>
+                                </div>
+                                <span class="tool-status">Ready</span>
+                            </div>
+                            <div class="tool-card">
+                                <div class="tool-info">
+                                    <div class="indicator"></div>
+                                    <span class="tool-name">Codex</span>
+                                </div>
+                                <span class="tool-status">Standby</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CENTER: D3 Memory Topology -->
+            <div class="panel"
+                style="border: 1px solid rgba(0,100,255,0.1); box-shadow: 0 0 30px rgba(0,100,255,0.05);">
+                <div class="panel-header" style="background: rgba(0,100,255,0.05);">Memory Topology Graph</div>
+                <div id="graph-container">
+                    <!-- D3 appends SVG here -->
+                </div>
+            </div>
+
+            <!-- RIGHT: Sub-Agent & Event HUD -->
+            <div class="panel">
+                <div class="panel-header">
+                    Neural Stream HUD
+                    <span id="event-count">0 signals</span>
+                </div>
+                <div class="panel-content">
+                    <div class="hud-tab-bar">
+                        <div class="hud-tab active" id="tab-all">All Streams</div>
+                        <div class="hud-tab" id="tab-phantom">Phantom Swarm</div>
+                    </div>
+                    <div id="log-container"></div>
                 </div>
             </div>
         </div>
 
-        <!-- CENTER: D3 Memory Topology -->
-        <div class="panel" style="border: 1px solid rgba(0,100,255,0.1); box-shadow: 0 0 30px rgba(0,100,255,0.05);">
-            <div class="panel-header" style="background: rgba(0,100,255,0.05);">Memory Topology Graph</div>
-            <div id="graph-container">
-                <!-- D3 appends SVG here -->
-            </div>
-        </div>
-
-        <!-- RIGHT: Sub-Agent & Event HUD -->
-        <div class="panel">
-            <div class="panel-header">
-                Neural Stream HUD
-                <span id="event-count">0 signals</span>
-            </div>
-            <div class="panel-content">
-                <div class="hud-tab-bar">
-                    <div class="hud-tab active" id="tab-all">All Streams</div>
-                    <div class="hud-tab" id="tab-phantom">Phantom Swarm</div>
-                </div>
-                <div id="log-container"></div>
-            </div>
-        </div>
-    </div>
-
-    <script>
+        <script>
         // ─────────────────────────────────────────────────────────
         // STATE
         // ─────────────────────────────────────────────────────────
@@ -711,7 +799,7 @@
         }
 
         connectSSE();
-    </script>
+        </script>
 </body>
 
 </html>

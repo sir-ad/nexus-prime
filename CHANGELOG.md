@@ -2,6 +2,17 @@
 
 All notable changes to Nexus Prime will be documented in this file.
 
+## [1.4.0] - 2026-03-06
+### Added
+- **Multi-Tool MCP Integration**: Support for Cursor, Claude Code, Opencode, Kilocode, and Codex.
+- **`nexus-prime setup` CLI**: Automated configuration for popular AI coding environments.
+- **Ecosystem Dashboard**: New "Connected Ecosystem" panel to visualize integration status.
+- **Refined MCP Adapter**: Enhanced tool metadata and descriptions for better discovery.
+
+### Documentation
+- New `INTEGRATIONS.md` guide with step-by-step instructions.
+- README update with supported clients list and automated setup guide.
+
 ## [1.3.0] - 2026-03-05
 
 ### Added

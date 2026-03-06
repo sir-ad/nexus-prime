@@ -2,7 +2,7 @@
   <h1>🧬 Nexus Prime</h1>
   <p><strong>The Cognitive Operating System for Multi-Agent Swarms</strong></p>
 
-  [![Version](https://img.shields.io/badge/version-0.3.0-blue.svg)](https://github.com/sir-ad/nexus-prime/releases)
+  [![Version](https://img.shields.io/badge/version-1.5.0-blue.svg)](https://github.com/sir-ad/nexus-prime/releases)
   [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
   [![TypeScript](https://img.shields.io/badge/TypeScript-5.3-3178C6.svg?logo=typescript)](https://www.typescriptlang.org/)
   [![Node.js](https://img.shields.io/badge/Node.js-%3E%3D22.0.0-339933.svg?logo=node.js)](https://nodejs.org)
@@ -12,25 +12,43 @@
 
 **Nexus Prime** is a hyper-optimized, distributed, Byzantine-fault-tolerant cognitive operating system. Exposed as an MCP (Model Context Protocol) server or integrated programmatically, it provides single and multi-agent systems with **permanent memory, mathematically optimized context limits, safety guardrails, and massively parallel Git-worktree execution.**
 
-### Quick Start
+### Supported MCP Clients
+
+Nexus Prime provides first-class, automated integration with the following AI coding tools:
+
+- 🔵 **Cursor** (IDE)
+- 🍊 **Claude Code** (CLI)
+- 🟢 **Opencode** (Editor)
+- 🟣 **Kilocode** (Experimental)
+- 🔴 **Codex** (Integration Hub)
+- 🛡️ **Antigravity** (Autonomous Agent)
+
+### Automated Integration (Recommended)
+
+As of `v1.4.0`, you can automatically configure your favorite tools using the CLI:
 
 ```bash
-# Global installation
-npm install -g nexus-prime
+# Setup Cursor integration
+nexus-prime setup cursor
 
-# Analyze current repository for Swarm compatibility
-npx nexus-prime analyze
+# Setup Claude Code integration
+nexus-prime setup claude
 
-# Boot the Dashboard & MCP Server
-npx nexus-prime start --dashboard --mcp-port 3377
+# Setup Opencode integration
+nexus-prime setup opencode
+
+# Check all integration statuses
+nexus-prime setup status
 ```
 
-**Add to Claude / Cursor via MCP:**
+#### Manual Configuration
+To manually add to Claude Desktop / AntiGravity, add this to your `mcpServers` config:
+
 ```json
 {
   "nexus-prime": {
     "command": "npx",
-    "args": ["nexus-prime", "mcp"]
+    "args": ["-y", "nexus-prime", "mcp"]
   }
 }
 ```
@@ -275,15 +293,34 @@ flowchart LR
 
 ---
 
-## 🌐 NexusNet Platform Integration
-
-Deploy swarms beyond localhost via NexusNet federation. Share atomic insights via the **GitHub Gist Relay**.
-
-| Feature | Description |
-|---|---|
-| Auto-Gist Sync | High-priority memories (Priority >= 0.8) automatically publish to a private GitHub Gist vault. |
-| Entanglement | Synchronize `<cortex>` databases across different machines using `nexus_net_sync`. |
-| Edge EventBus | Streams real-time `events.jsonl` to the local `/dashboard` via SSE in < 5ms. |
+---
+ 
+ ## 🌐 NexusNet Platform Integration
+ 
+ Deploy swarms beyond localhost via NexusNet federation. Share atomic insights via the **GitHub Gist Relay**.
+ 
+ | Feature | Description |
+ |---|---|
+ | Auto-Gist Sync | High-priority memories (Priority >= 0.8) automatically publish to a private GitHub Gist vault. |
+ | Entanglement | Synchronize `<cortex>` databases across different machines using `nexus_net_sync`. |
+ | Edge EventBus | Streams real-time `events.jsonl` to the local `/dashboard` via SSE in < 5ms. |
+ | **Nexus Layer (NXL)** | Declarative YAML-based agent archetypes and swarm orchestration. |
+ | **Gist Federation** | Integrated `nexus_publish_trace` tool for federated research chains. |
+ 
+ ---
+ 
+ ## 🚀 Nexus Swarm v1.5 "Intelligence Expansion"
+ 
+ The Nexus Layer introduces **Mandatory Induction**. Any complex goal (>50 chars) automatically induces an army of specialized agents by default.
+ 
+ ```yaml
+ # Example .nxl configuration
+ archetype: product-dev
+ swarm:
+   min_agents: 3
+   fission: exponential
+   memory_mode: thermodynamic
+ ```
 
 ---
 

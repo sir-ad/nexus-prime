@@ -11,7 +11,9 @@ import {
   TokenSupremacyEngine,
   formatReadingPlan
 } from './engines/token-supremacy.js';
-import { statSync } from 'fs';
+import { statSync, writeFileSync, mkdirSync, existsSync, readFileSync } from 'fs';
+import { homedir } from 'os';
+import { join, dirname } from 'path';
 import { PODNetwork } from './engines/pod-network.js';
 
 
@@ -269,6 +271,159 @@ program
         console.log(`  Grammar Rules: ${grammar.length}`);
         grammar.forEach(r => {
           console.log(`    - ${r.pattern.join(' ')} (weight: ${r.weight.toFixed(2)})`);
+        });
+      })
+  );
+
+program
+  .command('setup')
+  .description('Automated integration with AI tools (Cursor, Claude, Opencode)')
+  .addCommand(
+    new Command('cursor')
+      .description('Integrate with Cursor')
+      .option('--dry-run', 'Preview changes')
+      .action((options) => {
+        const configDir = join(homedir(), '.cursor');
+        const configPath = join(configDir, 'mcp.json');
+        const config = {
+          mcpServers: {
+            "nexus-prime": {
+              command: "npx",
+              args: ["-y", "nexus-prime", "mcp"]
+            }
+          }
+        };
+
+        if (options.dryRun) {
+          console.log('--- CURSOR CONFIG PREVIEW ---');
+          console.log(JSON.stringify(config, null, 2));
+          return;
+        }
+
+        if (!existsSync(configDir)) mkdirSync(configDir, { recursive: true });
+
+        let existing: any = {};
+        if (existsSync(configPath)) {
+          try {
+            existing = JSON.parse(readFileSync(configPath, 'utf8'));
+          } catch (e) {
+            console.error('⚠️  Failed to parse existing Cursor config, starting fresh');
+          }
+        }
+
+        existing.mcpServers = { ...existing.mcpServers, ...config.mcpServers };
+        writeFileSync(configPath, JSON.stringify(existing, null, 2));
+        console.log(`✅ Nexus Prime integrated with Cursor at ${configPath}`);
+      })
+  )
+  .addCommand(
+    new Command('claude')
+      .description('Integrate with Claude Code')
+      .option('--dry-run', 'Preview changes')
+      .action((options) => {
+        const configDir = join(homedir(), '.claude-code');
+        const configPath = join(configDir, 'mcp.json');
+        const config = {
+          mcpServers: {
+            "nexus-prime": {
+              command: "npx",
+              args: ["-y", "nexus-prime", "mcp"]
+            }
+          }
+        };
+
+        if (options.dryRun) {
+          console.log('--- CLAUDE CODE CONFIG PREVIEW ---');
+          console.log(JSON.stringify(config, null, 2));
+          return;
+        }
+
+        if (!existsSync(configDir)) mkdirSync(configDir, { recursive: true });
+
+        let existing: any = {};
+        if (existsSync(configPath)) {
+          try {
+            existing = JSON.parse(readFileSync(configPath, 'utf8'));
+          } catch (e) {
+            console.error('⚠️  Failed to parse existing Claude config, starting fresh');
+          }
+        }
+
+        existing.mcpServers = { ...existing.mcpServers, ...config.mcpServers };
+        writeFileSync(configPath, JSON.stringify(existing, null, 2));
+        console.log(`✅ Nexus Prime integrated with Claude Code at ${configPath}`);
+      })
+  )
+  .addCommand(
+    new Command('opencode')
+      .description('Integrate with Opencode')
+      .option('--dry-run', 'Preview changes')
+      .action((options) => {
+        const configDir = join(homedir(), '.opencode');
+        const configPath = join(configDir, 'config.json');
+        const config = {
+          mcp: {
+            servers: [
+              {
+                id: "nexus-prime",
+                command: "npx",
+                args: ["-y", "nexus-prime", "mcp"]
+              }
+            ]
+          }
+        };
+
+        if (options.dryRun) {
+          console.log('--- OPENCODE CONFIG PREVIEW ---');
+          console.log(JSON.stringify(config, null, 2));
+          return;
+        }
+
+        if (!existsSync(configDir)) mkdirSync(configDir, { recursive: true });
+
+        let existing: any = {};
+        if (existsSync(configPath)) {
+          try {
+            existing = JSON.parse(readFileSync(configPath, 'utf8'));
+          } catch (e) {
+            console.error('⚠️  Failed to parse existing Opencode config, starting fresh');
+          }
+        }
+
+        if (!existing.mcp) existing.mcp = { servers: [] };
+        if (!existing.mcp.servers) existing.mcp.servers = [];
+
+        // Remove existing if any to avoid duplicates
+        existing.mcp.servers = existing.mcp.servers.filter((s: any) => s.id !== 'nexus-prime');
+        existing.mcp.servers.push(config.mcp.servers[0]);
+
+        writeFileSync(configPath, JSON.stringify(existing, null, 2));
+        console.log(`✅ Nexus Prime integrated with Opencode at ${configPath}`);
+      })
+  )
+  .addCommand(
+    new Command('status')
+      .description('Check integration status')
+      .action(() => {
+        const tools = [
+          { name: 'Cursor', path: join(homedir(), '.cursor/mcp.json') },
+          { name: 'Claude Code', path: join(homedir(), '.claude-code/mcp.json') },
+          { name: 'Opencode', path: join(homedir(), '.opencode/config.json') }
+        ];
+
+        console.log('📋 Integration Status:');
+        tools.forEach(tool => {
+          const exists = existsSync(tool.path);
+          let linked = false;
+          if (exists) {
+            try {
+              const content = readFileSync(tool.path, 'utf8');
+              linked = content.includes('nexus-prime');
+            } catch {
+              // Ignore read errors
+            }
+          }
+          console.log(`  - ${tool.name}: ${exists ? (linked ? '✅ Linked' : '🟡 Found') : '❌ Not Configured'}`);
         });
       })
   );
