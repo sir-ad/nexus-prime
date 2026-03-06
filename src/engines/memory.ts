@@ -33,6 +33,8 @@ export interface MemoryItem {
   links?: string[];  // IDs of related memories (Zettelkasten links)
   parentId?: string;
   depth?: number;
+  entropy: number; // 0.0 (fresh) to 1.0 (dead/noise)
+  mass: number;    // Weight of importance (gravity)
 }
 
 export interface MemoryLink {
@@ -100,7 +102,9 @@ export class MemoryEngine {
         session_id  TEXT,
         access_count INTEGER NOT NULL DEFAULT 0,
         parent_id   TEXT,
-        depth       INTEGER DEFAULT 0
+        depth       INTEGER DEFAULT 0,
+        entropy     REAL NOT NULL DEFAULT 0.0,
+        mass        REAL NOT NULL DEFAULT 1.0
       );
     `);
 
@@ -113,6 +117,12 @@ export class MemoryEngine {
     }
     if (!columns.includes('depth')) {
       this.db.exec("ALTER TABLE memories ADD COLUMN depth INTEGER DEFAULT 0");
+    }
+    if (!columns.includes('entropy')) {
+      this.db.exec("ALTER TABLE memories ADD COLUMN entropy REAL NOT NULL DEFAULT 0.0");
+    }
+    if (!columns.includes('mass')) {
+      this.db.exec("ALTER TABLE memories ADD COLUMN mass REAL NOT NULL DEFAULT 1.0");
     }
 
     this.db.exec(`
@@ -158,7 +168,9 @@ export class MemoryEngine {
         tags: JSON.parse(row.tags as string),
         tier: row.tier as MemoryItem['tier'],
         sessionId: row.session_id,
-        accessCount: row.access_count
+        accessCount: row.access_count,
+        entropy: row.entropy ?? 0,
+        mass: row.mass ?? 1.0
       };
 
       // Restore prefrontal items to RAM
@@ -182,7 +194,9 @@ export class MemoryEngine {
         access_count = excluded.access_count,
         tier = excluded.tier,
         parent_id = excluded.parent_id,
-        depth = excluded.depth
+        depth = excluded.depth,
+        entropy = excluded.entropy,
+        mass = excluded.mass
           `);
 
       const txn = this.db.transaction((items: MemoryItem[]) => {
@@ -198,7 +212,9 @@ export class MemoryEngine {
             session_id: item.sessionId ? String(item.sessionId) : null,
             access_count: Number(item.accessCount) || 0,
             parent_id: item.parentId ? String(item.parentId) : null,
-            depth: Number(item.depth) || 0
+            depth: Number(item.depth) || 0,
+            entropy: Number(item.entropy) || 0,
+            mass: Number(item.mass) || 1.0
           });
         }
       });
@@ -225,14 +241,16 @@ export class MemoryEngine {
       sessionId: this.sessionId,
       accessCount: 0,
       parentId,
-      depth
+      depth,
+      entropy: 0.0,
+      mass: priority
     };
 
     // Write to DB immediately (don't wait for flush)
     this.db.prepare(`
-      INSERT INTO memories(id, content, priority, timestamp, tags, tier, session_id, access_count, parent_id, depth)
-    VALUES(?, ?, ?, ?, ?, 'prefrontal', ?, 0, ?, ?)
-      `).run(id, content, priority, item.timestamp, JSON.stringify(tags), this.sessionId, parentId, depth);
+      INSERT INTO memories(id, content, priority, timestamp, tags, tier, session_id, access_count, parent_id, depth, entropy, mass)
+    VALUES(?, ?, ?, ?, ?, 'prefrontal', ?, 0, ?, ?, 0.0, ?)
+      `).run(id, content, priority, item.timestamp, JSON.stringify(tags), this.sessionId, parentId, depth, priority);
 
     // Update vocabulary and add to vector index
     this.embedder.fitVocabulary([content]);
@@ -295,11 +313,13 @@ export class MemoryEngine {
       const recencyScore = Math.exp(-(Date.now() - row.timestamp) / (7 * 24 * 3600 * 1000));
       const priorityScore = row.priority as number;
       const accessBonus = Math.min((row.access_count as number) * 0.05, 0.3);
+      const entropyPenalty = 1 - (row.entropy as number ?? 0);
+      const massBoost = (row.mass as number ?? 1.0) * 0.2;
 
       return {
         content: row.content as string,
         id: row.id as string,
-        score: vectorScore * 0.5 + priorityScore * 0.25 + recencyScore * 0.15 + accessBonus * 0.1
+        score: (vectorScore * 0.5 + priorityScore * 0.25 + recencyScore * 0.15 + accessBonus * 0.1 + massBoost) * entropyPenalty
       };
     });
 
@@ -409,14 +429,37 @@ export class MemoryEngine {
   private fission(item: MemoryItem): void {
     // Promote to cortex immediately (permanently important)
     this.db.prepare(`
-      UPDATE memories SET tier = 'cortex', priority = MIN(priority * 1.2, 2.0)
+      UPDATE memories SET tier = 'cortex', priority = MIN(priority * 1.2, 2.0), mass = MIN(mass * 1.5, 5.0)
       WHERE id = ?
       `).run(item.id);
+
+    // Broadcast via POD network if priority is exceptionally high
+    if (item.priority > 0.95) {
+      podNetwork.publish(
+        'NexusAgent',
+        item.content,
+        item.priority,
+        [...item.tags, '#fission']
+      );
+    }
 
     // Strengthen links TO this item (makes it easier to discover via related queries)
     this.db.prepare(`
       UPDATE memory_links SET weight = MIN(weight * 1.3, 1.0) WHERE to_id = ?
       `).run(item.id);
+  }
+
+  /** Periodic cooling cycle: increases entropy and decays priority */
+  coolDown(): void {
+    this.db.exec(`
+      UPDATE memories
+      SET entropy = MIN(entropy + 0.05, 1.0),
+          priority = priority * 0.95
+      WHERE tier != 'cortex'
+    `);
+
+    // Force flush high entropy items (this will promote/demote based on priority)
+    this.consolidate();
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -485,7 +528,9 @@ export class MemoryEngine {
       sessionId: row.session_id,
       accessCount: row.access_count,
       parentId: row.parent_id,
-      depth: row.depth
+      depth: row.depth,
+      entropy: row.entropy ?? 0,
+      mass: row.mass ?? 1.0
     };
   }
 
