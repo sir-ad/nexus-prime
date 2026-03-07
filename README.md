@@ -6,7 +6,6 @@
   [![License: MIT](https://img.shields.io/badge/License-MIT-00d4ff?style=for-the-badge)](LICENSE)
   [![Agentic OS](https://img.shields.io/badge/Ecosystem-Agentic_OS-8b5cf6?style=for-the-badge)](https://github.com/topics/agentic-os)
 
-  ![Star History Chart](https://api.star-history.com/svg?repos=sir-ad/nexus-prime&type=Timeline)
 </div>
 
 ---
@@ -130,6 +129,6 @@ nexus-prime setup status
 - **Git Worktree 2.0**: Improved performance for massive parallelization (>10 workers).
 
 ---
-
+ ![Star History Chart](https://api.star-history.com/svg?repos=sir-ad/nexus-prime&type=Timeline)
 **License:** MIT  
 **Maintainers:** The Nexus Prime Protocol Consortium
