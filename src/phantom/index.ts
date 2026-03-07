@@ -92,7 +92,7 @@ export class GhostPass {
      * Analyze the codebase WITHOUT touching anything.
      * Returns a reading plan + worker assignments.
      */
-    async analyze(goal: string, targetFiles: FileRef[]): Promise<GhostReport> {
+    async analyze(goal: string, targetFiles: FileRef[], numWorkers: number = 3): Promise<GhostReport> {
         const taskId = randomUUID();
 
         // Generate token-efficient reading plan
@@ -101,8 +101,8 @@ export class GhostPass {
         // Identify risk areas from goal keywords
         const riskAreas = this.detectRiskAreas(goal, targetFiles);
 
-        // Generate 2-3 different approach assignments
-        const workerAssignments = this.generateApproaches(goal, targetFiles, readingPlan, taskId);
+        // Generate different approach assignments
+        const workerAssignments = this.generateApproaches(goal, targetFiles, readingPlan, taskId, numWorkers);
 
         return {
             taskId,
@@ -137,9 +137,12 @@ export class GhostPass {
         goal: string,
         files: FileRef[],
         readingPlan: ReadingPlan,
-        taskId: string
+        taskId: string,
+        numWorkers: number
     ): WorkerTask[] {
-        const approaches = ['minimal', 'standard', 'thorough'];
+        const allApproaches = ['minimal', 'standard', 'thorough', 'exploratory', 'aggressive', 'conservative', 'lateral'];
+        const num = Math.min(Math.max(1, numWorkers), 7);
+        const approaches = allApproaches.slice(0, num);
         const budgetPerWorker = Math.floor(readingPlan.totalEstimatedTokens * 1.5 / approaches.length);
 
         return approaches.map((approach, i) => ({
@@ -329,7 +332,7 @@ export class PhantomOrchestrator {
         nWorkers: number = 2
     ): Promise<{ report: GhostReport; decision: MergeDecision }> {
         // Phase 1: Ghost Pass
-        const report = await this.ghost.analyze(goal, files);
+        const report = await this.ghost.analyze(goal, files, nWorkers);
 
         // Phase 2: Parallel Phantom Workers
         const tasks = report.workerAssignments.slice(0, nWorkers);

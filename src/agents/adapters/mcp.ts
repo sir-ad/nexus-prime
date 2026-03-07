@@ -304,7 +304,8 @@ export class MCPAdapter implements Adapter {
                         type: 'object',
                         properties: {
                             goal: { type: 'string', description: 'The overall goal for the swarm' },
-                            files: { type: 'array', items: { type: 'string' }, description: 'Files relevant to the task' }
+                            files: { type: 'array', items: { type: 'string' }, description: 'Files relevant to the task' },
+                            workers: { type: 'number', description: 'Number of phantom workers to spawn (max 7)', default: 3 }
                         },
                         required: ['goal', 'files'],
                     },
@@ -814,6 +815,7 @@ export class MCPAdapter implements Adapter {
 
             case 'nexus_spawn_workers': {
                 const goal = String(request.params.arguments?.goal ?? '');
+                const workersCount = Number(request.params.arguments?.workers ?? 3);
                 const rawFiles = Array.isArray(request.params.arguments?.files)
                     ? (request.params.arguments.files as unknown[]).map(String)
                     : [];
@@ -828,7 +830,7 @@ export class MCPAdapter implements Adapter {
                 });
 
                 const ghost = new GhostPass(process.cwd());
-                const report = await ghost.analyze(goal, files);
+                const report = await ghost.analyze(goal, files, workersCount);
 
                 // Multi-process dispatch with worktree-isolated execution
                 const workerPromises = report.workerAssignments.map(async (assign) => {

@@ -456,6 +456,40 @@
             <div class="panel-header">Token Supremacy Engine</div>
             <div class="panel-content">
 
+                <div class="metric-card" style="border-color: var(--primary)">
+                    <span class="metric-label" style="color: var(--primary)">Connected Ecosystem</span>
+                    <div class="ecosystem-grid">
+                        <div class="tool-card">
+                            <div class="tool-info">
+                                <div class="indicator active"></div>
+                                <span class="tool-name">Cursor</span>
+                            </div>
+                            <span class="tool-status">Active</span>
+                        </div>
+                        <div class="tool-card">
+                            <div class="tool-info">
+                                <div class="indicator active"></div>
+                                <span class="tool-name">Claude Code</span>
+                            </div>
+                            <span class="tool-status">Active</span>
+                        </div>
+                        <div class="tool-card">
+                            <div class="tool-info">
+                                <div class="indicator"></div>
+                                <span class="tool-name">Opencode</span>
+                            </div>
+                            <span class="tool-status">Ready</span>
+                        </div>
+                        <div class="tool-card">
+                            <div class="tool-info">
+                                <div class="indicator"></div>
+                                <span class="tool-name">Codex</span>
+                            </div>
+                            <span class="tool-status">Standby</span>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="token-dial-container">
                     <svg id="token-dial">
                         <circle class="dial-bg" cx="80" cy="80" r="70"></circle>
@@ -478,40 +512,6 @@
                 <div class="metric-card">
                     <span class="metric-label" style="color:var(--primary)">Tokens Saved</span>
                     <span class="metric-val" style="color:var(--primary)" id="val-saved">0</span>
-                    <div class="metric-card"
-                        style="padding-top: 2rem; border-top: var(--border-std); background: transparent; border: none; border-radius: 0;">
-                        <span class="metric-label">Connected Ecosystem</span>
-                        <div class="ecosystem-grid">
-                            <div class="tool-card">
-                                <div class="tool-info">
-                                    <div class="indicator active"></div>
-                                    <span class="tool-name">Cursor</span>
-                                </div>
-                                <span class="tool-status">Active</span>
-                            </div>
-                            <div class="tool-card">
-                                <div class="tool-info">
-                                    <div class="indicator active"></div>
-                                    <span class="tool-name">Claude Code</span>
-                                </div>
-                                <span class="tool-status">Active</span>
-                            </div>
-                            <div class="tool-card">
-                                <div class="tool-info">
-                                    <div class="indicator"></div>
-                                    <span class="tool-name">Opencode</span>
-                                </div>
-                                <span class="tool-status">Ready</span>
-                            </div>
-                            <div class="tool-card">
-                                <div class="tool-info">
-                                    <div class="indicator"></div>
-                                    <span class="tool-name">Codex</span>
-                                </div>
-                                <span class="tool-status">Standby</span>
-                            </div>
-                        </div>
-                    </div>
                 </div>
 
                 <div class="metric-card" style="margin-top: 1rem; border-color: var(--blue)">
@@ -525,353 +525,353 @@
                     </div>
                 </div>
             </div>
+        </div>
 
-            <!-- CENTER: D3 Memory Topology -->
-            <div class="panel"
-                style="border: 1px solid rgba(0,100,255,0.1); box-shadow: 0 0 30px rgba(0,100,255,0.05);">
-                <div class="panel-header" style="background: rgba(0,100,255,0.05);">Memory Topology Graph</div>
-                <div id="graph-container">
-                    <!-- D3 appends SVG here -->
-                </div>
-            </div>
-
-            <!-- RIGHT: Sub-Agent & Event HUD -->
-            <div class="panel">
-                <div class="panel-header">
-                    Neural Stream HUD
-                    <span id="event-count">0 signals</span>
-                </div>
-                <div class="panel-content">
-                    <div class="hud-tab-bar">
-                        <div class="hud-tab active" id="tab-all">All Streams</div>
-                        <div class="hud-tab" id="tab-phantom">Phantom Swarm</div>
-                    </div>
-                    <div id="log-container"></div>
-                </div>
+        <!-- CENTER: D3 Memory Topology -->
+        <div class="panel" style="border: 1px solid rgba(0,100,255,0.1); box-shadow: 0 0 30px rgba(0,100,255,0.05);">
+            <div class="panel-header" style="background: rgba(0,100,255,0.05);">Memory Topology Graph</div>
+            <div id="graph-container">
+                <!-- D3 appends SVG here -->
             </div>
         </div>
 
-        <script>
-            // ─────────────────────────────────────────────────────────
-            // STATE
-            // ─────────────────────────────────────────────────────────
-            let stats = {
-                totalGross: 0,
-                totalNet: 0,
-                totalSaved: 0,
-                eventCount: 0
+        <!-- RIGHT: Sub-Agent & Event HUD -->
+        <div class="panel">
+            <div class="panel-header">
+                Neural Stream HUD
+                <span id="event-count">0 signals</span>
+            </div>
+            <div class="panel-content">
+                <div class="hud-tab-bar">
+                    <div class="hud-tab active" id="tab-all">All Streams</div>
+                    <div class="hud-tab" id="tab-phantom">Phantom Swarm</div>
+                </div>
+                <div id="log-container"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ─────────────────────────────────────────────────────────
+        // STATE
+        // ─────────────────────────────────────────────────────────
+        let stats = {
+            totalGross: 0,
+            totalNet: 0,
+            totalSaved: 0,
+            eventCount: 0
+        };
+
+        const memNodes = [];
+        const memLinks = [];
+        const tagMap = new Map(); // tag => [nodeIds]
+
+        let filterPhantomOnly = false;
+        const eventHistory = []; // stores HTML nodes
+
+        // ─────────────────────────────────────────────────────────
+        // DOM ELEMENTS
+        // ─────────────────────────────────────────────────────────
+        const connDot = document.getElementById('conn-dot');
+        const connText = document.getElementById('conn-text');
+
+        const dialProgress = document.getElementById('dial-progress');
+        const dialPct = document.getElementById('dial-pct');
+        const valGross = document.getElementById('val-gross');
+        const valNet = document.getElementById('val-net');
+        const valSaved = document.getElementById('val-saved');
+
+        const logContainer = document.getElementById('log-container');
+        const countLabel = document.getElementById('event-count');
+
+        document.getElementById('tab-all').onclick = (e) => setTab(e.target, false);
+        document.getElementById('tab-phantom').onclick = (e) => setTab(e.target, true);
+
+        function setTab(target, isPhantom) {
+            document.querySelectorAll('.hud-tab').forEach(t => t.classList.remove('active'));
+            target.classList.add('active');
+            filterPhantomOnly = isPhantom;
+
+            // basic re-render of matching items
+            Array.from(logContainer.children).forEach(el => {
+                const isPhantomEvt = el.classList.contains('phantom');
+                if (filterPhantomOnly && !isPhantomEvt) {
+                    el.style.display = 'none';
+                } else {
+                    el.style.display = 'block';
+                }
+            });
+        }
+
+        // ─────────────────────────────────────────────────────────
+        // D3 GRAPH ENGINE
+        // ─────────────────────────────────────────────────────────
+        const width = document.getElementById('graph-container').clientWidth;
+        const height = document.getElementById('graph-container').clientHeight;
+
+        const svg = d3.select("#graph-container")
+            .append("svg")
+            .attr("width", "100%")
+            .attr("height", "100%")
+            .call(d3.zoom().on("zoom", (event) => {
+                g.attr("transform", event.transform);
+            }))
+            .append("g");
+
+        const g = svg.append("g");
+
+        let linkGroup = g.append("g").attr("class", "links");
+        let nodeGroup = g.append("g").attr("class", "nodes");
+
+        const simulation = d3.forceSimulation(memNodes)
+            .force("charge", d3.forceManyBody().strength(-150))
+            .force("center", d3.forceCenter(width / 2, height / 2))
+            .force("link", d3.forceLink(memLinks).id(d => d.id).distance(80))
+            .force("collide", d3.forceCollide().radius(20));
+
+        function updateGraph() {
+            // Update links
+            const linkElements = linkGroup.selectAll("line").data(memLinks, d => `${d.source.id || d.source}-${d.target.id || d.target}`);
+            linkElements.enter().append("line")
+                .attr("class", "link")
+                .merge(linkElements);
+            linkElements.exit().remove();
+
+            // Update nodes
+            const nodeElements = nodeGroup.selectAll("g.node").data(memNodes, d => d.id);
+            const nodeEnter = nodeElements.enter().append("g")
+                .attr("class", "node")
+                .call(d3.drag()
+                    .on("start", dragstarted)
+                    .on("drag", dragged)
+                    .on("end", dragended));
+
+            nodeEnter.append("circle")
+                .attr("r", d => d.tier === 'cortex' ? 8 : 5)
+                .style("fill", d => d.tier === 'cortex' ? "var(--magenta)" : "var(--blue)")
+                .style("stroke", "#000")
+                .style("opacity", d => d.entropy || 1.0); // v1.5 Entropy Decay
+
+            nodeEnter.append("text")
+                .attr("dx", 12)
+                .attr("dy", ".35em")
+                .text(d => d.id.substring(0, 6));
+
+            nodeElements.exit().remove();
+
+            // Restart simulation
+            simulation.nodes(memNodes);
+            simulation.force("link").links(memLinks);
+            simulation.alpha(1).restart();
+        }
+
+        simulation.on("tick", () => {
+            linkGroup.selectAll("line")
+                .attr("x1", d => d.source.x)
+                .attr("y1", d => d.source.y)
+                .attr("x2", d => d.target.x)
+                .attr("y2", d => d.target.y);
+
+            nodeGroup.selectAll("g.node")
+                .attr("transform", d => `translate(${d.x},${d.y})`);
+        });
+
+        // Drag functions
+        function dragstarted(event, d) {
+            if (!event.active) simulation.alphaTarget(0.3).restart();
+            d.fx = d.x; d.fy = d.y;
+        }
+        function dragged(event, d) {
+            d.fx = event.x; d.fy = event.y;
+        }
+        function dragended(event, d) {
+            if (!event.active) simulation.alphaTarget(0);
+            d.fx = null; d.fy = null;
+        }
+
+        function addMemoryNode(evtData) {
+            const newNode = {
+                id: evtData.id || `node-${Date.now()}`,
+                tier: evtData.tier || 'hippocampus',
+                tags: evtData.tags || []
             };
+            memNodes.push(newNode);
 
-            const memNodes = [];
-            const memLinks = [];
-            const tagMap = new Map(); // tag => [nodeIds]
-
-            let filterPhantomOnly = false;
-            const eventHistory = []; // stores HTML nodes
-
-            // ─────────────────────────────────────────────────────────
-            // DOM ELEMENTS
-            // ─────────────────────────────────────────────────────────
-            const connDot = document.getElementById('conn-dot');
-            const connText = document.getElementById('conn-text');
-
-            const dialProgress = document.getElementById('dial-progress');
-            const dialPct = document.getElementById('dial-pct');
-            const valGross = document.getElementById('val-gross');
-            const valNet = document.getElementById('val-net');
-            const valSaved = document.getElementById('val-saved');
-
-            const logContainer = document.getElementById('log-container');
-            const countLabel = document.getElementById('event-count');
-
-            document.getElementById('tab-all').onclick = (e) => setTab(e.target, false);
-            document.getElementById('tab-phantom').onclick = (e) => setTab(e.target, true);
-
-            function setTab(target, isPhantom) {
-                document.querySelectorAll('.hud-tab').forEach(t => t.classList.remove('active'));
-                target.classList.add('active');
-                filterPhantomOnly = isPhantom;
-
-                // basic re-render of matching items
-                Array.from(logContainer.children).forEach(el => {
-                    const isPhantomEvt = el.classList.contains('phantom');
-                    if (filterPhantomOnly && !isPhantomEvt) {
-                        el.style.display = 'none';
-                    } else {
-                        el.style.display = 'block';
-                    }
+            // Create links between nodes sharing tags
+            newNode.tags.forEach(tag => {
+                if (!tagMap.has(tag)) tagMap.set(tag, []);
+                const sharedNodes = tagMap.get(tag);
+                sharedNodes.forEach(targetId => {
+                    memLinks.push({ source: newNode.id, target: targetId });
                 });
-            }
-
-            // ─────────────────────────────────────────────────────────
-            // D3 GRAPH ENGINE
-            // ─────────────────────────────────────────────────────────
-            const width = document.getElementById('graph-container').clientWidth;
-            const height = document.getElementById('graph-container').clientHeight;
-
-            const svg = d3.select("#graph-container")
-                .append("svg")
-                .attr("width", "100%")
-                .attr("height", "100%")
-                .call(d3.zoom().on("zoom", (event) => {
-                    g.attr("transform", event.transform);
-                }))
-                .append("g");
-
-            const g = svg.append("g");
-
-            let linkGroup = g.append("g").attr("class", "links");
-            let nodeGroup = g.append("g").attr("class", "nodes");
-
-            const simulation = d3.forceSimulation(memNodes)
-                .force("charge", d3.forceManyBody().strength(-150))
-                .force("center", d3.forceCenter(width / 2, height / 2))
-                .force("link", d3.forceLink(memLinks).id(d => d.id).distance(80))
-                .force("collide", d3.forceCollide().radius(20));
-
-            function updateGraph() {
-                // Update links
-                const linkElements = linkGroup.selectAll("line").data(memLinks, d => `${d.source.id || d.source}-${d.target.id || d.target}`);
-                linkElements.enter().append("line")
-                    .attr("class", "link")
-                    .merge(linkElements);
-                linkElements.exit().remove();
-
-                // Update nodes
-                const nodeElements = nodeGroup.selectAll("g.node").data(memNodes, d => d.id);
-                const nodeEnter = nodeElements.enter().append("g")
-                    .attr("class", "node")
-                    .call(d3.drag()
-                        .on("start", dragstarted)
-                        .on("drag", dragged)
-                        .on("end", dragended));
-
-                nodeEnter.append("circle")
-                    .attr("r", d => d.tier === 'cortex' ? 8 : 5)
-                    .style("fill", d => d.tier === 'cortex' ? "var(--magenta)" : "var(--blue)")
-                    .style("stroke", "#000")
-                    .style("opacity", d => d.entropy || 1.0); // v1.5 Entropy Decay
-
-                nodeEnter.append("text")
-                    .attr("dx", 12)
-                    .attr("dy", ".35em")
-                    .text(d => d.id.substring(0, 6));
-
-                nodeElements.exit().remove();
-
-                // Restart simulation
-                simulation.nodes(memNodes);
-                simulation.force("link").links(memLinks);
-                simulation.alpha(1).restart();
-            }
-
-            simulation.on("tick", () => {
-                linkGroup.selectAll("line")
-                    .attr("x1", d => d.source.x)
-                    .attr("y1", d => d.source.y)
-                    .attr("x2", d => d.target.x)
-                    .attr("y2", d => d.target.y);
-
-                nodeGroup.selectAll("g.node")
-                    .attr("transform", d => `translate(${d.x},${d.y})`);
+                sharedNodes.push(newNode.id);
             });
 
-            // Drag functions
-            function dragstarted(event, d) {
-                if (!event.active) simulation.alphaTarget(0.3).restart();
-                d.fx = d.x; d.fy = d.y;
-            }
-            function dragged(event, d) {
-                d.fx = event.x; d.fy = event.y;
-            }
-            function dragended(event, d) {
-                if (!event.active) simulation.alphaTarget(0);
-                d.fx = null; d.fy = null;
-            }
+            updateGraph();
+        }
 
-            function addMemoryNode(evtData) {
-                const newNode = {
-                    id: evtData.id || `node-${Date.now()}`,
-                    tier: evtData.tier || 'hippocampus',
-                    tags: evtData.tags || []
-                };
-                memNodes.push(newNode);
+        // ─────────────────────────────────────────────────────────
+        // EVENT STREAM & UI UPDATES
+        // ─────────────────────────────────────────────────────────
+        function updateTokenDial() {
+            if (stats.totalGross === 0) return;
+            const pct = (stats.totalSaved / stats.totalGross) * 100;
+            const offset = 440 - (440 * (pct / 100)); // 440 depends on stroke-dasharray
+            dialProgress.style.strokeDashoffset = offset;
+            dialPct.innerText = `${Math.round(pct)}%`;
+        }
 
-                // Create links between nodes sharing tags
-                newNode.tags.forEach(tag => {
-                    if (!tagMap.has(tag)) tagMap.set(tag, []);
-                    const sharedNodes = tagMap.get(tag);
-                    sharedNodes.forEach(targetId => {
-                        memLinks.push({ source: newNode.id, target: targetId });
-                    });
-                    sharedNodes.push(newNode.id);
-                });
+        function getColorClass(type) {
+            if (type.startsWith('memory')) return 'memory';
+            if (type.startsWith('tokens')) return 'tokens';
+            if (type.startsWith('phantom')) return 'phantom';
+            if (type.startsWith('guardrail')) return 'guardrail';
+            if (type.startsWith('pod')) return 'pod';
+            return '';
+        }
 
-                updateGraph();
-            }
+        function buildEventHTML(evt) {
+            const dt = new Date(evt.timestamp);
+            const time = !isNaN(dt) ? dt.toISOString().split('T')[1].slice(0, 12) : new Date().toISOString().split('T')[1].slice(0, 12);
+            let headerExtra = '';
 
-            // ─────────────────────────────────────────────────────────
-            // EVENT STREAM & UI UPDATES
-            // ─────────────────────────────────────────────────────────
-            function updateTokenDial() {
-                if (stats.totalGross === 0) return;
-                const pct = (stats.totalSaved / stats.totalGross) * 100;
-                const offset = 440 - (440 * (pct / 100)); // 440 depends on stroke-dasharray
-                dialProgress.style.strokeDashoffset = offset;
-                dialPct.innerText = `${Math.round(pct)}%`;
+            // Sub-Agent Badge visually styling
+            if (evt.type.startsWith('phantom.worker')) {
+                const wId = evt.data.workerId || 'W-??';
+                headerExtra = `<span class="worker-badge">${wId}</span>`;
+            } else if (evt.type === 'phantom.merge') {
+                headerExtra = `<span class="worker-badge" style="background:var(--primary)">Oracle</span>`;
             }
 
-            function getColorClass(type) {
-                if (type.startsWith('memory')) return 'memory';
-                if (type.startsWith('tokens')) return 'tokens';
-                if (type.startsWith('phantom')) return 'phantom';
-                if (type.startsWith('guardrail')) return 'guardrail';
-                if (type.startsWith('pod')) return 'pod';
-                return '';
-            }
+            let dataStr = JSON.stringify(evt.data, null, 2).replace(/[{}"]/g, '').trim();
 
-            function buildEventHTML(evt) {
-                const dt = new Date(evt.timestamp);
-                const time = !isNaN(dt) ? dt.toISOString().split('T')[1].slice(0, 12) : new Date().toISOString().split('T')[1].slice(0, 12);
-                let headerExtra = '';
-
-                // Sub-Agent Badge visually styling
-                if (evt.type.startsWith('phantom.worker')) {
-                    const wId = evt.data.workerId || 'W-??';
-                    headerExtra = `<span class="worker-badge">${wId}</span>`;
-                } else if (evt.type === 'phantom.merge') {
-                    headerExtra = `<span class="worker-badge" style="background:var(--primary)">Oracle</span>`;
-                }
-
-                let dataStr = JSON.stringify(evt.data, null, 2).replace(/[{}"]/g, '').trim();
-
-                return `
+            return `
                 <div class="event-header">
                     <span>${headerExtra} <strong style="color:var(--text-main)">${evt.type}</strong></span>
                     <span style="font-size:0.65rem">${time}</span>
                 </div>
                 <div class="event-data">${dataStr}</div>
             `;
+        }
+
+        const podPulse = document.getElementById('pod-pulse');
+        const podWorkerLabel = document.getElementById('pod-last-worker');
+
+        function processEvent(event) {
+            // 1. Process Logic
+            if (event.type === 'tokens.optimized') {
+                // Determine gross tokens if we only got savings + pct
+                const savings = event.data.savings || 0;
+                const pct = event.data.pct || 0;
+                let gross = savings;
+                if (pct > 0 && pct <= 100) {
+                    gross = savings / (pct / 100);
+                }
+
+                stats.totalSaved += savings;
+                stats.totalGross += gross;
+                stats.totalNet += (gross - savings);
+
+                valSaved.innerText = Math.floor(stats.totalSaved).toLocaleString();
+                valGross.innerText = Math.floor(stats.totalGross).toLocaleString();
+                valNet.innerText = Math.floor(stats.totalNet).toLocaleString();
+                updateTokenDial();
             }
 
-            const podPulse = document.getElementById('pod-pulse');
-            const podWorkerLabel = document.getElementById('pod-last-worker');
+            if (event.type === 'pod.signal') {
+                // Visual pulse for the POD widget
+                podPulse.style.opacity = '1';
+                podPulse.style.transform = 'scale(1.5)';
+                podWorkerLabel.innerText = `Sync: ${event.data.workerId || 'Node'}`;
+                setTimeout(() => {
+                    podPulse.style.opacity = '0.3';
+                    podPulse.style.transform = 'scale(1)';
+                }, 500);
+            }
 
-            function processEvent(event) {
-                // 1. Process Logic
-                if (event.type === 'tokens.optimized') {
-                    // Determine gross tokens if we only got savings + pct
-                    const savings = event.data.savings || 0;
-                    const pct = event.data.pct || 0;
-                    let gross = savings;
-                    if (pct > 0 && pct <= 100) {
-                        gross = savings / (pct / 100);
+            if (event.type === 'memory.store') {
+                addMemoryNode(event.data);
+            }
+
+            if (event.type === 'memory.fission') {
+                // v1.5 Fission Effect: Flash relevant nodes
+                const affectedIds = event.data.nodes || [];
+                nodeGroup.selectAll("circle")
+                    .filter(d => affectedIds.includes(d.id))
+                    .transition()
+                    .duration(500)
+                    .attr("r", 15)
+                    .style("fill", "var(--primary)")
+                    .transition()
+                    .duration(500)
+                    .attr("r", d => d.tier === 'cortex' ? 8 : 5)
+                    .style("fill", d => d.tier === 'cortex' ? "var(--magenta)" : "var(--blue)");
+            }
+
+            if (event.type === 'memory.entropy') {
+                // v1.5 Entropy Decay: Update node opacities
+                const updates = event.data.updates || []; // id -> entropy
+                memNodes.forEach(node => {
+                    if (updates[node.id] !== undefined) {
+                        node.entropy = updates[node.id];
                     }
-
-                    stats.totalSaved += savings;
-                    stats.totalGross += gross;
-                    stats.totalNet += (gross - savings);
-
-                    valSaved.innerText = Math.floor(stats.totalSaved).toLocaleString();
-                    valGross.innerText = Math.floor(stats.totalGross).toLocaleString();
-                    valNet.innerText = Math.floor(stats.totalNet).toLocaleString();
-                    updateTokenDial();
-                }
-
-                if (event.type === 'pod.signal') {
-                    // Visual pulse for the POD widget
-                    podPulse.style.opacity = '1';
-                    podPulse.style.transform = 'scale(1.5)';
-                    podWorkerLabel.innerText = `Sync: ${event.data.workerId || 'Node'}`;
-                    setTimeout(() => {
-                        podPulse.style.opacity = '0.3';
-                        podPulse.style.transform = 'scale(1)';
-                    }, 500);
-                }
-
-                if (event.type === 'memory.store') {
-                    addMemoryNode(event.data);
-                }
-
-                if (event.type === 'memory.fission') {
-                    // v1.5 Fission Effect: Flash relevant nodes
-                    const affectedIds = event.data.nodes || [];
-                    nodeGroup.selectAll("circle")
-                        .filter(d => affectedIds.includes(d.id))
-                        .transition()
-                        .duration(500)
-                        .attr("r", 15)
-                        .style("fill", "var(--primary)")
-                        .transition()
-                        .duration(500)
-                        .attr("r", d => d.tier === 'cortex' ? 8 : 5)
-                        .style("fill", d => d.tier === 'cortex' ? "var(--magenta)" : "var(--blue)");
-                }
-
-                if (event.type === 'memory.entropy') {
-                    // v1.5 Entropy Decay: Update node opacities
-                    const updates = event.data.updates || []; // id -> entropy
-                    memNodes.forEach(node => {
-                        if (updates[node.id] !== undefined) {
-                            node.entropy = updates[node.id];
-                        }
-                    });
-                    nodeGroup.selectAll("circle")
-                        .style("opacity", d => d.entropy || 1.0);
-                }
-
-                // 2. HUD Logic
-                stats.eventCount++;
-                countLabel.innerText = `${stats.eventCount} signals`;
-
-                const typeClass = getColorClass(event.type);
-                const el = document.createElement('div');
-                el.className = `event-item ${typeClass}`;
-                el.innerHTML = buildEventHTML(event);
-
-                // Filter logic
-                if (filterPhantomOnly && !typeClass.includes('phantom')) {
-                    el.style.display = 'none';
-                }
-
-                logContainer.prepend(el);
-                if (logContainer.children.length > 50) {
-                    logContainer.lastChild.remove();
-                }
+                });
+                nodeGroup.selectAll("circle")
+                    .style("opacity", d => d.entropy || 1.0);
             }
 
-            // ─────────────────────────────────────────────────────────
-            // SERVER SENT EVENTS
-            // ─────────────────────────────────────────────────────────
-            function connectSSE() {
-                const evtSource = new EventSource('/stream');
+            // 2. HUD Logic
+            stats.eventCount++;
+            countLabel.innerText = `${stats.eventCount} signals`;
 
-                evtSource.onopen = () => {
-                    connText.innerText = 'Synchronized';
-                    connDot.style.backgroundColor = 'var(--primary)';
-                    connDot.style.boxShadow = '0 0 12px var(--primary-glow)';
-                };
+            const typeClass = getColorClass(event.type);
+            const el = document.createElement('div');
+            el.className = `event-item ${typeClass}`;
+            el.innerHTML = buildEventHTML(event);
 
-                evtSource.onmessage = (e) => {
-                    try {
-                        const event = JSON.parse(e.data);
-                        processEvent(event);
-                    } catch (err) {
-                        // ignore invalid JSON
-                    }
-                };
-
-                evtSource.onerror = () => {
-                    connText.innerText = 'Reconnecting...';
-                    connDot.style.backgroundColor = 'var(--danger)';
-                    connDot.style.boxShadow = '0 0 12px var(--danger)';
-                    evtSource.close();
-                    setTimeout(connectSSE, 3000);
-                };
+            // Filter logic
+            if (filterPhantomOnly && !typeClass.includes('phantom')) {
+                el.style.display = 'none';
             }
 
-            connectSSE();
-        </script>
+            logContainer.prepend(el);
+            if (logContainer.children.length > 50) {
+                logContainer.lastChild.remove();
+            }
+        }
+
+        // ─────────────────────────────────────────────────────────
+        // SERVER SENT EVENTS
+        // ─────────────────────────────────────────────────────────
+        function connectSSE() {
+            const evtSource = new EventSource('/stream');
+
+            evtSource.onopen = () => {
+                connText.innerText = 'Synchronized';
+                connDot.style.backgroundColor = 'var(--primary)';
+                connDot.style.boxShadow = '0 0 12px var(--primary-glow)';
+            };
+
+            evtSource.onmessage = (e) => {
+                try {
+                    const event = JSON.parse(e.data);
+                    processEvent(event);
+                } catch (err) {
+                    // ignore invalid JSON
+                }
+            };
+
+            evtSource.onerror = () => {
+                connText.innerText = 'Reconnecting...';
+                connDot.style.backgroundColor = 'var(--danger)';
+                connDot.style.boxShadow = '0 0 12px var(--danger)';
+                evtSource.close();
+                setTimeout(connectSSE, 3000);
+            };
+        }
+
+        connectSSE();
+    </script>
 </body>
 
 </html>
