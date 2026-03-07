@@ -973,23 +973,6 @@
 
   <hr class="divider">
 
-  <!-- ════════════════════════════════════════════════════ DASHBOARD -->
-  <section id="dashboard">
-    <span class="section-label">Real-time Visualization</span>
-    <h2 class="section-title">Watch your agent<br>think in real time.</h2>
-    <p class="section-sub">A built-in SSE-powered dashboard streams every memory store, token optimization, phantom
-      worker dispatch, and guardrail check as they happen — 42 event types, zero polling.</p>
-
-    <div class="dashboard-frame fade-up">
-      <div class="dashboard-bar">
-        <div class="dashboard-dot dot-red"></div>
-        <div class="dashboard-dot dot-yellow"></div>
-        <div class="dashboard-dot dot-green"></div>
-        <span>localhost:3000 — Nexus Prime Dashboard</span>
-      </div>
-      <img src="dashboard-preview.png"
-        alt="Nexus Prime real-time SSE dashboard showing System Metrics, Swarm Matrix visualization, and Thinking Stream" />
-    </div>
   </section>
 
   <hr class="divider">
@@ -1050,12 +1033,6 @@
                 Core <--> UX
                   Swarm --> POD
                   POD --> OR
-                  <div class="architecture-diagram" style="margin-top: 4rem; text-align: center;">
-                    <img src="./assets/screenshots/swarm_trace.png" alt="Swarm Induction Trace"
-                      style="max-width: 100%; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);">
-                    <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 1rem;">Mandatory Induction: A
-                      7-worker swarm coordinating via POD Network.</p>
-                  </div>
                   MCP <--> Relay
                     Relay <--> Agents
 
@@ -1066,6 +1043,13 @@
                       classDef swarm fill:#1a0a0a,stroke:#ef4444,color:#ef4444
                       classDef ux fill:#0a1a1a,stroke:#fbbf24,color:#fbbf24
                       classDef net fill:#0a0a1a,stroke:#00d4ff,color:#00d4ff
+      </div>
+      <div class="architecture-diagram" style="margin-top: 4rem; text-align: center;">
+        <img src="./assets/screenshots/swarm_trace.png" alt="Swarm Induction Trace"
+          style="max-width: 100%; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);">
+        <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 1rem;">
+          Mandatory Induction: A 7-worker swarm coordinating via POD Network.
+        </p>
       </div>
     </div>
   </section>
