@@ -513,6 +513,17 @@
                         </div>
                     </div>
                 </div>
+
+                <div class="metric-card" style="margin-top: 1rem; border-color: var(--blue)">
+                    <span class="metric-label" style="color:var(--blue)">POD Swarm Synchronization</span>
+                    <div id="pod-sync-indicator"
+                        style="display:flex; justify-content:space-between; align-items:center; margin-top: 0.5rem;">
+                        <span id="pod-last-worker" style="font-size: 0.7rem; color: var(--text-dim)">Idle</span>
+                        <div class="pod-pulse" id="pod-pulse"
+                            style="width: 10px; height: 10px; background: var(--blue); border-radius: 50%; box-shadow: 0 0 10px var(--blue); opacity: 0.3; transition: all 0.2s;">
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- CENTER: D3 Memory Topology -->
@@ -715,6 +726,7 @@
                 if (type.startsWith('tokens')) return 'tokens';
                 if (type.startsWith('phantom')) return 'phantom';
                 if (type.startsWith('guardrail')) return 'guardrail';
+                if (type.startsWith('pod')) return 'pod';
                 return '';
             }
 
@@ -742,6 +754,9 @@
             `;
             }
 
+            const podPulse = document.getElementById('pod-pulse');
+            const podWorkerLabel = document.getElementById('pod-last-worker');
+
             function processEvent(event) {
                 // 1. Process Logic
                 if (event.type === 'tokens.optimized') {
@@ -761,6 +776,17 @@
                     valGross.innerText = Math.floor(stats.totalGross).toLocaleString();
                     valNet.innerText = Math.floor(stats.totalNet).toLocaleString();
                     updateTokenDial();
+                }
+
+                if (event.type === 'pod.signal') {
+                    // Visual pulse for the POD widget
+                    podPulse.style.opacity = '1';
+                    podPulse.style.transform = 'scale(1.5)';
+                    podWorkerLabel.innerText = `Sync: ${event.data.workerId || 'Node'}`;
+                    setTimeout(() => {
+                        podPulse.style.opacity = '0.3';
+                        podPulse.style.transform = 'scale(1)';
+                    }, 500);
                 }
 
                 if (event.type === 'memory.store') {

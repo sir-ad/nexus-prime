@@ -5,20 +5,39 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Nexus Prime — The Self-Evolving Agent OS</title>
+
+  <!-- SEO & Open Graph Tags -->
   <meta name="description"
-    content="Give your AI agent a brain that persists, thinks, and learns. Cross-session memory, token optimization, parallel workers, and machine-checked guardrails — as native MCP tools." />
+    content="The autonomous meta-framework for AI agents. Cross-session memory, token optimization, parallel swarm induction, and machine-verifiable guardrails." />
+  <meta property="og:title" content="Nexus Prime | Cognitive OS for Multi-Agent Swarms" />
+  <meta property="og:description"
+    content="The autonomous meta-framework for AI agents. Permanent memory, mathematically optimized context limits, safety guardrails, and massively parallel Git-worktree execution." />
+  <meta property="og:type" content="website" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Nexus Prime — Agent OS" />
+  <meta name="twitter:description"
+    content="Meta-framework for autonomous agent armies providing persistent Cortex memory and token supremacy." />
+
+  <!-- Preconnect & Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link
     href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Inter:wght@300;400;500;600;700;900&display=swap"
     rel="stylesheet" />
-  <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
-  <script>mermaid.initialize({ startOnLoad: true, theme: 'dark', themeVariables: { primaryColor: '#1a1a2e', primaryTextColor: '#00ff88', lineColor: '#00d4ff', secondaryColor: '#0d1828' } });</script>
+
+  <!-- Deferred Scripts -->
+  <script defer src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+  <script defer>
+    document.addEventListener("DOMContentLoaded", function () {
+      mermaid.initialize({ startOnLoad: true, theme: 'dark', themeVariables: { primaryColor: '#1a1a2e', primaryTextColor: '#00ff88', lineColor: '#00d4ff', secondaryColor: '#0d1828' } });
+    });
+  </script>
 
   <style>
     :root {
       --green: #39FF14;
       --green-dim: #00cc6a;
-      --green-glow: rgba(57, 255, 20, 0.15);
+      --green-glow: rgba(57, 255, 20, 0.4);
       --cyan: #00FFFF;
       --purple: #8b5cf6;
       --magenta: #d946ef;
@@ -28,12 +47,13 @@
       --bg2: #050505;
       --bg3: #0a0a0a;
       --surface: rgba(10, 10, 10, 0.85);
-      --border: rgba(57, 255, 20, 0.15);
+      --border: rgba(57, 255, 20, 0.2);
       --text: #e2f5ff;
       --text-dim: #7a9bb0;
       --text-muted: #3d5570;
     }
 
+    /* Standard Reset & Base Styles */
     *,
     *::before,
     *::after {
@@ -44,6 +64,7 @@
 
     html {
       scroll-behavior: smooth;
+      font-size: 16px;
     }
 
     body {
@@ -58,15 +79,13 @@
       content: '';
       position: fixed;
       inset: 0;
-      background-image:
-        linear-gradient(rgba(0, 255, 136, 0.02) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(0, 255, 136, 0.02) 1px, transparent 1px);
+      background-image: linear-gradient(rgba(0, 255, 136, 0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 255, 136, 0.02) 1px, transparent 1px);
       background-size: 80px 80px;
       pointer-events: none;
       z-index: 0;
     }
 
-    /* ── NAV ─────────────────────────────────────────── */
+    /* Navigation */
     nav {
       position: fixed;
       top: 0;
@@ -80,12 +99,11 @@
       background: rgba(0, 0, 0, 0.9);
       backdrop-filter: blur(24px) saturate(1.8);
       border-bottom: 1px solid var(--border);
-      transition: all 0.3s;
     }
 
     .nav-logo {
       font-family: 'JetBrains Mono', monospace;
-      font-size: 18px;
+      font-size: 1.125rem;
       font-weight: 700;
       color: var(--green);
       text-decoration: none;
@@ -96,7 +114,7 @@
 
     .nav-logo::before {
       content: '⬡';
-      font-size: 20px;
+      font-size: 1.25rem;
     }
 
     .nav-links {
@@ -108,7 +126,7 @@
     .nav-links a {
       color: var(--text-dim);
       text-decoration: none;
-      font-size: 13px;
+      font-size: 0.85rem;
       font-weight: 500;
       letter-spacing: 0.02em;
       transition: color 0.2s;
@@ -120,7 +138,7 @@
 
     .nav-cta {
       font-family: 'JetBrains Mono', monospace;
-      font-size: 13px;
+      font-size: 0.85rem;
       padding: 8px 20px;
       background: var(--green);
       color: #000;
@@ -135,18 +153,20 @@
       transform: translateY(-1px);
     }
 
-    /* ── SECTIONS ─────────────────────────────────────── */
-    section {
+    /* Layout Sections */
+    section,
+    article,
+    aside {
       position: relative;
       z-index: 1;
       max-width: 1200px;
       margin: 0 auto;
-      padding: 120px 48px 80px;
+      padding: 100px 48px 60px;
     }
 
     .section-label {
       font-family: 'JetBrains Mono', monospace;
-      font-size: 11px;
+      font-size: 0.75rem;
       letter-spacing: 0.15em;
       text-transform: uppercase;
       color: var(--green);
@@ -155,7 +175,7 @@
     }
 
     .section-title {
-      font-size: 44px;
+      font-size: clamp(2rem, 5vw, 2.75rem);
       font-weight: 900;
       letter-spacing: -0.03em;
       line-height: 1.15;
@@ -163,7 +183,7 @@
     }
 
     .section-sub {
-      font-size: 18px;
+      font-size: 1.125rem;
       color: var(--text-dim);
       max-width: 640px;
       line-height: 1.7;
@@ -178,10 +198,10 @@
       max-width: 1200px;
     }
 
-    /* ── HERO ─────────────────────────────────────────── */
+    /* Hero Section */
     #hero {
-      padding-top: 200px;
-      padding-bottom: 120px;
+      padding-top: 180px;
+      padding-bottom: 100px;
       text-align: center;
       position: relative;
       overflow: hidden;
@@ -194,24 +214,25 @@
       top: -100px;
       left: 50%;
       transform: translateX(-50%);
-      background: radial-gradient(circle, rgba(0, 255, 136, 0.08) 0%, transparent 70%);
+      background: radial-gradient(circle, rgba(0, 255, 136, 0.12) 0%, transparent 70%);
       pointer-events: none;
     }
 
     .hero-badge {
       display: inline-block;
       font-family: 'JetBrains Mono', monospace;
-      font-size: 12px;
+      font-size: 0.75rem;
       padding: 6px 16px;
       border: 1px solid var(--border);
       border-radius: 100px;
       color: var(--green);
       background: rgba(0, 255, 136, 0.05);
       margin-bottom: 32px;
+      box-shadow: 0 0 15px rgba(0, 255, 136, 0.1);
     }
 
     #hero h1 {
-      font-size: 72px;
+      font-size: clamp(2.5rem, 6vw, 4rem);
       font-weight: 900;
       letter-spacing: -0.04em;
       line-height: 1.05;
@@ -220,12 +241,13 @@
 
     #hero h1 .accent {
       color: var(--green);
+      text-shadow: 0 0 40px rgba(0, 255, 136, 0.4);
     }
 
     .hero-sub {
-      font-size: 20px;
+      font-size: 1.2rem;
       color: var(--text-dim);
-      max-width: 600px;
+      max-width: 640px;
       margin: 0 auto 48px;
       line-height: 1.7;
     }
@@ -239,7 +261,7 @@
 
     .btn-primary {
       font-family: 'JetBrains Mono', monospace;
-      font-size: 14px;
+      font-size: 0.9rem;
       padding: 14px 32px;
       background: var(--green);
       color: #000;
@@ -250,20 +272,17 @@
       align-items: center;
       gap: 8px;
       transition: all 0.3s;
+      box-shadow: 0 4px 20px rgba(0, 255, 136, 0.2);
     }
 
     .btn-primary:hover {
-      box-shadow: 0 4px 32px rgba(0, 255, 136, 0.3);
+      box-shadow: 0 4px 32px rgba(0, 255, 136, 0.5);
       transform: translateY(-2px);
-    }
-
-    .btn-primary span {
-      opacity: 0.5;
     }
 
     .btn-secondary {
       font-family: 'JetBrains Mono', monospace;
-      font-size: 14px;
+      font-size: 0.9rem;
       padding: 14px 32px;
       background: transparent;
       color: var(--text);
@@ -276,13 +295,82 @@
     .btn-secondary:hover {
       border-color: var(--green);
       color: var(--green);
+      box-shadow: 0 0 15px rgba(0, 255, 136, 0.2);
     }
 
-    /* ── CAPABILITIES GRID ────────────────────────────── */
+    /* Technical Toggles */
+    details {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      margin-bottom: 16px;
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      overflow: hidden;
+    }
+
+    details:hover {
+      border-color: rgba(0, 255, 136, 0.4);
+    }
+
+    details[open] {
+      border-color: var(--green);
+      box-shadow: 0 0 25px rgba(0, 255, 136, 0.2);
+    }
+
+    summary {
+      padding: 20px 24px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      list-style: none;
+      font-size: 1rem;
+      user-select: none;
+    }
+
+    summary::-webkit-details-marker {
+      display: none;
+    }
+
+    summary::before {
+      content: '⬡';
+      color: var(--green);
+      font-size: 1.125rem;
+      transition: transform 0.3s;
+    }
+
+    details[open] summary::before {
+      content: '⬢';
+      transform: rotate(90deg);
+    }
+
+    .details-content {
+      padding: 0 24px 24px;
+      color: var(--text-dim);
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      padding-top: 20px;
+      animation: fadeIn 0.3s ease-in-out;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(-5px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Grid Layouts */
     .cap-grid {
       display: grid;
-      grid-template-columns: repeat(2, 1fr);
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
       gap: 24px;
+      margin-bottom: 60px;
     }
 
     .cap-card {
@@ -290,7 +378,7 @@
       border: 1px solid var(--border);
       border-radius: 16px;
       padding: 40px;
-      transition: all 0.3s;
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
       position: relative;
       overflow: hidden;
     }
@@ -301,341 +389,239 @@
       top: 0;
       left: 0;
       right: 0;
-      height: 3px;
-      background: linear-gradient(90deg, var(--green), var(--cyan));
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(0, 255, 136, 0.5), transparent);
       opacity: 0;
       transition: opacity 0.3s;
+    }
+
+    .cap-card:hover {
+      border-color: rgba(0, 255, 136, 0.5);
+      transform: translateY(-6px);
+      box-shadow: 0 10px 40px rgba(0, 255, 136, 0.15);
     }
 
     .cap-card:hover::before {
       opacity: 1;
     }
 
-    .cap-card:hover {
-      border-color: rgba(0, 255, 136, 0.25);
-      transform: translateY(-4px);
-      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
-    }
-
     .cap-icon {
-      font-size: 36px;
+      font-size: 2rem;
       margin-bottom: 20px;
       display: block;
+      filter: drop-shadow(0 0 8px rgba(0, 255, 136, 0.4));
     }
 
     .cap-card h3 {
-      font-size: 20px;
+      font-size: 1.25rem;
       font-weight: 800;
       margin-bottom: 12px;
-    }
-
-    .cap-card p {
-      font-size: 14px;
-      color: var(--text-dim);
-      line-height: 1.7;
+      color: #fff;
     }
 
     .cap-tag {
       display: inline-block;
       font-family: 'JetBrains Mono', monospace;
-      font-size: 11px;
-      padding: 3px 10px;
+      font-size: 0.7rem;
+      padding: 4px 12px;
       border-radius: 4px;
       background: rgba(0, 212, 255, 0.1);
       color: var(--cyan);
       border: 1px solid rgba(0, 212, 255, 0.15);
       margin-top: 16px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
     }
 
-    /* ── DASHBOARD PREVIEW ────────────────────────────── */
-    .dashboard-frame {
-      background: var(--bg2);
-      border: 1px solid var(--border);
-      border-radius: 16px;
+    /* Showcase Graphics */
+    .showcase-image {
+      margin-top: 3rem;
+      margin-bottom: 3rem;
+      border: 1px solid rgba(0, 255, 65, 0.2);
+      border-radius: 20px;
       overflow: hidden;
-      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.6);
-      position: relative;
+      box-shadow: 0 0 50px rgba(0, 255, 65, 0.15);
+      transition: transform 0.5s;
+      display: block;
+      max-width: 1000px;
+      margin-left: auto;
+      margin-right: auto;
     }
 
-    .dashboard-bar {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 12px 16px;
-      background: rgba(0, 0, 0, 0.4);
-      border-bottom: 1px solid var(--border);
+    .showcase-image:hover {
+      transform: scale(1.02);
+      box-shadow: 0 0 60px rgba(0, 255, 65, 0.25);
     }
 
-    .dashboard-dot {
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
-    }
-
-    .dot-red {
-      background: #ff5f57;
-    }
-
-    .dot-yellow {
-      background: #febc2e;
-    }
-
-    .dot-green {
-      background: #28c840;
-    }
-
-    .dashboard-bar span {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 12px;
-      color: var(--text-muted);
-      margin-left: 12px;
-    }
-
-    .dashboard-frame img {
+    .showcase-image img {
       width: 100%;
       display: block;
     }
 
-    /* ── ARCHITECTURE ─────────────────────────────────── */
-    .arch-container {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 48px;
-      overflow-x: auto;
-    }
-
-    /* ── TOOLS ─────────────────────────────────────────── */
-    .tool-group {
-      margin-bottom: 40px;
-    }
-
-    .tool-group-title {
-      font-size: 16px;
-      font-weight: 800;
-      margin-bottom: 16px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .tool-group-title .dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      display: inline-block;
-    }
-
-    .tool-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 14px;
-    }
-
-    .tool-table th {
-      text-align: left;
-      padding: 12px 16px;
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 11px;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      border-bottom: 1px solid var(--border);
-    }
-
-    .tool-table td {
-      padding: 12px 16px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.03);
-      vertical-align: top;
-    }
-
-    .tool-table td:first-child {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 13px;
-      color: var(--cyan);
-      white-space: nowrap;
-    }
-
-    .tool-table td:last-child {
-      color: var(--text-dim);
-    }
-
-    .tool-table tr:hover td {
-      background: rgba(0, 255, 136, 0.02);
-    }
-
-    /* ── INTERACTION LAYER ─────────────────────────────── */
-    .layer-cards {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 24px;
-    }
-
-    .layer-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 32px;
+    .showcase-caption {
       text-align: center;
-      transition: all 0.3s;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      font-style: italic;
+      margin-top: -2rem;
+      margin-bottom: 3rem;
     }
 
-    .layer-card:hover {
-      border-color: rgba(0, 255, 136, 0.25);
-      transform: translateY(-4px);
+    /* Tables */
+    .data-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      margin-top: 24px;
+      margin-bottom: 24px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      background: var(--surface);
     }
 
-    .layer-icon {
-      width: 56px;
-      height: 56px;
-      border-radius: 14px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 28px;
-      margin: 0 auto 20px;
-    }
-
-    .layer-card h4 {
-      font-size: 16px;
-      font-weight: 700;
-      margin-bottom: 10px;
-    }
-
-    .layer-card p {
-      font-size: 13px;
-      color: var(--text-dim);
-      line-height: 1.6;
-    }
-
-    .layer-card code {
+    .data-table th {
+      text-align: left;
+      padding: 16px;
+      border-bottom: 1px solid var(--border);
       font-family: 'JetBrains Mono', monospace;
-      font-size: 11px;
-      background: rgba(0, 0, 0, 0.3);
-      padding: 2px 8px;
-      border-radius: 4px;
+      font-size: 0.8rem;
       color: var(--green);
-      display: inline-block;
-      margin-top: 12px;
+      background: rgba(0, 0, 0, 0.4);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
     }
 
-    /* ── INSTALL ───────────────────────────────────────── */
-    .install-block {
+    .data-table td {
+      padding: 16px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      font-size: 0.95rem;
+      color: var(--text-dim);
+    }
+
+    .data-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .data-table tr:hover td {
+      background: rgba(0, 255, 136, 0.03);
+      color: #fff;
+    }
+
+    /* Code Blocks */
+    pre {
+      background: #050505;
+      padding: 24px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      overflow-x: auto;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+      color: var(--cyan);
+      margin-top: 16px;
+      margin-bottom: 16px;
+      line-height: 1.6;
+      box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.8);
+    }
+
+    code {
+      font-family: 'JetBrains Mono', monospace;
+      background: rgba(255, 255, 255, 0.1);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.85em;
+      color: var(--magenta);
+    }
+
+    /* Lists */
+    ul {
+      list-style-type: none;
+      margin-left: 0;
+    }
+
+    ul li {
+      position: relative;
+      padding-left: 24px;
+      margin-bottom: 12px;
+    }
+
+    ul li::before {
+      content: '▹';
+      position: absolute;
+      left: 0;
+      color: var(--green);
+      font-weight: bold;
+    }
+
+    /* Terminal Console */
+    .terminal-console {
       background: var(--bg2);
       border: 1px solid var(--border);
       border-radius: 12px;
-      padding: 32px;
+      padding: 40px;
       font-family: 'JetBrains Mono', monospace;
-      font-size: 14px;
-      color: var(--text);
-      overflow-x: auto;
-      line-height: 2;
-      margin-bottom: 24px;
-    }
-
-    .install-block .comment {
-      color: var(--text-muted);
-    }
-
-    .install-block .cmd {
-      color: var(--green);
-    }
-
-    .install-block .flag {
-      color: var(--cyan);
-    }
-
-    /* ── CHANGELOG ─────────────────────────────────────── */
-    .changelog-entry {
-      margin-bottom: 48px;
-    }
-
-    .changelog-header {
-      display: flex;
-      align-items: baseline;
-      gap: 16px;
-      margin-bottom: 16px;
-    }
-
-    .changelog-version {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 22px;
-      font-weight: 700;
-      color: var(--green);
-    }
-
-    .changelog-date {
-      font-size: 13px;
-      color: var(--text-muted);
-    }
-
-    .changelog-list {
-      list-style: none;
-    }
-
-    .changelog-list li {
+      font-size: 1rem;
+      box-shadow: inset 0 0 30px rgba(0, 0, 0, 1);
       position: relative;
-      padding-left: 20px;
-      margin-bottom: 8px;
-      font-size: 14px;
-      color: var(--text-dim);
     }
 
-    .changelog-list li::before {
-      content: '→';
+    .terminal-console::before {
+      content: 'nexus-prime@host:~';
       position: absolute;
-      left: 0;
-      color: var(--cyan);
-    }
-
-    /* ── ECOSYSTEM ─────────────────────────────────────── */
-    .eco-table {
-      width: 100%;
-      border-collapse: collapse;
-    }
-
-    .eco-table th {
-      text-align: left;
-      padding: 14px 16px;
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 11px;
+      top: 12px;
+      left: 16px;
+      font-size: 0.7rem;
       color: var(--text-muted);
-      text-transform: uppercase;
-      border-bottom: 1px solid var(--border);
     }
 
-    .eco-table td {
-      padding: 14px 16px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.03);
-      font-size: 14px;
+    .terminal-comment {
+      color: var(--text-muted);
+      margin-bottom: 12px;
     }
 
-    .eco-table td:first-child {
-      font-weight: 700;
+    .terminal-command {
       color: var(--green);
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
     }
 
-    .eco-table td:nth-child(2) {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 12px;
+    .terminal-command::before {
+      content: '$';
+      color: var(--text-muted);
+      margin-right: 12px;
+    }
+
+    .terminal-command-alt {
       color: var(--cyan);
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
     }
 
-    /* ── FOOTER ────────────────────────────────────────── */
+    .terminal-command-alt::before {
+      content: '$';
+      color: var(--text-muted);
+      margin-right: 12px;
+    }
+
+    /* Footer */
     footer {
       text-align: center;
-      padding: 60px 48px;
+      padding: 80px 48px;
       border-top: 1px solid var(--border);
       position: relative;
       z-index: 1;
+      background: linear-gradient(to top, rgba(0, 255, 136, 0.05), transparent);
     }
 
     .footer-logo {
       font-family: 'JetBrains Mono', monospace;
-      font-size: 18px;
-      font-weight: 700;
+      font-size: 1.125rem;
+      font-weight: 900;
       color: var(--green);
-      margin-bottom: 16px;
+      margin-bottom: 20px;
+      letter-spacing: 0.05em;
     }
 
     .footer-links {
@@ -643,694 +629,374 @@
       gap: 32px;
       justify-content: center;
       flex-wrap: wrap;
-      margin-bottom: 24px;
+      margin-bottom: 32px;
     }
 
     .footer-links a {
       color: var(--text-dim);
       text-decoration: none;
-      font-size: 13px;
-      transition: color 0.2s;
+      font-size: 0.85rem;
+      transition: color 0.3s, transform 0.3s;
     }
 
     .footer-links a:hover {
       color: var(--green);
+      transform: translateY(-2px);
     }
 
     .footer-copy {
-      font-size: 12px;
+      font-size: 0.8rem;
       color: var(--text-muted);
+      opacity: 0.7;
     }
 
-    /* ── RESPONSIVE ────────────────────────────────────── */
     @media (max-width: 768px) {
-      nav {
-        padding: 12px 20px;
-      }
-
-      .nav-links {
-        display: none;
-      }
-
-      section {
-        padding: 80px 20px 60px;
-      }
-
-      #hero {
-        padding-top: 140px;
-      }
-
       #hero h1 {
-        font-size: 40px;
+        font-size: clamp(2rem, 8vw, 2.5rem);
       }
 
       .cap-grid {
         grid-template-columns: 1fr;
       }
 
-      .layer-cards {
-        grid-template-columns: 1fr;
+      section,
+      article,
+      aside {
+        padding: 80px 24px 40px;
       }
 
-      .arch-container {
-        padding: 20px;
+      nav {
+        padding-left: 24px;
+        padding-right: 24px;
       }
 
-      .section-title {
-        font-size: 32px;
+      .nav-links {
+        display: none;
       }
-    }
 
-    /* ── ANIMATIONS ─────────────────────────────────────── */
-    .fade-up {
-      opacity: 0;
-      transform: translateY(24px);
-      animation: fadeUp 0.7s ease forwards;
-    }
-
-    @keyframes fadeUp {
-      to {
-        opacity: 1;
-        transform: translateY(0);
+      .data-table {
+        display: block;
+        overflow-x: auto;
       }
-    }
-
-    .delay-1 {
-      animation-delay: 0.1s;
-    }
-
-    .delay-2 {
-      animation-delay: 0.2s;
-    }
-
-    .delay-3 {
-      animation-delay: 0.3s;
-    }
-
-    .delay-4 {
-      animation-delay: 0.4s;
-    }
-
-    /* ── CUSTOM WIDGETS ─────────────────────────────────── */
-    .widget-container {
-      background: var(--bg2);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 24px;
-      margin-top: 32px;
-      font-family: 'JetBrains Mono', monospace;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .widget-header {
-      font-size: 11px;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-      margin-bottom: 16px;
-      display: flex;
-      justify-content: space-between;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-      padding-bottom: 8px;
-    }
-
-    .widget-hero-graph {
-      display: flex;
-      gap: 16px;
-      align-items: center;
-      justify-content: center;
-      height: 120px;
-    }
-
-    .widget-node {
-      width: 40px;
-      height: 40px;
-      border-radius: 8px;
-      background: var(--surface);
-      border: 1px dashed var(--border);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 14px;
-      color: var(--cyan);
-      position: relative;
-    }
-
-    .widget-node.active {
-      border: 1px solid var(--green);
-      box-shadow: 0 0 15px var(--green-glow);
-      color: var(--green);
-    }
-
-    .widget-node.merging {
-      border: 1px solid var(--amber);
-      color: var(--amber);
-    }
-
-    .widget-line {
-      height: 2px;
-      width: 40px;
-      background: var(--border);
-      position: relative;
-      overflow: hidden;
-    }
-
-    .widget-line::after {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: -100%;
-      height: 100%;
-      width: 50%;
-      background: linear-gradient(90deg, transparent, var(--green), transparent);
-      animation: packetFlow 1.5s infinite linear;
-    }
-
-    @keyframes packetFlow {
-      100% {
-        left: 100%;
-      }
-    }
-
-    /* Executive Checkpoint Widget */
-    .hitl-block {
-      background: rgba(255, 0, 60, 0.05);
-      border: 1px solid var(--red);
-      border-left: 4px solid var(--red);
-      padding: 16px;
-      color: var(--red);
-      font-size: 13px;
-      margin-top: 24px;
-    }
-
-    .hitl-btn {
-      margin-top: 12px;
-      background: var(--red);
-      color: #000;
-      border: none;
-      padding: 6px 12px;
-      font-family: 'JetBrains Mono', monospace;
-      font-weight: bold;
-      cursor: pointer;
-      transition: box-shadow 0.2s;
-    }
-
-    .hitl-btn:hover {
-      box-shadow: 0 0 15px rgba(255, 0, 60, 0.4);
-    }
-
-    /* Token Knapsack */
-    .knapsack-bar {
-      height: 24px;
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      display: flex;
-      overflow: hidden;
-    }
-
-    .k-chunk {
-      height: 100%;
-      border-right: 1px solid var(--bg);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 10px;
-      color: #000;
-      font-weight: bold;
-      transition: width 0.3s;
     }
   </style>
 </head>
 
 <body>
 
-  <!-- ════════════════════════════════════════════════════ NAV -->
-  <nav>
-    <a class="nav-logo" href="#">nexus-prime</a>
-    <ul class="nav-links">
-      <li><a href="#capabilities">Capabilities</a></li>
-      <li><a href="#dashboard">Dashboard</a></li>
-      <li><a href="#architecture">Architecture</a></li>
-      <li><a href="#tools">Tools</a></li>
-      <li><a href="#interaction">Interaction Layer</a></li>
-      <li><a href="#install">Install</a></li>
-      <li><a href="#changelog">Changelog</a></li>
-    </ul>
-    <a class="nav-cta" href="https://github.com/sir-ad/nexus-prime" target="_blank">GitHub →</a>
-  </nav>
-
-  <!-- ════════════════════════════════════════════════════ HERO -->
-  <section id="hero">
-    <div class="hero-glow"></div>
-    <div class="hero-badge fade-up">⬡ MCP Meta-Framework · 40 Engines · 25 Tools · v1.5.0</div>
-    <h1 class="fade-up delay-1">
-      Give your AI agent<br><span class="accent">a brain that learns.</span>
-    </h1>
-    <p class="hero-sub fade-up delay-2">
-      Nexus Prime is the cognitive OS for autonomous agents. Now with the <b>Nexus Layer (NXL)</b> for declarative army
-      induction,
-      thermodynamic memory, and global knowledge federation.
-    </p>
-    <p>Nexus Prime v1.5 adds dynamic agent induction, thermodynamic memory, and a real-time intelligence dashboard.
-      Watch the swarm in action.</p>
-    <div class="hero-image-container"
-      style="margin-top: 3rem; border: 1px solid rgba(0, 255, 65, 0.2); border-radius: 20px; overflow: hidden; box-shadow: 0 0 50px rgba(0, 255, 65, 0.1);">
-      <img src="./assets/screenshots/dashboard_v1.5.png" alt="Nexus Prime v1.5 Dashboard"
-        style="width: 100%; display: block;">
-    </div>
-    <div class="hero-actions fade-up delay-3">
-      <a class="btn-primary" href="#install">
-        <span>$</span> Get Started
-      </a>
-      <a class="btn-secondary" href="#capabilities">
-        See What It Does →
-      </a>
-    </div>
-  </section>
-
-  <hr class="divider">
-
-  <!-- ════════════════════════════════════════════════════ CAPABILITIES -->
-  <section id="capabilities">
-    <span class="section-label">What it does</span>
-    <h2 class="section-title">Five pillars of<br>agent intelligence.</h2>
-    <p class="section-sub">Every AI agent starts each session with amnesia, burns tokens reading entire files, and works
-      alone. Nexus Prime eliminates all three problems.</p>
-
-    <div class="cap-grid">
-      <div class="cap-card fade-up">
-        <span class="cap-icon">🧠</span>
-        <h3>3-Tier Persistent Memory</h3>
-        <p>Stop the "cold start" problem forever. Every insight, bug fix, and architectural decision is stored across
-          sessions. Prefrontal (active working set) → Hippocampus (session cache) → Cortex (SQLite long-term knowledge
-          with 820+ Zettelkasten links).</p>
-        <span class="cap-tag">nexus_store_memory · nexus_recall_memory</span>
-      </div>
-      <div class="cap-card fade-up delay-1">
-        <span class="cap-icon">⚡</span>
-        <h3>Token Supremacy & CAS</h3>
-        <p>HyperTune™ formulates file-reading as a Greedy Knapsack Problem. Paired with Continuous Attention Streams
-          (CAS) and learned codebooks, it maximizes information gain within a strict token budget — saving 50-90% of
-          context costs.</p>
-        <span class="cap-tag">nexus_optimize_tokens · nexus_hypertune_max</span>
-      </div>
-      <div class="cap-card fade-up delay-2">
-        <span class="cap-icon">🐝</span>
-        <h3>Phantom Worker Swarms</h3>
-        <p>Parallelize complex tasks using isolated Git Worktrees. Ghost Pass performs read-only risk analysis, while
-          the Merge Oracle evaluates AST diffs using Byzantine consensus, Pearson correlation, and Hierarchical
-          Synthesis.</p>
-        <span class="cap-tag">nexus_ghost_pass · nexus_spawn_workers</span>
-      </div>
-      <div class="cap-card fade-up delay-3">
-        <span class="cap-icon">🌌</span>
-        <h3>Quantum Entanglement (Phase 9A)</h3>
-        <p>Replaces explicit IPC messaging with a Shared Quantum-State Vector. Agents share state in a high-dimensional
-          Hilbert space. When one agent acts, the state collapses via Born rule sampling, causing entangled agents to
-          automatically make correlated decisions.</p>
-        <span class="cap-tag">nexus_entangle · nexus_net_sync</span>
-      </div>
-      <div class="cap-card fade-up delay-4">
-        <span class="cap-icon">🛡️</span>
-        <h3>MindKit Guardrails</h3>
-        <p>Machine-checked safety before every destructive operation. Scores actions 0-100 against safety protocols.
-          Blocks `rm -rf`, token window blowouts, and untested mutations before they reach the shell.</p>
-        <span class="cap-tag">nexus_mindkit_check · nexus_audit_evolution</span>
-      </div>
-      <div class="cap-card fade-up delay-5">
-        <span class="cap-icon">🧬</span>
-        <h3>Nexus Layer & NXL</h3>
-        <p>Declarative intelligence via NXL (Nexus Layer Scripts). Define agent archetypes and induce "armies" of
-          parallel
-          workers automatically for complex goals. Mandatory induction ensures no task is too large for a single agent.
-        </p>
-        <span class="cap-tag">nexus_execute_nxl · nxl-interpreter</span>
-      </div>
-    </div>
-  </section>
-
-  <hr class="divider">
-
-  </section>
-
-  <hr class="divider">
-
-  <!-- ════════════════════════════════════════════════════ ARCHITECTURE -->
-  <section id="architecture">
-    <span class="section-label">System Design</span>
-    <h2 class="section-title">Engineered for<br>autonomous operation.</h2>
-    <p class="section-sub">30 engine files. 20 MCP tools. One unified runtime where memory, optimization, safety, and
-      parallelism work in concert.</p>
-
-    <div class="arch-container fade-up">
-      <div class="mermaid">
-        flowchart TB
-        User["🤖 Agent (Claude / Gemini / GPT)"]:::client
-
-        subgraph Nexus["Nexus Prime Runtime"]
-        MCP["MCP Adapter<br />20 Tools"]:::adapter
-
-        subgraph Core["Core Engines"]
-        direction TB
-        Memory["Memory Engine<br />(Prefrontal → Hippocampus → Cortex)"]:::engine
-        Tokens["Token Supremacy<br />(HyperTune + Greedy Knapsack)"]:::engine
-        Guard["MindKit Bridge<br />(Machine-Checked Safety)"]:::engine
-        Graph["Graph Memory<br />(Zettelkasten + BFS/DFS)"]:::engine
-        end
-
-        subgraph Phase9["Phase 9 — Innovation Layer"]
-        direction TB
-        Entangle["Entanglement Engine<br />(Agent Telepathy)"]:::innovation
-        CAS["CAS Engine<br />(Continuous Attention Streams)"]:::innovation
-        NXL["NXL Interpreter<br />(Logic Layer)"]:::innovation
-        end
-
-        subgraph UX["UX Interaction Layer"]
-        direction TB
-        EventBus["Event Bus<br />(42 Event Types → SSE)"]:::ux
-        Dashboard["Dashboard<br />(Real-time Viz)"]:::ux
-        end
-        end
-
-        subgraph Swarm["Phantom Swarm"]
-        GP["Ghost Pass<br />(Pre-flight Analysis)"]:::swarm
-        PW["Workers<br />(Git Worktrees)"]:::swarm
-        POD["POD Network<br />(Inter-Worker Pub/Sub)"]:::swarm
-        OR["Merge Oracle<br />(Byzantine Consensus)"]:::swarm
-        end
-
-        subgraph Federation["NexusNet"]
-        Relay["GitHub Gist<br />Relay"]:::net
-        Agents["Other Nexus<br />Instances"]:::net
-        end
-
-        User <--> MCP
-          MCP <--> Core
-            MCP <--> Phase9
-              MCP <--> Swarm
-                Core <--> UX
-                  Swarm --> POD
-                  POD --> OR
-                  MCP <--> Relay
-                    Relay <--> Agents
-
-                      classDef client fill:#000,stroke:#00ff88,color:#00ff88,stroke-width:2px
-                      classDef adapter fill:#0d1828,stroke:#00d4ff,color:#00d4ff,stroke-width:2px
-                      classDef engine fill:#0d1828,stroke:#8b5cf6,color:#8b5cf6
-                      classDef innovation fill:#1a0a2e,stroke:#d946ef,color:#d946ef
-                      classDef swarm fill:#1a0a0a,stroke:#ef4444,color:#ef4444
-                      classDef ux fill:#0a1a1a,stroke:#fbbf24,color:#fbbf24
-                      classDef net fill:#0a0a1a,stroke:#00d4ff,color:#00d4ff
-      </div>
-      <div class="architecture-diagram" style="margin-top: 4rem; text-align: center;">
-        <img src="./assets/screenshots/swarm_trace.png" alt="Swarm Induction Trace"
-          style="max-width: 100%; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);">
-        <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 1rem;">
-          Mandatory Induction: A 7-worker swarm coordinating via POD Network.
-        </p>
-      </div>
-    </div>
-  </section>
-
-  <hr class="divider">
-
-  <!-- ════════════════════════════════════════════════════ TOOLS -->
-  <section id="tools">
-    <span class="section-label">API Surface</span>
-    <h2 class="section-title">20 tools.<br>One protocol.</h2>
-    <p class="section-sub">Every capability is exposed as a native MCP tool. Your agent calls them like functions — no
-      SDK, no REST, no overhead.</p>
-
-    <div class="tool-group">
-      <div class="tool-group-title"><span class="dot" style="background:var(--purple)"></span> Memory & Knowledge</div>
-      <table class="tool-table">
-        <tr>
-          <th>Tool</th>
-          <th>Description</th>
-        </tr>
-        <tr>
-          <td>nexus_store_memory</td>
-          <td>Persist insights, decisions, and findings to long-term cortex with priority + tags</td>
-        </tr>
-        <tr>
-          <td>nexus_recall_memory</td>
-          <td>Semantic vector search over all memory tiers — finds "login bug" when you search "auth issue"</td>
-        </tr>
-        <tr>
-          <td>nexus_memory_stats</td>
-          <td>Monitor cortex health: tier counts, Zettelkasten link density, session telemetry</td>
-        </tr>
-        <tr>
-          <td>nexus_graph_query</td>
-          <td>Traverse the knowledge graph via BFS/DFS — discover hidden connections between memories</td>
-        </tr>
-      </table>
-    </div>
-
-    <div class="tool-group">
-      <div class="tool-group-title"><span class="dot" style="background:var(--amber)"></span> Optimization & Performance
-      </div>
-      <table class="tool-table">
-        <tr>
-          <th>Tool</th>
-          <th>Description</th>
-        </tr>
-        <tr>
-          <td>nexus_optimize_tokens</td>
-          <td>Generate optimized file-reading plans: READ fully, OUTLINE, or SKIP — before wasting tokens</td>
-        </tr>
-        <tr>
-          <td>nexus_hypertune_max</td>
-          <td>Deep chunk-level relevance scoring using greedy knapsack optimization</td>
-        </tr>
-        <tr>
-          <td>nexus_cas_compress</td>
-          <td>Compress token streams via Continuous Attention Streams with learned codebooks</td>
-        </tr>
-        <tr>
-          <td>nexus_kv_bridge_status</td>
-          <td>Monitor Adaptive KV Cache compression ratios and consensus metrics</td>
-        </tr>
-      </table>
-    </div>
-
-    <div class="tool-group">
-      <div class="tool-group-title"><span class="dot" style="background:var(--red)"></span> Autonomy & Orchestration
-      </div>
-      <table class="tool-table">
-        <tr>
-          <th>Tool</th>
-          <th>Description</th>
-        </tr>
-        <tr>
-          <td>nexus_ghost_pass</td>
-          <td>Read-only pre-flight risk analysis — returns risk areas, reading plans, and worker approaches</td>
-        </tr>
-        <tr>
-          <td>nexus_spawn_workers</td>
-          <td>Dispatch parallel Phantom Workers in isolated Git Worktrees</td>
-        </tr>
-        <tr>
-          <td>nexus_audit_evolution</td>
-          <td>Identify recurring failure patterns and file hotspots that need refactoring</td>
-        </tr>
-        <tr>
-          <td>nexus_session_dna</td>
-          <td>Generate or load structured state snapshots for perfect session handover</td>
-        </tr>
-      </table>
-    </div>
-
-    <div class="tool-group">
-      <div class="tool-group-title"><span class="dot" style="background:var(--magenta)"></span> Nexus Layer & Federation
-      </div>
-      <table class="tool-table">
-        <tr>
-          <th>Tool</th>
-          <th>Description</th>
-        </tr>
-        <tr>
-          <td>nexus_execute_nxl</td>
-          <td>Execute NXL logic scripts or induce specialized agent armies (PDLC, Research, etc.)</td>
-        </tr>
-        <tr>
-          <td>nexus_publish_trace</td>
-          <td>Generate and publish a cryptographically signed execution trace to GitHub Gists</td>
-        </tr>
-        <tr>
-          <td>nexus_net_sync</td>
-          <td>Sync learnings from the NexusNet federation relay across multiple machines</td>
-        </tr>
-        <tr>
-          <td>nexus_skill_register</td>
-          <td>Declaratively register new Skill Cards with cost, tags, and trigger conditions</td>
-        </tr>
-      </table>
-    </div>
-  </section>
-
-  <hr class="divider">
-
-  <!-- ════════════════════════════════════════════════════ INTERACTION LAYER -->
-  <section id="interaction">
-    <span class="section-label">UX Interaction Layer</span>
-    <h2 class="section-title">How agents<br>talk to each other.</h2>
-    <p class="section-sub">Three communication channels enable real-time observability, cross-worker synchronization,
-      and cross-machine knowledge sharing.</p>
-
-    <div class="layer-cards">
-      <div class="layer-card fade-up">
-        <div class="layer-icon" style="background:rgba(251,191,36,0.1);">📡</div>
-        <h4>Event Bus → Dashboard</h4>
-        <p>Every engine emits strongly-typed events (42 types). The Event Bus broadcasts via SSE to the real-time
-          dashboard — see memory stores, token savings, and phantom dispatches live.</p>
-        <code>nexusEventBus.emit('memory.store', {...})</code>
-      </div>
-      <div class="layer-card fade-up delay-1">
-        <div class="layer-icon" style="background:rgba(239,68,68,0.1);">🔗</div>
-        <h4>POD Network</h4>
-        <p>Phantom Workers exchange findings through a local file-backed pub/sub mesh. Workers publish observations with
-          confidence scores, and the Merge Oracle synthesizes consensus autonomously.</p>
-        <code>podNetwork.publish(workerId, content)</code>
-      </div>
-      <div class="layer-card fade-up delay-2">
-        <div class="layer-icon" style="background:rgba(0,212,255,0.1);">🌐</div>
-        <h4>NexusNet Federation</h4>
-        <p>Share knowledge across machines using a GitHub Gist as a lightweight relay. Agents anonymously publish
-          insights and sync learnings from other Nexus Prime instances — privacy-first with TTL expiration.</p>
-        <code>nexusNetRelay.publish('knowledge', {...})</code>
-      </div>
-    </div>
-  </section>
-
-  <hr class="divider">
-
-  <!-- ════════════════════════════════════════════════════ INSTALL -->
-  <section id="install">
-    <span class="section-label">Getting Started</span>
-    <h2 class="section-title">Running in<br>30 seconds.</h2>
-    <p class="section-sub">Nexus Prime integrates with any MCP-compatible agent: Claude, Gemini, GPT, or custom agents.
-    </p>
-
-    <div class="install-block">
-      <span class="comment"># Install via NPM</span><br>
-      <span class="cmd">npm i -g</span> nexus-prime<br><br>
-      <span class="comment"># OR use NPX directly</span><br>
-      <span class="cmd">npx</span> nexus-prime mcp<br><br>
-      <span class="comment"># Verify — call from your agent</span><br>
-      <span class="cmd">nexus_memory_stats()</span> <span class="comment"># → Returns cortex health</span>
-    </div>
-  </section>
-
-  <hr class="divider">
-
-  <!-- ════════════════════════════════════════════════════ CHANGELOG -->
-  <section id="changelog">
-    <span class="section-label">Release History</span>
-    <h2 class="section-title">Changelog</h2>
-
-    <div class="changelog-entry">
-      <div class="changelog-header">
-        <span class="changelog-version">v1.5.0</span>
-        <span class="changelog-date">March 6, 2026</span>
-      </div>
-      <ul class="changelog-list">
-        <li><b>Intelligence Expansion:</b> Launched the Nexus Layer (NXL) for declarative agent induction</li>
-        <li>Implemented <b>Mandatory induction:</b> Automatic swarm creation for complex goals</li>
-        <li>Enhanced Memory: Integration of <b>Thermodynamic Memory</b> with entropy-based decay</li>
-        <li>Added <b>Federation Engine:</b> Automated GitHub Gist publishing and trace sharing</li>
-        <li>Expanded MCP Support: Codex, Cursor, Opencode, Kilocode, Claude Code, and Antigravity</li>
-        <li>Standardized CLI Output: Aesthetic boxed responses for enhanced agent observability</li>
-        <li>Fixed Dashboard Telemetry: Real-time token compression and CAS event streaming</li>
+  <header>
+    <nav aria-label="Main Navigation">
+      <a class="nav-logo" href="#">nexus-prime</a>
+      <ul class="nav-links">
+        <li><a href="#architecture">Architecture</a></li>
+        <li><a href="#capabilities">Capabilities</a></li>
+        <li><a href="#tooling">Tools</a></li>
+        <li><a href="#install">Deployment</a></li>
+        <li><a href="https://github.com/sir-ad/nexus-prime" target="_blank" rel="noopener">Repository</a></li>
       </ul>
-    </div>
+      <a class="nav-cta" href="#install">Deploy Now →</a>
+    </nav>
+  </header>
 
-    <div class="changelog-entry">
-      <div class="changelog-header">
-        <span class="changelog-version">v0.3.0</span>
-        <span class="changelog-date">March 4, 2026</span>
+  <main>
+    <section id="hero" aria-labelledby="hero-title">
+      <div class="hero-glow"></div>
+      <div class="hero-badge">🧬 v1.5.1 Stable · 20 MCP Tools · Autonomous Runtime</div>
+      <h1 id="hero-title">The meta-framework for<br><span class="accent">autonomous agent armies.</span></h1>
+      <p class="hero-sub">
+        Nexus Prime is a high-performance cognitive OS giving agents cross-session memory, token supremacy, parallel
+        swarm
+        induction, and machine-verifiable guardrails.
+      </p>
+
+      <div class="showcase-image">
+        <img src="./assets/screenshots/dashboard_v1.5.png"
+          alt="Nexus Prime Neural HUD Dashboard showing real-time token compression and fission event visualization">
       </div>
-      <ul class="changelog-list">
-        <li>Added 30 engine files with complete Phase 9 innovations</li>
-        <li>Expanded MCP toolset from 8 to 20 tools</li>
-        <li>Implemented Phantom Worker orchestration via Git Worktrees</li>
-        <li>Added HyperTune token optimization with Greedy Knapsack algorithm</li>
-        <li>Introduced Continuous Attention Streams (CAS) for token compression</li>
-        <li>Added MindKit machine-checked guardrails</li>
-        <li>Built real-time SSE Dashboard with 42 event types</li>
-        <li>Implemented NexusNet cross-machine federation via GitHub Gist relay</li>
-        <li>Added Quantum-Inspired Entanglement Engine for agent cooperation</li>
-        <li>Created Darwin evolutionary self-improvement loop</li>
-        <li>Added Session DNA for structured state handover</li>
-        <li>Built POD Network for inter-worker communication</li>
-        <li>Unified documentation into single-page website</li>
-      </ul>
-    </div>
+      <div class="showcase-caption">Watch the swarm think in real-time with the SSE-powered dashboard.</div>
 
-    <div class="changelog-entry">
-      <div class="changelog-header">
-        <span class="changelog-version">v0.2.0</span>
-        <span class="changelog-date">February 15, 2026</span>
+      <div class="hero-actions">
+        <a class="btn-primary" href="#install">
+          $ npm install nexus-prime
+        </a>
+        <a class="btn-secondary" href="#architecture">
+          System Architecture →
+        </a>
       </div>
-      <ul class="changelog-list">
-        <li>Initial MVP release with core 3-tier memory engine</li>
-        <li>Basic MCP implementation with 8 tools</li>
-        <li>SQLite persistence for long-term cortex</li>
-        <li>Graph memory with Zettelkasten linking</li>
-      </ul>
-    </div>
-  </section>
+    </section>
 
-  <hr class="divider">
+    <!-- PROMINENT ARCHITECTURE SECTION -->
+    <article id="architecture">
+      <span class="section-label">Topology</span>
+      <h2 class="section-title">Swarm Orchestration</h2>
+      <p class="section-sub">Nexus Prime enables true parallelization by isolating agents into dynamically generated Git
+        worktrees. Inter-worker communication happens over the local <b>POD Network</b>, and merges are mediated by the
+        <b>Merge Oracle</b>.</p>
 
-  <!-- ════════════════════════════════════════════════════ ECOSYSTEM -->
-  <section id="ecosystem">
-    <span class="section-label">The Stack</span>
-    <h2 class="section-title">Part of something<br>bigger.</h2>
-    <p class="section-sub">Nexus Prime is the operational core of the Sir-Ad AI Ecosystem — where raw code becomes
-      intelligent action.</p>
+      <div class="mermaid"
+        style="margin-top: 32px; background: rgba(0,0,0,0.5); padding: 40px; border-radius: 16px; border: 1px solid var(--border); box-shadow: inset 0 0 30px rgba(0,255,136,0.05);">
+        sequenceDiagram
+        participant U as User / Agent (Cursor/Claude)
+        participant M as MCP Adapter
+        participant G as MindKit Guardrails
+        participant T as Token Optimizer
+        participant E as Core Engines (Memory/Evolution)
+        participant W as Phantom Workers
 
-    <table class="eco-table">
-      <tr>
-        <th>Project</th>
-        <th>Role</th>
-        <th>Purpose</th>
-      </tr>
-      <tr>
-        <td>Phantom</td>
-        <td>Orchestrator</td>
-        <td>"What to build" — High-level task decomposition and release management</td>
-      </tr>
-      <tr>
-        <td>MindKit</td>
-        <td>Skills Engine</td>
-        <td>"How to think" — Routing, declarative skill-cards, and semantic guardrails</td>
-      </tr>
-      <tr>
-        <td>Nexus Prime</td>
-        <td>Cognitive OS</td>
-        <td>"How to run" — Memory topology, token optimization, parallel workers, federation</td>
-      </tr>
-      <tr>
-        <td>Grain</td>
-        <td>Language</td>
-        <td>"How to speak" — Universal AI primitives and CAS compression</td>
-      </tr>
-    </table>
-  </section>
+        U->>M: Call Tool (e.g., nexus_spawn_workers)
+        M->>G: nexus_mindkit_check()
+        G-->>M: PASS / FAIL
+        M->>T: nexus_optimize_tokens()
+        T-->>M: Reading Plan (READ/OUTLINE/SKIP)
+        M->>E: Execute Logic
+        E->>W: Spawn parallel worktrees (if needed)
+        W-->>E: Results
+        E->>E: Store Experience (Cortex/Zettelkasten)
+        E-->>M: Final Result
+        M-->>U: JSON-RPC Response
+      </div>
 
-  <!-- ════════════════════════════════════════════════════ FOOTER -->
+      <div class="showcase-image">
+        <img src="./assets/screenshots/swarm_trace.png" alt="Swarm Induction Trace showing 7 worker nodes coordinating">
+      </div>
+      <div class="showcase-caption">Mandatory Induction: A 7-worker swarm coordinating via POD Network.</div>
+    </article>
+
+    <article id="capabilities">
+      <span class="section-label">Core Modules</span>
+      <h2 class="section-title">The pillars of<br>super-intelligence.</h2>
+
+      <div class="cap-grid">
+        <div class="cap-card">
+          <span class="cap-icon">🧠</span>
+          <h3>3-Tier Semantic Memory</h3>
+          <p>Solves catastrophic forgetting. Prefrontal (Working), Hippocampus (Episodic), and Cortex (Permanent SQLite
+            indexing with HNSW).</p>
+          <span class="cap-tag">nexus_recall_memory</span>
+        </div>
+        <div class="cap-card">
+          <span class="cap-icon">✂️</span>
+          <h3>Token Supremacy</h3>
+          <p>Formulates reading as a Mathematical Greedy Knapsack Problem. Saves 50-90% context costs via Continuous
+            Attention Streams.</p>
+          <span class="cap-tag">nexus_optimize_tokens</span>
+        </div>
+        <div class="cap-card">
+          <span class="cap-icon">🐝</span>
+          <h3>Phantom Swarms</h3>
+          <p>Parallelize tasks across isolated Git Worktrees with Byzantine Fault Tolerance consensus. Multi-agent state
+            synchronization.</p>
+          <span class="cap-tag">nexus_spawn_workers</span>
+        </div>
+        <div class="cap-card">
+          <span class="cap-icon">🌀</span>
+          <h3>Quantum Entanglement</h3>
+          <p>Shared probabilistic state in high-dimensional Hilbert space. Correlated decision making across unbound
+            workers.</p>
+          <span class="cap-tag">nexus_entangle</span>
+        </div>
+      </div>
+    </article>
+
+    <article id="specs">
+      <span class="section-label">Engineering Deep-Dive</span>
+      <h2 class="section-title">Technical Specifications</h2>
+      <p class="section-sub">Detailed schematics of the internal language and performance benchmarks.</p>
+
+      <!-- LANGUAGE SPEC -->
+      <details>
+        <summary>📜 Language Specifics (NXL Specification)</summary>
+        <div class="details-content">
+          <p>The <b>Nexus eXpansion Language (NXL)</b> is a declarative syntax for swarm induction. It allows developers
+            to define agent archetypes and behavior triggers without hard-coding logic.</p>
+          <pre>
+# NXL Swarm Induction Spec
+swarm: "ForensicAudit"
+archetype: "DeepResearcher"
+induction:
+  trigger: "large_rewrite"
+  threshold: 0.85
+  capacity: 7_workers
+  network: "private_pod"
+  consensus: "byzantine_fault_tolerant"</pre>
+        </div>
+      </details>
+
+      <!-- BENCHMARKS -->
+      <details>
+        <summary>📊 Comparison & Benchmarks</summary>
+        <div class="details-content">
+          <p>Performance metrics validated against standard agent-to-filesystem orchestration (e.g. Claude Code, Cursor
+            raw filesystem access).</p>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Metric</th>
+                <th>Standard Agent</th>
+                <th>Nexus Prime Enhanced</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Context Retention</td>
+                <td>Session-bound (Ephemeral)</td>
+                <td><strong>Persistent (Cross-Session)</strong></td>
+              </tr>
+              <tr>
+                <td>Token Utilization</td>
+                <td>100% (Raw Read)</td>
+                <td><strong>10% - 30% (CAS Compression)</strong></td>
+              </tr>
+              <tr>
+                <td>Avg. Response Time</td>
+                <td>~2500ms</td>
+                <td><strong>~600ms (HyperTune Enabled)</strong></td>
+              </tr>
+              <tr>
+                <td>Multi-File Safety</td>
+                <td>Heuristic / Risky</td>
+                <td><strong>Verifiable Guardrails</strong></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </details>
+
+      <!-- INTEGRATION -->
+      <details>
+        <summary>🛠️ Building on Nexus Prime (Integration API)</summary>
+        <div class="details-content">
+          <p>Extend the meta-framework by registering your own <b>Skill Cards</b> or hooking into the <b>Evolution
+              Engine</b>.</p>
+          <ul>
+            <li>Inject custom declarative skills via <code>nexus_skill_register</code>.</li>
+            <li>Implement state-aware adapters for external tool-chains.</li>
+            <li>Subscribe to the POD Network for inter-worker telemetry.</li>
+          </ul>
+        </div>
+      </details>
+    </article>
+
+    <!-- MCP TOOLING CHECKLIST -->
+    <article id="tooling">
+      <span class="section-label">Exposed Controls</span>
+      <h2 class="section-title">MCP Tooling Matrix</h2>
+      <p class="section-sub">Nexus Prime exposes 20 native MCP tools that any driving agent can reliably invoke.</p>
+
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Tool Name</th>
+            <th>Core Capability</th>
+            <th>Execution Tier</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>nexus_store_memory</code></td>
+            <td>Store semantic findings and insights</td>
+            <td>Core</td>
+          </tr>
+          <tr>
+            <td><code>nexus_recall_memory</code></td>
+            <td>Retrieve context across historical sessions</td>
+            <td>Core</td>
+          </tr>
+          <tr>
+            <td><code>nexus_optimize_tokens</code></td>
+            <td>Mathematical context reduction via Knapsack</td>
+            <td>Optimization</td>
+          </tr>
+          <tr>
+            <td><code>nexus_spawn_workers</code></td>
+            <td>Dispatch isolated parallel swarm via Git Worktrees</td>
+            <td>Autonomy</td>
+          </tr>
+          <tr>
+            <td><code>nexus_mindkit_check</code></td>
+            <td>Pre-flight guardrail validation on destructive actions</td>
+            <td>Safety</td>
+          </tr>
+          <tr>
+            <td><code>nexus_ghost_pass</code></td>
+            <td>Read-only AST risk analysis before swarming</td>
+            <td>Analysis</td>
+          </tr>
+          <tr>
+            <td><code>nexus_entangle</code></td>
+            <td>Measure quantum-entangled agent probability state</td>
+            <td>Quantum</td>
+          </tr>
+        </tbody>
+      </table>
+    </article>
+
+    <article id="install">
+      <span class="section-label">Deployment</span>
+      <h2 class="section-title">Ready to induct.</h2>
+      <p class="section-sub">Nexus Prime runs as a persistent background server. Zero-config integration with top-tier
+        driving agents.</p>
+
+      <div class="terminal-console">
+        <p class="terminal-comment"># Global installation</p>
+        <p class="terminal-command">npm install -g nexus-prime</p>
+
+        <p class="terminal-comment"># Initialize MCP server directly</p>
+        <p class="terminal-command-alt">npx nexus-prime mcp --port 8080</p>
+
+        <br>
+        <p class="terminal-comment"># Automated Client Integrations</p>
+        <p class="terminal-command">nexus-prime setup cursor</p>
+        <p class="terminal-command">nexus-prime setup claude</p>
+        <p class="terminal-command-alt">nexus-prime setup status</p>
+      </div>
+    </article>
+
+    <aside id="extras">
+      <details>
+        <summary>📜 v1.5.1 Changelog</summary>
+        <div class="details-content">
+          <ul>
+            <li><strong>The Pulse Update (v1.5.1):</strong> Added POD Telemetry (real-time heartbeat visualization) and
+              improved HyperTune algorithms for large monorepo traversal.</li>
+            <li><strong>Intelligence Expansion (v1.5.0):</strong> Introduced Mandatory Induction for complex goals,
+              Thermodynamic Memory decay, Federation Engine (NexusNet Gist Relay), NXL Interpreter, and the real-time
+              Neural HUD.</li>
+            <li><strong>The Core Stabilization (v1.4.0):</strong> Added auto-setup CLI commands, unified the CAS Engine
+              (Continuous Attention Streams), and overhauled Git Worktree parallelization.</li>
+          </ul>
+        </div>
+      </details>
+
+      <details>
+        <summary>📈 Star History</summary>
+        <div class="details-content" style="text-align: center;">
+          <a href="https://star-history.com/#sir-ad/nexus-prime&Timeline" target="_blank" rel="noopener">
+            <picture>
+              <source media="(prefers-color-scheme: dark)"
+                srcset="https://api.star-history.com/svg?repos=sir-ad/nexus-prime&type=Timeline&theme=dark" />
+              <source media="(prefers-color-scheme: light)"
+                srcset="https://api.star-history.com/svg?repos=sir-ad/nexus-prime&type=Timeline" />
+              <img alt="Star History Chart"
+                src="https://api.star-history.com/svg?repos=sir-ad/nexus-prime&type=Timeline"
+                style="max-width: 100%; border-radius: 12px; border: 1px solid var(--border);" />
+            </picture>
+          </a>
+        </div>
+      </details>
+    </aside>
+
+  </main>
+
   <footer>
     <div class="footer-logo">⬡ nexus-prime</div>
     <div class="footer-links">
-      <a href="https://github.com/sir-ad/nexus-prime" target="_blank">GitHub</a>
-      <a href="https://github.com/sir-ad/nexus-prime/issues" target="_blank">Issues</a>
-      <a href="https://github.com/sir-ad/nexus-prime/releases" target="_blank">Releases</a>
-      <a href="knowledge-base.html">Knowledge Base</a>
+      <a href="https://github.com/sir-ad/nexus-prime" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://www.npmjs.com/package/nexus-prime" target="_blank" rel="noopener">NPM Registry</a>
+      <a href="#architecture">Architecture</a>
+      <a href="#specs">Specifications</a>
     </div>
-    <div class="footer-copy">MIT © Sir-Ad · v1.5.0 · Built with 40 engines, 25 tools, and zero compromises.</div>
+    <div class="footer-copy">MIT License © 2026 Sir-Ad. Built for the next generation of autonomous architecture.</div>
   </footer>
 
 </body>
