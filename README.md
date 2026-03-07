@@ -2,7 +2,7 @@
   <h1>🧬 Nexus Prime</h1>
   <p><strong>The Cognitive Operating System for Multi-Agent Swarms</strong></p>
 
-  [![Version](https://img.shields.io/badge/version-1.5.1-00ff88?style=for-the-badge&logoRepository=nexus-prime)](https://github.com/sir-ad/nexus-prime/releases)
+  [![Version](https://img.shields.io/badge/version-3.0.0-00ff88?style=for-the-badge&logoRepository=nexus-prime)](https://github.com/sir-ad/nexus-prime/releases)
   [![License: MIT](https://img.shields.io/badge/License-MIT-00d4ff?style=for-the-badge)](LICENSE)
   [![Agentic OS](https://img.shields.io/badge/Ecosystem-Agentic_OS-8b5cf6?style=for-the-badge)](https://github.com/topics/agentic-os)
   [![Build Status](https://img.shields.io/badge/build-passing-success?style=for-the-badge)](https://github.com/sir-ad/nexus-prime/actions)
@@ -218,7 +218,7 @@ nexus-prime setup status
 
 ## 📜 Changelog
 
-### v1.5.1 "The Pulse Update"
+### v3.0.0 "The Pulse Update"
 - **POD Telemetry**: Real-time heartbeat visualization of worker sync.
 - **Improved Tokens**: Optimized HyperTune for large monorepo traversal.
 
