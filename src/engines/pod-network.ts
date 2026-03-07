@@ -2,6 +2,7 @@ import { randomUUID } from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import { nexusEventBus } from './event-bus.js';
 
 export interface PodMessage {
     id: string;
@@ -98,6 +99,12 @@ export class PODNetwork {
 
     /** Internal broadcast to active sub-agent listeners */
     private broadcast(msg: PodMessage): void {
+        nexusEventBus.emit('pod.signal' as any, {
+            workerId: msg.workerId,
+            type: msg.type,
+            content: msg.content.substring(0, 50) + (msg.content.length > 50 ? '...' : '')
+        });
+
         for (const tag of msg.tags) {
             this.subscribers.get(tag)?.forEach(cb => cb(msg));
         }
