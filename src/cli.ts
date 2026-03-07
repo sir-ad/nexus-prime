@@ -14,6 +14,7 @@ import {
 import { statSync, writeFileSync, mkdirSync, existsSync, readFileSync } from 'fs';
 import { homedir } from 'os';
 import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
 import { PODNetwork } from './engines/pod-network.js';
 
 
@@ -23,10 +24,14 @@ const program = new Command();
 
 let nexus: NexusPrime | null = null;
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const packageJson = JSON.parse(readFileSync(join(__dirname, '..', 'package.json'), 'utf8'));
+
 program
   .name('nexus-prime')
   .description('🧬 Nexus Prime - The Self-Evolving Agent Operating System')
-  .version('1.5.0-alpha.1');
+  .version(packageJson.version);
 
 program
   .command('init')
