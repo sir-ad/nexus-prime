@@ -1,0 +1,211 @@
+name: Update Traffic Badges
+
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  traffic-badges:
+    runs-on: ubuntu-latest
+    env:
+      BADGE_GIST_ID: ${{ secrets.BADGE_GIST_ID }}
+      BADGE_GIST_TOKEN: ${{ secrets.BADGE_GIST_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Bootstrap badge gist
+        id: bootstrap
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.BADGE_GIST_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const configPath = '.github/traffic-badges.json';
+            const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+
+            if (!process.env.BADGE_GIST_TOKEN) {
+              core.setFailed('BADGE_GIST_TOKEN is required. Provide a token with gist scope and repository read access.');
+              return;
+            }
+
+            const placeholder = (label, color) => JSON.stringify({
+              schemaVersion: 1,
+              label,
+              message: 'pending',
+              color,
+              count: 0,
+              uniques: 0,
+              history: {},
+              lastUpdated: new Date(0).toISOString()
+            }, null, 2) + '\n';
+
+            let gistId = String(process.env.BADGE_GIST_ID || config.gistId || '').trim();
+            let gistOwner = String(config.gistOwner || '').trim();
+
+            if (!gistId) {
+              const created = await github.request('POST /gists', {
+                description: `${context.repo.owner}/${context.repo.repo} traffic badge data`,
+                public: false,
+                files: {
+                  [config.files.views]: { content: placeholder('views', config.colors.views) },
+                  [config.files.clones]: { content: placeholder('clones', config.colors.clones) }
+                }
+              });
+
+              gistId = created.data.id;
+              gistOwner = created.data.owner?.login || context.repo.owner;
+            } else {
+              const existing = await github.request('GET /gists/{gist_id}', {
+                gist_id: gistId
+              });
+              gistOwner = existing.data.owner?.login || gistOwner || context.repo.owner;
+            }
+
+            if (config.gistId !== gistId || config.gistOwner !== gistOwner) {
+              config.gistId = gistId;
+              config.gistOwner = gistOwner;
+              fs.writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`);
+            }
+
+            core.setOutput('gist_id', gistId);
+            core.setOutput('gist_owner', gistOwner);
+
+      - name: Update gist-backed traffic badges
+        uses: actions/github-script@v7
+        env:
+          GIST_ID: ${{ steps.bootstrap.outputs.gist_id }}
+        with:
+          github-token: ${{ secrets.BADGE_GIST_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const config = JSON.parse(fs.readFileSync('.github/traffic-badges.json', 'utf8'));
+            const gistId = process.env.GIST_ID;
+
+            const numberFormat = new Intl.NumberFormat('en-US');
+            const gist = await github.request('GET /gists/{gist_id}', { gist_id: gistId });
+
+            function parseExisting(name) {
+              const raw = gist.data.files?.[name]?.content;
+              if (!raw) {
+                return { history: {} };
+              }
+              try {
+                return JSON.parse(raw);
+              } catch {
+                return { history: {} };
+              }
+            }
+
+            function mergeSeries(label, color, previous, items) {
+              const history = { ...(previous.history || {}) };
+              for (const item of items) {
+                const key = String(item.timestamp).slice(0, 10);
+                history[key] = {
+                  count: Number(item.count || 0),
+                  uniques: Number(item.uniques || 0),
+                  timestamp: item.timestamp
+                };
+              }
+
+              const orderedEntries = Object.entries(history).sort(([left], [right]) => left.localeCompare(right));
+              const normalizedHistory = Object.fromEntries(orderedEntries);
+              const count = orderedEntries.reduce((sum, [, value]) => sum + Number(value.count || 0), 0);
+              const uniques = orderedEntries.reduce((sum, [, value]) => sum + Number(value.uniques || 0), 0);
+
+              return {
+                schemaVersion: 1,
+                label,
+                message: `${numberFormat.format(count)} total`,
+                color,
+                count,
+                uniques,
+                history: normalizedHistory,
+                lastUpdated: new Date().toISOString()
+              };
+            }
+
+            const viewsResponse = await github.request('GET /repos/{owner}/{repo}/traffic/views', {
+              owner: context.repo.owner,
+              repo: context.repo.repo
+            });
+
+            const clonesResponse = await github.request('GET /repos/{owner}/{repo}/traffic/clones', {
+              owner: context.repo.owner,
+              repo: context.repo.repo
+            });
+
+            const viewsPayload = mergeSeries(
+              'views',
+              config.colors.views,
+              parseExisting(config.files.views),
+              viewsResponse.data.views || []
+            );
+
+            const clonesPayload = mergeSeries(
+              'clones',
+              config.colors.clones,
+              parseExisting(config.files.clones),
+              clonesResponse.data.clones || []
+            );
+
+            await github.request('PATCH /gists/{gist_id}', {
+              gist_id: gistId,
+              files: {
+                [config.files.views]: { content: `${JSON.stringify(viewsPayload, null, 2)}\n` },
+                [config.files.clones]: { content: `${JSON.stringify(clonesPayload, null, 2)}\n` }
+              }
+            });
+
+      - name: Sync README badge URLs
+        env:
+          GIST_ID: ${{ steps.bootstrap.outputs.gist_id }}
+          GIST_OWNER: ${{ steps.bootstrap.outputs.gist_owner }}
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+
+          const config = JSON.parse(fs.readFileSync('.github/traffic-badges.json', 'utf8'));
+          const gistId = process.env.GIST_ID || config.gistId;
+          const gistOwner = process.env.GIST_OWNER || config.gistOwner || config.repoOwner;
+
+          if (!gistId || !gistOwner) {
+            throw new Error('Missing gist metadata for README badge sync.');
+          }
+
+          const badgeUrl = (file) =>
+            `https://img.shields.io/endpoint?style=for-the-badge&logo=github&url=${encodeURIComponent(`https://gist.githubusercontent.com/${gistOwner}/${gistId}/raw/${file}`)}`;
+
+          const replacement = [
+            '  <!-- traffic-badges:start -->',
+            `  [![Views](${badgeUrl(config.files.views)})](https://github.com/${config.repoOwner}/${config.repoName})`,
+            `  [![Clones](${badgeUrl(config.files.clones)})](https://github.com/${config.repoOwner}/${config.repoName})`,
+            '  <!-- traffic-badges:end -->'
+          ].join('\n');
+
+          const readmePath = 'README.md';
+          const current = fs.readFileSync(readmePath, 'utf8');
+          const next = current.replace(
+            /  <!-- traffic-badges:start -->[\s\S]*?  <!-- traffic-badges:end -->/,
+            replacement
+          );
+
+          if (next !== current) {
+            fs.writeFileSync(readmePath, next);
+          }
+          NODE
+
+      - name: Persist bootstrap metadata
+        run: |
+          if git diff --quiet -- README.md .github/traffic-badges.json; then
+            exit 0
+          fi
+
+          git config user.name "GitHub Action"
+          git config user.email "action@github.com"
+          git add README.md .github/traffic-badges.json
+          git commit -m "chore: bootstrap traffic badges [skip ci]"
+          git push

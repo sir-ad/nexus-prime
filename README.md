@@ -2,11 +2,16 @@
   <h1>🧬 Nexus Prime</h1>
   <p><strong>The Cognitive Operating System for Multi-Agent Swarms</strong></p>
 
-  [![Version](https://img.shields.io/badge/version-3.2.0-00ff88?style=for-the-badge&logoRepository=nexus-prime)](https://github.com/sir-ad/nexus-prime/releases)
+  [![npm version](https://img.shields.io/npm/v/nexus-prime?style=for-the-badge&color=00ff88)](https://www.npmjs.com/package/nexus-prime)
+  [![npm downloads](https://img.shields.io/npm/d18m/nexus-prime?style=for-the-badge&color=00d4ff)](https://www.npmjs.com/package/nexus-prime)
   [![License: MIT](https://img.shields.io/badge/License-MIT-00d4ff?style=for-the-badge)](LICENSE)
   [![Agentic OS](https://img.shields.io/badge/Ecosystem-Agentic_OS-8b5cf6?style=for-the-badge)](https://github.com/topics/agentic-os)
   [![Build Status](https://img.shields.io/badge/build-passing-success?style=for-the-badge)](https://github.com/sir-ad/nexus-prime/actions)
   [![Node.js](https://img.shields.io/badge/node-%3E%3D20.0.0-339933?style=for-the-badge&logo=node.js)](https://nodejs.org)
+  <!-- traffic-badges:start -->
+  [![Views](https://img.shields.io/badge/views-setup_required-1f6feb?style=for-the-badge&logo=github)](https://github.com/sir-ad/nexus-prime/actions/workflows/traffic-badges.yml)
+  [![Clones](https://img.shields.io/badge/clones-setup_required-0a8f08?style=for-the-badge&logo=github)](https://github.com/sir-ad/nexus-prime/actions/workflows/traffic-badges.yml)
+  <!-- traffic-badges:end -->
   
   <!-- AI / Agentic Widgets -->
   [![AI Framework](https://img.shields.io/badge/AI-Framework-FF9900?style=for-the-badge)](https://github.com/topics/ai)

@@ -1,0 +1,14 @@
+{
+  "repoOwner": "sir-ad",
+  "repoName": "nexus-prime",
+  "gistOwner": "",
+  "gistId": "",
+  "files": {
+    "views": "views.json",
+    "clones": "clones.json"
+  },
+  "colors": {
+    "views": "1f6feb",
+    "clones": "0a8f08"
+  }
+}
