@@ -9,8 +9,8 @@
   [![Build Status](https://img.shields.io/badge/build-passing-success?style=for-the-badge)](https://github.com/sir-ad/nexus-prime/actions)
   [![Node.js](https://img.shields.io/badge/node-%3E%3D20.0.0-339933?style=for-the-badge&logo=node.js)](https://nodejs.org)
   <!-- traffic-badges:start -->
-  [![Views](https://img.shields.io/badge/views-setup_required-1f6feb?style=for-the-badge&logo=github)](https://github.com/sir-ad/nexus-prime/actions/workflows/traffic-badges.yml)
-  [![Clones](https://img.shields.io/badge/clones-setup_required-0a8f08?style=for-the-badge&logo=github)](https://github.com/sir-ad/nexus-prime/actions/workflows/traffic-badges.yml)
+  [![Views](https://img.shields.io/endpoint?style=for-the-badge&logo=github&url=https%3A%2F%2Fgist.githubusercontent.com%2Fsir-ad%2Fbbf9ebc77ccb2097ccf760bec3825ab7%2Fraw%2Fviews.json)](https://github.com/sir-ad/nexus-prime)
+  [![Clones](https://img.shields.io/endpoint?style=for-the-badge&logo=github&url=https%3A%2F%2Fgist.githubusercontent.com%2Fsir-ad%2Fbbf9ebc77ccb2097ccf760bec3825ab7%2Fraw%2Fclones.json)](https://github.com/sir-ad/nexus-prime)
   <!-- traffic-badges:end -->
   
   <!-- AI / Agentic Widgets -->
