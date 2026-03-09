@@ -42,7 +42,21 @@ temp/
 # Research & Session Metadata
 Research_user.md
 GEMINI.md
-test-run/
-dev-orchestrator.mjs
-my-nexus.mjs
 .gemini/
+
+# Internal planning & vibe-coding
+PLAN.md
+INSTRUCTIONS.md
+my-nexus.mjs
+Claude.md
+dev-orchestrator.mjs
+
+# Agent internal config
+.agent/
+
+# Experimental scratch files
+test-nexusnet.ts
+test-ux.cjs
+test-ux.ts
+experiments/
+test-run/
