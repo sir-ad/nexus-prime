@@ -2,6 +2,21 @@
 
 All notable changes to Nexus Prime will be documented in this file.
 
+## [3.2.2] - 2026-03-09
+
+### Added
+- **Dashboard Compatibility Contract**: Added `dashboardApiVersion`, route capability flags, dashboard mode, and active dashboard URL to `/api/health` so clients can detect stale or incompatible dashboard servers.
+- **Occupied-Port Compatibility Coverage**: Added dashboard integration coverage for incompatible-listener fallback and compatible-listener reuse on the default dashboard port.
+
+### Changed
+- **Dashboard Startup Behavior**: Replaced silent `EADDRINUSE` bridging with a compatibility probe that reuses only compatible listeners and otherwise starts a fresh dashboard on the next free local port.
+- **Partial Dashboard Hydration**: Reworked the topology console to hydrate each resource independently instead of failing the whole page when one API route is missing or unhealthy.
+- **Dashboard Density**: Reduced typography and rail padding across the topology console so the three-column layout reads more cleanly under live runtime data.
+
+### Fixed
+- **Empty Dashboard on Active MCP**: Fixed the stale-process failure where an old MCP/dashboard server could serve the latest HTML shell but not the newer `/api/*` routes, leaving the dashboard visually empty.
+- **Legacy Stream Rendering**: Normalized legacy SSE event payloads in the browser so the live stream no longer degrades into repeated `n/a` cards when older event shapes appear.
+
 ## [3.2.1] - 2026-03-09
 
 ### Added

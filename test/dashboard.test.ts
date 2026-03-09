@@ -44,6 +44,70 @@ async function fetchStreamChunk(url: string): Promise<string> {
   });
 }
 
+async function waitForAddress(server: { getAddress(): string | null }, timeoutMs: number = 4000): Promise<string> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const address = server.getAddress();
+    if (address) {
+      return address;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  throw new Error('dashboard did not publish an address in time');
+}
+
+async function startIncompatibleServer(port: number): Promise<http.Server> {
+  const server = http.createServer((req, res) => {
+    if (req.url === '/' || req.url === '/index.html') {
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      res.end('<html><body>legacy dashboard</body></html>');
+      return;
+    }
+
+    res.writeHead(404, { 'Content-Type': 'text/plain' });
+    res.end('Not found');
+  });
+
+  await new Promise<void>((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(port, '127.0.0.1', () => {
+      server.off('error', reject);
+      resolve();
+    });
+  });
+
+  return server;
+}
+
+async function closeHttpServer(server: http.Server): Promise<void> {
+  await new Promise<void>((resolve, reject) => {
+    server.close((error) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+      resolve();
+    });
+  });
+}
+
+async function fetchJson(url: string): Promise<any> {
+  const response = await fetch(url);
+  assert.ok(response.ok, `expected OK from ${url}, received ${response.status}`);
+  return response.json();
+}
+
+function assertHealthContract(health: any, address: string): void {
+  assert.strictEqual(health.dashboardApiVersion, '2', 'health should expose dashboard API version');
+  assert.strictEqual(health.dashboardUrl, address, 'health should report the active dashboard URL');
+  assert.strictEqual(health.capabilities.runs, true, 'runs capability should be advertised');
+  assert.strictEqual(health.capabilities.memory, true, 'memory capability should be advertised');
+  assert.strictEqual(health.capabilities.pod, true, 'pod capability should be advertised');
+  assert.strictEqual(health.capabilities.clients, true, 'clients capability should be advertised');
+  assert.strictEqual(health.capabilities.events, true, 'events capability should be advertised');
+  assert.strictEqual(health.capabilities.stream, true, 'stream capability should be advertised');
+}
+
 async function test() {
   console.log('🧪 Testing dashboard topology console...\n');
 
@@ -88,7 +152,7 @@ async function test() {
     ]
   });
 
-  const server = new DashboardServer({
+  const makeServer = () => new DashboardServer({
     runtimeProvider: () => runtime,
     memoryProvider: () => memory,
     adaptersProvider: () => [],
@@ -96,12 +160,34 @@ async function test() {
     repoRoot: process.cwd(),
   });
 
-  server.start();
-  await new Promise((resolve) => setTimeout(resolve, 250));
+  const occupied = await startIncompatibleServer(port);
 
   try {
-    const address = server.getAddress();
-    assert.ok(address, 'dashboard should report an address');
+    const fallbackServer = makeServer();
+    fallbackServer.start();
+    const fallbackAddress = await waitForAddress(fallbackServer);
+    assert.notStrictEqual(fallbackAddress, `http://127.0.0.1:${port}`, 'server should move to a new port when default port is occupied by an incompatible listener');
+
+    const fallbackHealth = await fetchJson(`${fallbackAddress}/api/health`);
+    assertHealthContract(fallbackHealth, fallbackAddress);
+
+    fallbackServer.stop();
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  } finally {
+    await closeHttpServer(occupied);
+  }
+
+  const primaryServer = makeServer();
+  const reuseServer = makeServer();
+  primaryServer.start();
+
+  try {
+    const primaryAddress = await waitForAddress(primaryServer);
+    assert.strictEqual(primaryAddress, `http://127.0.0.1:${port}`, 'primary dashboard should bind to the configured default port when free');
+
+    reuseServer.start();
+    const reusedAddress = await waitForAddress(reuseServer);
+    assert.strictEqual(reusedAddress, primaryAddress, 'second dashboard instance should reuse the compatible dashboard listener');
 
     const [
       htmlRes,
@@ -116,17 +202,17 @@ async function test() {
       clientsRes,
       eventsRes,
     ] = await Promise.all([
-      fetch(`${address}/`),
-      fetch(`${address}/api/runs`),
-      fetch(`${address}/api/skills`),
-      fetch(`${address}/api/workflows`),
-      fetch(`${address}/api/backends`),
-      fetch(`${address}/api/health`),
-      fetch(`${address}/api/memory`),
-      fetch(`${address}/api/memory/${encodeURIComponent(rootMemoryId)}/network`),
-      fetch(`${address}/api/pod`),
-      fetch(`${address}/api/clients`),
-      fetch(`${address}/api/events?limit=20`),
+      fetch(`${primaryAddress}/`),
+      fetch(`${primaryAddress}/api/runs`),
+      fetch(`${primaryAddress}/api/skills`),
+      fetch(`${primaryAddress}/api/workflows`),
+      fetch(`${primaryAddress}/api/backends`),
+      fetch(`${primaryAddress}/api/health`),
+      fetch(`${primaryAddress}/api/memory`),
+      fetch(`${primaryAddress}/api/memory/${encodeURIComponent(rootMemoryId)}/network`),
+      fetch(`${primaryAddress}/api/pod`),
+      fetch(`${primaryAddress}/api/clients`),
+      fetch(`${primaryAddress}/api/events?limit=20`),
     ]);
 
     const html = await htmlRes.text();
@@ -140,33 +226,36 @@ async function test() {
     const pod = await podRes.json();
     const clients = await clientsRes.json();
     const events = await eventsRes.json();
-    const streamChunk = await fetchStreamChunk(`${address}/stream`);
+    const streamChunk = await fetchStreamChunk(`${primaryAddress}/stream`);
 
     assert.ok(html.includes('Memory Topology Graph'), 'dashboard HTML should render topology graph shell');
     assert.ok(html.includes('Connected Ecosystem'), 'dashboard HTML should render restored ecosystem rail');
+    assert.ok(html.includes('status-banner'), 'dashboard HTML should include compatibility banner shell');
     assert.ok(Array.isArray(runs) && runs.length > 0, 'runs API should return recorded runs');
     assert.ok(Array.isArray(skills) && skills.length > 0, 'skills API should return artifacts');
     assert.ok(Array.isArray(workflows) && workflows.length > 0, 'workflows API should return artifacts');
     assert.ok(backends.memory && backends.compression && backends.dsl, 'backends API should return grouped catalogs');
+    assertHealthContract(health, primaryAddress);
     assert.strictEqual(health.docs.pagesWorkflowValid, true, 'health API should report fixed Pages workflow syntax');
     assert.ok(Array.isArray(memories) && memories.length >= 2, 'memory API should return snapshots');
     assert.ok(Array.isArray(memoryNetwork.nodes) && memoryNetwork.nodes.length > 0, 'memory network API should return graph nodes');
     assert.ok(Array.isArray(pod.messages) && pod.messages.length > 0, 'pod API should return messages');
     assert.ok(Array.isArray(clients) && clients.some((client: any) => client.clientId === 'codex' && client.state === 'active'), 'client API should surface explicit heartbeat clients');
     assert.ok(Array.isArray(events) && events.length > 0, 'events API should return normalized event cards');
+    assert.ok(events.every((event: any) => event.title && event.category && typeof event.time === 'number'), 'events API should normalize event cards');
     assert.ok(streamChunk.includes('retry: 3000') || streamChunk.includes('event: bootstrap'), 'stream endpoint should emit SSE prelude');
 
-    const deploySkill = await fetch(`${address}/api/skills/deploy`, {
+    const deploySkill = await fetch(`${primaryAddress}/api/skills/deploy`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ skillId: skills[0].skillId }),
     });
-    const deployWorkflow = await fetch(`${address}/api/workflows/deploy`, {
+    const deployWorkflow = await fetch(`${primaryAddress}/api/workflows/deploy`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ workflowId: workflows[0].workflowId }),
     });
-    const executeRun = await fetch(`${address}/api/runtime/execute`, {
+    const executeRun = await fetch(`${primaryAddress}/api/runtime/execute`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -177,7 +266,7 @@ async function test() {
         actions: [{ type: 'append_file', path: 'README.md', content: '\nControl plane run.\n' }]
       }),
     });
-    const reconnectClient = await fetch(`${address}/api/clients/codex/reconnect`, {
+    const reconnectClient = await fetch(`${primaryAddress}/api/clients/codex/reconnect`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({}),
@@ -188,9 +277,10 @@ async function test() {
     assert.strictEqual(executeRun.status, 201, 'runtime execute route should create a run');
     assert.strictEqual(reconnectClient.status, 200, 'client reconnect route should succeed');
 
-    console.log('✅ Dashboard APIs, topology shell, and control plane are healthy\n');
+    console.log('✅ Dashboard compatibility, APIs, topology shell, and control plane are healthy\n');
   } finally {
-    server.stop();
+    reuseServer.stop();
+    primaryServer.stop();
     memory.close();
     delete process.env.NEXUS_DASHBOARD_PORT;
     delete process.env.NEXUS_DASHBOARD_DISABLED;

@@ -75,7 +75,7 @@
             align-items: center;
             justify-content: space-between;
             gap: 1rem;
-            padding: 1.2rem 1.6rem;
+            padding: 1rem 1.4rem;
             border-bottom: 1px solid var(--line);
             background: rgba(5, 8, 13, 0.76);
             backdrop-filter: blur(28px);
@@ -99,14 +99,38 @@
 
         h1 {
             margin: 0;
-            font-size: clamp(1.35rem, 2vw, 1.9rem);
+            font-size: clamp(1.18rem, 1.8vw, 1.62rem);
             letter-spacing: -0.04em;
         }
 
         .subtitle {
             margin-top: 0.15rem;
             color: var(--muted);
-            font-size: 0.92rem;
+            font-size: 0.84rem;
+        }
+
+        .banner {
+            margin: 0 1rem;
+            margin-top: 0.85rem;
+            padding: 0.72rem 0.95rem;
+            border-radius: 16px;
+            border: 1px solid var(--line);
+            background: rgba(255, 255, 255, 0.03);
+            color: var(--muted);
+            font-size: 0.76rem;
+            line-height: 1.45;
+        }
+
+        .banner.warn {
+            border-color: rgba(255, 209, 77, 0.22);
+            background: rgba(255, 209, 77, 0.08);
+            color: #ffe7a0;
+        }
+
+        .banner.bad {
+            border-color: rgba(255, 109, 99, 0.28);
+            background: rgba(255, 109, 99, 0.08);
+            color: #ffc1bc;
         }
 
         .header-actions {
@@ -122,11 +146,12 @@
             display: inline-flex;
             align-items: center;
             gap: 0.55rem;
-            padding: 0.58rem 0.9rem;
+            padding: 0.48rem 0.8rem;
             border-radius: 999px;
             border: 1px solid var(--line);
             background: rgba(255, 255, 255, 0.03);
             color: var(--muted);
+            font-size: 0.82rem;
         }
 
         .status-pill .dot,
@@ -166,7 +191,7 @@
             display: grid;
             grid-template-columns: 320px minmax(0, 1fr) 410px;
             gap: 1rem;
-            padding: 1rem 1rem 1.15rem;
+            padding: 0.9rem 1rem 1rem;
         }
 
         .panel {
@@ -185,7 +210,7 @@
             align-items: center;
             justify-content: space-between;
             gap: 0.8rem;
-            padding: 1rem 1.2rem;
+            padding: 0.85rem 1rem;
             border-bottom: 1px solid var(--line);
             background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01));
         }
@@ -193,7 +218,7 @@
         .panel-header h2,
         .panel-header h3 {
             margin: 0;
-            font-size: 0.82rem;
+            font-size: 0.74rem;
             letter-spacing: 0.14em;
             text-transform: uppercase;
             color: var(--muted);
@@ -203,13 +228,13 @@
             flex: 1;
             min-height: 0;
             overflow: auto;
-            padding: 1rem;
+            padding: 0.85rem;
             scrollbar-width: thin;
             scrollbar-color: rgba(188, 204, 255, 0.22) transparent;
         }
 
         .panel-body.compact {
-            padding: 0.9rem;
+            padding: 0.75rem;
         }
 
         .rail {
@@ -235,7 +260,7 @@
             border: 1px solid var(--line);
             background: var(--panel-soft);
             border-radius: var(--radius-card);
-            padding: 0.9rem;
+            padding: 0.78rem;
         }
 
         .card.interactive {
@@ -259,7 +284,7 @@
         }
 
         .card-title strong {
-            font-size: 1rem;
+            font-size: 0.92rem;
             font-weight: 600;
         }
 
@@ -275,12 +300,12 @@
 
         .meta {
             color: var(--muted);
-            font-size: 0.78rem;
+            font-size: 0.72rem;
             line-height: 1.5;
         }
 
         .hero-metric {
-            padding: 1rem;
+            padding: 0.88rem;
             border-radius: var(--radius-card);
             border: 1px solid var(--line);
             background: linear-gradient(160deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01));
@@ -288,16 +313,16 @@
 
         .hero-metric label {
             display: block;
-            font-size: 0.74rem;
+            font-size: 0.68rem;
             color: var(--muted);
             text-transform: uppercase;
             letter-spacing: 0.12em;
-            margin-bottom: 0.5rem;
+            margin-bottom: 0.38rem;
         }
 
         .hero-metric strong {
             display: block;
-            font-size: 2rem;
+            font-size: 1.62rem;
             letter-spacing: -0.05em;
             margin-bottom: 0.2rem;
         }
@@ -320,7 +345,7 @@
             align-items: center;
             justify-content: space-between;
             gap: 0.75rem;
-            padding: 0.8rem 0.9rem;
+            padding: 0.68rem 0.78rem;
             border-radius: 16px;
             border: 1px solid var(--line);
             background: rgba(255, 255, 255, 0.03);
@@ -335,6 +360,7 @@
 
         .client-name {
             font-weight: 600;
+            font-size: 0.92rem;
         }
 
         .state-chip,
@@ -343,8 +369,8 @@
             align-items: center;
             justify-content: center;
             border-radius: 999px;
-            padding: 0.23rem 0.55rem;
-            font-size: 0.72rem;
+            padding: 0.2rem 0.5rem;
+            font-size: 0.68rem;
             border: 1px solid var(--line);
             background: rgba(255, 255, 255, 0.05);
             text-transform: uppercase;
@@ -415,13 +441,13 @@
         }
 
         .dial-value {
-            font-size: 2rem;
+            font-size: 1.68rem;
             font-weight: 700;
             letter-spacing: -0.06em;
         }
 
         .dial-caption {
-            font-size: 0.72rem;
+            font-size: 0.66rem;
             color: var(--muted);
             text-transform: uppercase;
             letter-spacing: 0.12em;
@@ -453,10 +479,11 @@
         .primary-button {
             border: 0;
             border-radius: 999px;
-            padding: 0.5rem 0.8rem;
+            padding: 0.42rem 0.68rem;
             background: transparent;
             color: var(--muted);
             transition: background 160ms ease, color 160ms ease, transform 160ms ease;
+            font-size: 0.72rem;
         }
 
         .segmented button.active,
@@ -513,7 +540,7 @@
 
         .node-label {
             font-family: var(--mono);
-            font-size: 11px;
+            font-size: 9.5px;
             fill: rgba(246, 247, 251, 0.86);
             pointer-events: none;
         }
@@ -551,7 +578,7 @@
 
         .graph-note {
             color: var(--muted);
-            font-size: 0.8rem;
+            font-size: 0.72rem;
         }
 
         .graph-footer {
@@ -572,11 +599,11 @@
             display: inline-flex;
             align-items: center;
             gap: 0.35rem;
-            padding: 0.28rem 0.55rem;
+            padding: 0.24rem 0.48rem;
             border-radius: 999px;
             border: 1px solid var(--line);
             background: rgba(255, 255, 255, 0.05);
-            font-size: 0.74rem;
+            font-size: 0.68rem;
         }
 
         .entity-header {
@@ -589,7 +616,7 @@
 
         .entity-header h3 {
             margin: 0;
-            font-size: 0.9rem;
+            font-size: 0.82rem;
             letter-spacing: 0.08em;
             text-transform: uppercase;
             color: var(--muted);
@@ -599,13 +626,14 @@
             display: flex;
             flex-wrap: wrap;
             gap: 0.35rem;
+            justify-content: flex-end;
         }
 
         .event-card {
             border-radius: 18px;
             border: 1px solid var(--line);
             background: rgba(255, 255, 255, 0.03);
-            padding: 0.9rem;
+            padding: 0.78rem;
             border-left: 3px solid var(--muted);
         }
 
@@ -623,7 +651,7 @@
 
         .event-head strong {
             display: block;
-            font-size: 0.96rem;
+            font-size: 0.88rem;
         }
 
         .event-head .meta {
@@ -631,24 +659,24 @@
         }
 
         details.raw {
-            margin-top: 0.6rem;
+            margin-top: 0.45rem;
         }
 
         details.raw summary {
             cursor: pointer;
             color: var(--muted);
-            font-size: 0.74rem;
+            font-size: 0.68rem;
             text-transform: uppercase;
             letter-spacing: 0.08em;
         }
 
         pre {
             overflow: auto;
-            padding: 0.8rem;
+            padding: 0.68rem;
             border-radius: 14px;
             background: rgba(0, 0, 0, 0.3);
             border: 1px solid var(--line);
-            font-size: 0.75rem;
+            font-size: 0.7rem;
             line-height: 1.5;
             margin: 0.55rem 0 0;
             white-space: pre-wrap;
@@ -666,7 +694,7 @@
         }
 
         .field label {
-            font-size: 0.74rem;
+            font-size: 0.68rem;
             color: var(--muted);
             text-transform: uppercase;
             letter-spacing: 0.08em;
@@ -676,7 +704,7 @@
         .field select,
         .field textarea {
             width: 100%;
-            padding: 0.7rem 0.78rem;
+            padding: 0.62rem 0.72rem;
             border-radius: 14px;
             border: 1px solid var(--line);
             background: rgba(255, 255, 255, 0.03);
@@ -741,12 +769,12 @@
             border: 1px solid var(--line);
             background: rgba(255, 255, 255, 0.03);
             border-radius: 18px;
-            padding: 0.9rem;
+            padding: 0.78rem;
         }
 
         .drawer-section h4 {
             margin: 0 0 0.55rem;
-            font-size: 0.82rem;
+            font-size: 0.74rem;
             color: var(--muted);
             text-transform: uppercase;
             letter-spacing: 0.08em;
@@ -835,6 +863,8 @@
             </div>
         </div>
     </header>
+
+    <div id="status-banner" class="banner hidden" role="status" aria-live="polite"></div>
 
     <main class="layout">
         <aside class="rail left">
@@ -1068,6 +1098,13 @@
     </aside>
 
     <script>
+        const DASHBOARD_API_VERSION = '2';
+        const REQUIRED_CAPABILITIES = ['runs', 'memory', 'pod', 'clients', 'events', 'stream'];
+
+        function createResourceState() {
+            return { status: 'idle', error: '' };
+        }
+
         const state = {
             runs: [],
             skills: [],
@@ -1086,6 +1123,20 @@
             selected: null,
             streamConnected: false,
             lastRefreshAt: 0,
+            banner: null,
+            resources: {
+                health: createResourceState(),
+                backends: createResourceState(),
+                runs: createResourceState(),
+                skills: createResourceState(),
+                workflows: createResourceState(),
+                memory: createResourceState(),
+                pod: createResourceState(),
+                clients: createResourceState(),
+                events: createResourceState(),
+                memoryDetail: createResourceState(),
+                memoryNetwork: createResourceState(),
+            },
         };
 
         const graphModes = {
@@ -1147,61 +1198,299 @@
                 .filter(Boolean);
         }
 
+        function setResourceStatus(name, status, error = '') {
+            state.resources[name] = { status, error };
+        }
+
+        function getResourceStatus(name) {
+            return state.resources[name] || createResourceState();
+        }
+
+        function resourceFailed(name) {
+            return getResourceStatus(name).status === 'error';
+        }
+
+        function countFailedResources() {
+            return Object.values(state.resources).filter((resource) => resource.status === 'error').length;
+        }
+
+        function setBanner(kind, message) {
+            state.banner = message ? { kind, message } : null;
+        }
+
+        function clearBanner() {
+            state.banner = null;
+        }
+
+        function normalizeError(error) {
+            return error instanceof Error ? error.message : String(error || 'Unknown error');
+        }
+
+        function reconcileBanner() {
+            const healthStatus = getResourceStatus('health');
+            if (healthStatus.status === 'error') {
+                setBanner('bad', 'Connected to stale dashboard server or an incompatible API surface. Open the latest dashboard URL printed by the MCP process.');
+                return;
+            }
+
+            const version = state.health?.dashboardApiVersion;
+            const capabilities = state.health?.capabilities || {};
+            const missingCapabilities = REQUIRED_CAPABILITIES.filter((capability) => capabilities[capability] !== true);
+
+            if (!version || version !== DASHBOARD_API_VERSION || missingCapabilities.length) {
+                setBanner('bad', `Dashboard compatibility mismatch detected. Expected API v${DASHBOARD_API_VERSION}; missing capabilities: ${missingCapabilities.join(', ') || 'version marker'}.`);
+                return;
+            }
+
+            const failed = Object.entries(state.resources)
+                .filter(([name, resource]) => resource.status === 'error' && !['memoryDetail', 'memoryNetwork'].includes(name))
+                .map(([name]) => name);
+
+            if (failed.length) {
+                setBanner('warn', `Dashboard is partially degraded. Unavailable surfaces: ${failed.join(', ')}.`);
+                return;
+            }
+
+            clearBanner();
+        }
+
+        function emptyState(message) {
+            return `<div class="empty">${escapeHtml(message)}</div>`;
+        }
+
+        function normalizeLegacyCategory(type) {
+            if (String(type).startsWith('memory.')) return 'memory';
+            if (String(type).startsWith('pod.')) return 'pod';
+            if (String(type).startsWith('phantom.')) return 'runtime';
+            if (String(type).startsWith('client.')) return 'clients';
+            if (String(type).startsWith('skill.')) return 'skills';
+            if (String(type).startsWith('workflow.')) return 'workflows';
+            if (String(type).startsWith('tokens.') || String(type).startsWith('cas.') || String(type).startsWith('kv.')) return 'tokens';
+            return 'system';
+        }
+
+        function normalizeLegacySeverity(type, payload) {
+            if (type === 'guardrail.check') return payload?.passed ? 'good' : 'bad';
+            if (['phantom.merge', 'phantom.merge.complete', 'workflow.run'].includes(type)) {
+                return payload?.status === 'failed' ? 'bad' : 'good';
+            }
+            if (type === 'client.inferred') return 'warn';
+            if (type === 'dashboard.action' && payload?.status === 'failed') return 'bad';
+            if (type === 'pod.signal') return 'info';
+            return 'info';
+        }
+
+        function legacyTitle(type) {
+            return {
+                'system.boot': 'Runtime boot',
+                'memory.store': 'Memory stored',
+                'memory.recall': 'Memory recall',
+                'pod.signal': 'POD signal',
+                'tokens.optimized': 'Tokens optimized',
+                'phantom.worker.start': 'Worker start',
+                'phantom.worker.complete': 'Worker complete',
+                'phantom.merge.complete': 'Merge complete',
+                'phantom.merge': 'Merge decision',
+                'guardrail.check': 'Guardrail check',
+                'ghost.pass': 'Ghost pass',
+                'graph.query': 'Graph query',
+                'darwin.cycle': 'Darwin cycle',
+                'session.dna': 'Session DNA',
+                'skill.register': 'Skill registered',
+                'skill.deploy': 'Skill deployed',
+                'skill.revoke': 'Skill revoked',
+                'workflow.deploy': 'Workflow deployed',
+                'workflow.run': 'Workflow run',
+                'client.heartbeat': 'Client heartbeat',
+                'client.inferred': 'Client inferred',
+                'client.status': 'Client status',
+                'dashboard.action': 'Dashboard action',
+                'nexusnet.publish': 'NexusNet publish',
+                'nexusnet.sync': 'NexusNet sync',
+                'entanglement.create': 'Entanglement created',
+                'entanglement.collapse': 'Entanglement collapsed',
+                'entanglement.correlate': 'Entanglement correlated',
+                'cas.encode': 'CAS encode',
+                'cas.decode': 'CAS decode',
+                'cas.pattern_learned': 'CAS pattern',
+                'kv.merge': 'KV merge',
+                'kv.adapt': 'KV adapt',
+                'kv.consensus': 'KV consensus',
+            }[type] || String(type || 'event');
+        }
+
+        function legacySource(type, payload) {
+            if (String(type).startsWith('client.')) return String(payload?.displayName || payload?.clientId || 'client');
+            if (type === 'pod.signal') return String(payload?.workerId || 'pod');
+            if (String(type).startsWith('phantom.')) return String(payload?.workerId || payload?.winner || 'runtime');
+            if (String(type).startsWith('skill.')) return String(payload?.skillId || payload?.name || 'skill');
+            if (String(type).startsWith('workflow.')) return String(payload?.workflowId || 'workflow');
+            return 'nexus-prime';
+        }
+
+        function legacySummary(type, payload) {
+            switch (type) {
+                case 'memory.store':
+                    return `Priority ${payload?.priority ?? 'n/a'} · ${(payload?.tags || []).join(', ') || 'no tags'}`;
+                case 'memory.recall':
+                    return `Recalled ${payload?.count ?? 0} memories for "${payload?.query || ''}"`;
+                case 'pod.signal':
+                    return String(payload?.content || 'POD signal received');
+                case 'tokens.optimized':
+                    return `Saved ${payload?.savings ?? 0} tokens across ${payload?.files ?? 0} files`;
+                case 'phantom.worker.start':
+                    return `${payload?.approach || 'worker'} started for ${payload?.goal || 'task'}`;
+                case 'phantom.worker.complete':
+                    return `Confidence ${payload?.confidence ?? 0}`;
+                case 'phantom.merge':
+                    return `${payload?.action || 'merge'} · ${payload?.winner || 'unknown winner'}`;
+                case 'dashboard.action':
+                    return `${payload?.action || 'action'} → ${payload?.status || 'unknown'}`;
+                default:
+                    return typeof payload === 'string' ? payload : JSON.stringify(payload || {});
+            }
+        }
+
+        function normalizeEventCard(raw) {
+            if (!raw) return null;
+
+            if (raw.category && raw.title && raw.time) {
+                return {
+                    id: raw.id || `evt-${raw.time}-${Math.random().toString(36).slice(2, 8)}`,
+                    type: raw.type || raw.category,
+                    title: String(raw.title),
+                    source: String(raw.source || 'nexus-prime'),
+                    time: Number(raw.time) || Date.now(),
+                    severity: ['good', 'info', 'warn', 'bad'].includes(raw.severity) ? raw.severity : 'info',
+                    category: raw.category,
+                    summary: String(raw.summary || ''),
+                    payload: raw.payload ?? raw,
+                };
+            }
+
+            if (raw.type && raw.timestamp) {
+                const payload = raw.data || {};
+                return {
+                    id: raw.id || `evt-${raw.timestamp}-${Math.random().toString(36).slice(2, 8)}`,
+                    type: raw.type,
+                    title: legacyTitle(raw.type),
+                    source: legacySource(raw.type, payload),
+                    time: Number(raw.timestamp) || Date.now(),
+                    severity: normalizeLegacySeverity(raw.type, payload),
+                    category: normalizeLegacyCategory(raw.type),
+                    summary: legacySummary(raw.type, payload),
+                    payload,
+                };
+            }
+
+            return {
+                id: `evt-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                type: 'system.legacy',
+                title: 'Legacy event',
+                source: 'nexus-prime',
+                time: Date.now(),
+                severity: 'info',
+                category: 'system',
+                summary: typeof raw === 'string' ? raw : 'Malformed event payload received',
+                payload: raw,
+            };
+        }
+
         async function fetchJson(url, options) {
             const res = await fetch(url, options);
+            const text = await res.text();
             if (!res.ok) {
-                throw new Error(`${res.status} ${res.statusText}`);
+                throw new Error(`${res.status} ${res.statusText}${text ? ` · ${text.slice(0, 120)}` : ''}`);
             }
-            return res.json();
+            return text ? JSON.parse(text) : null;
         }
 
         async function refreshAll() {
-            const [runs, skills, workflows, backends, health, memories, pod, clients, events] = await Promise.all([
-                fetchJson('/api/runs?limit=20'),
-                fetchJson('/api/skills'),
-                fetchJson('/api/workflows'),
-                fetchJson('/api/backends'),
-                fetchJson('/api/health'),
-                fetchJson('/api/memory?limit=40'),
-                fetchJson('/api/pod?limit=30'),
-                fetchJson('/api/clients'),
-                fetchJson('/api/events?limit=80'),
-            ]);
+            const resources = [
+                ['runs', '/api/runs?limit=20', (value) => { state.runs = Array.isArray(value) ? value : state.runs; }],
+                ['skills', '/api/skills', (value) => { state.skills = Array.isArray(value) ? value : state.skills; }],
+                ['workflows', '/api/workflows', (value) => { state.workflows = Array.isArray(value) ? value : state.workflows; }],
+                ['backends', '/api/backends', (value) => { state.backends = value || state.backends; }],
+                ['health', '/api/health', (value) => { state.health = value || state.health; }],
+                ['memory', '/api/memory?limit=40', (value) => { state.memories = Array.isArray(value) ? value : state.memories; }],
+                ['pod', '/api/pod?limit=30', (value) => { state.pod = value || state.pod; }],
+                ['clients', '/api/clients', (value) => { state.clients = Array.isArray(value) ? value : state.clients; }],
+                ['events', '/api/events?limit=80', (value) => {
+                    state.events = Array.isArray(value)
+                        ? value.map((event) => normalizeEventCard(event)).filter(Boolean)
+                        : state.events;
+                }],
+            ];
 
-            state.runs = Array.isArray(runs) ? runs : [];
-            state.skills = Array.isArray(skills) ? skills : [];
-            state.workflows = Array.isArray(workflows) ? workflows : [];
-            state.backends = backends || {};
-            state.health = health || {};
-            state.memories = Array.isArray(memories) ? memories : [];
-            state.pod = pod || state.pod;
-            state.clients = Array.isArray(clients) ? clients : [];
-            state.events = Array.isArray(events) ? events : [];
-            state.lastRefreshAt = Date.now();
+            const results = await Promise.allSettled(resources.map(([, url]) => fetchJson(url)));
+            let refreshed = false;
+
+            results.forEach((result, index) => {
+                const [name, , assign] = resources[index];
+                if (result.status === 'fulfilled') {
+                    assign(result.value);
+                    setResourceStatus(name, 'ready');
+                    refreshed = true;
+                } else {
+                    setResourceStatus(name, 'error', normalizeError(result.reason));
+                }
+            });
+
+            if (refreshed) {
+                state.lastRefreshAt = Date.now();
+            }
 
             const focusMemoryId = state.selected?.kind === 'memory'
                 ? state.selected.id
                 : state.memories[0]?.id;
-            if (focusMemoryId) {
+
+            if (focusMemoryId && !resourceFailed('memory')) {
                 await refreshMemorySelection(focusMemoryId, false);
-            } else {
+            } else if (!focusMemoryId) {
                 state.memoryDetail = null;
                 state.memoryNetwork = { nodes: [], links: [], focusId: null };
+                setResourceStatus('memoryDetail', 'idle');
+                setResourceStatus('memoryNetwork', 'idle');
             }
 
+            reconcileBanner();
             populateBackendSelects();
             render();
         }
 
         async function refreshMemorySelection(memoryId, openDrawer = true) {
-            const [detail, network] = await Promise.all([
+            const [detail, network] = await Promise.allSettled([
                 fetchJson(`/api/memory/${encodeURIComponent(memoryId)}`),
                 fetchJson(`/api/memory/${encodeURIComponent(memoryId)}/network?depth=2&limit=18`),
             ]);
-            state.memoryDetail = detail;
-            state.memoryNetwork = network;
+
+            if (detail.status === 'fulfilled') {
+                state.memoryDetail = detail.value;
+                setResourceStatus('memoryDetail', 'ready');
+            } else {
+                state.memoryDetail = state.memories.find((memory) => memory.id === memoryId) || null;
+                setResourceStatus('memoryDetail', 'error', normalizeError(detail.reason));
+            }
+
+            if (network.status === 'fulfilled') {
+                state.memoryNetwork = network.value || { nodes: [], links: [], focusId: memoryId };
+                setResourceStatus('memoryNetwork', 'ready');
+            } else {
+                state.memoryNetwork = {
+                    focusId: memoryId,
+                    nodes: state.memories.slice(0, 12).map((memory) => ({
+                        id: memory.id,
+                        label: memory.excerpt,
+                        entityType: 'memory',
+                        tier: memory.tier,
+                    })),
+                    links: [],
+                };
+                setResourceStatus('memoryNetwork', 'error', normalizeError(network.reason));
+            }
+
             if (openDrawer) {
-                state.selected = { kind: 'memory', id: memoryId, data: detail };
+                state.selected = { kind: 'memory', id: memoryId, data: state.memoryDetail };
             }
         }
 
@@ -1254,6 +1543,7 @@
         }
 
         function render() {
+            renderBanner();
             renderHeader();
             renderLeftRail();
             renderGraph();
@@ -1262,19 +1552,38 @@
             renderDrawer();
         }
 
+        function renderBanner() {
+            const banner = $('status-banner');
+            if (!state.banner?.message) {
+                banner.className = 'banner hidden';
+                banner.textContent = '';
+                return;
+            }
+
+            banner.className = `banner ${state.banner.kind}`;
+            banner.textContent = state.banner.message;
+        }
+
         function renderHeader() {
             $('header-version').textContent = `v${state.health.release?.packageVersion || '?'}`;
             const pill = $('sync-pill');
-            pill.classList.toggle('live', state.streamConnected);
-            pill.classList.toggle('warn', !state.streamConnected);
+            const failedResources = countFailedResources();
+            pill.classList.toggle('live', state.streamConnected && failedResources === 0);
+            pill.classList.toggle('warn', !state.streamConnected || failedResources > 0);
             $('sync-label').textContent = state.streamConnected
-                ? `Synchronized · ${formatAgo(state.lastRefreshAt)}`
-                : 'Stream reconnecting';
+                ? failedResources
+                    ? `Degraded · ${failedResources} surfaces unavailable`
+                    : `Synchronized · ${formatAgo(state.lastRefreshAt)}`
+                : failedResources
+                    ? `REST degraded · ${failedResources} unavailable`
+                    : 'Stream reconnecting';
         }
 
         function renderLeftRail() {
-            $('clients-summary').textContent = `${state.clients.length} visible`;
-            $('clients-list').innerHTML = state.clients.length
+            $('clients-summary').textContent = resourceFailed('clients') ? 'unavailable' : `${state.clients.length} visible`;
+            $('clients-list').innerHTML = resourceFailed('clients') && !state.clients.length
+                ? emptyState('Clients endpoint unavailable.')
+                : state.clients.length
                 ? state.clients.map((client) => `
                     <div class="client-row card interactive ${state.selected?.kind === 'client' && state.selected.id === client.clientId ? 'active' : ''}" data-kind="client" data-id="${escapeHtml(client.clientId)}">
                         <div class="client-info">
@@ -1287,37 +1596,47 @@
                         <span class="state-chip ${stateClass(client.state)}">${escapeHtml(client.state)}</span>
                     </div>
                 `).join('')
-                : '<div class="empty">No clients detected.</div>';
+                : emptyState('No clients detected.');
 
             const tokenMetrics = computeTokenMetrics();
-            $('token-summary').textContent = `${tokenMetrics.events} events`;
+            $('token-summary').textContent = resourceFailed('events') ? 'events unavailable' : `${tokenMetrics.events} events`;
             $('gross-tokens').textContent = formatNumber(tokenMetrics.gross);
             $('saved-tokens').textContent = formatNumber(tokenMetrics.saved);
             $('net-tokens').textContent = formatNumber(tokenMetrics.forwarded);
-            $('memory-count').textContent = formatNumber(state.memories.length);
+            $('memory-count').textContent = resourceFailed('memory') && !state.memories.length ? 'n/a' : formatNumber(state.memories.length);
             $('dial-value').textContent = `${tokenMetrics.ratio}%`;
             const circumference = 2 * Math.PI * 70;
             const offset = circumference - (circumference * tokenMetrics.ratio / 100);
             $('dial-progress').style.strokeDashoffset = `${offset}`;
 
-            $('runs-count').textContent = formatNumber(state.runs.length);
+            $('runs-count').textContent = resourceFailed('runs') && !state.runs.length ? 'n/a' : formatNumber(state.runs.length);
             const latestRun = state.runs[0];
-            $('latest-run-state').textContent = latestRun
+            $('latest-run-state').textContent = resourceFailed('runs') && !latestRun
+                ? 'Runs endpoint unavailable'
+                : latestRun
                 ? `${latestRun.state} · ${latestRun.selectedBackends?.memoryBackend || 'memory n/a'}`
                 : 'No runs yet';
             $('artifact-count').textContent = `${state.skills.length} / ${state.workflows.length}`;
-            $('artifact-summary').textContent = `${state.skills.filter((item) => item.rolloutStatus === 'promoted').length} promoted skills · ${state.workflows.filter((item) => item.rolloutStatus === 'promoted').length} promoted workflows`;
-            $('docs-health').textContent = state.health.docs?.pagesWorkflowValid ? 'Healthy' : 'Needs attention';
-            $('ci-health').textContent = state.health.docs?.pagesWorkflowValid
+            $('artifact-summary').textContent = resourceFailed('skills') || resourceFailed('workflows')
+                ? 'Skill or workflow endpoint unavailable'
+                : `${state.skills.filter((item) => item.rolloutStatus === 'promoted').length} promoted skills · ${state.workflows.filter((item) => item.rolloutStatus === 'promoted').length} promoted workflows`;
+            $('docs-health').textContent = resourceFailed('health')
+                ? 'Unknown'
+                : state.health.docs?.pagesWorkflowValid ? 'Healthy' : 'Needs attention';
+            $('ci-health').textContent = resourceFailed('health')
+                ? 'Health endpoint unavailable'
+                : state.health.docs?.pagesWorkflowValid
                 ? `Pages valid · ${state.health.ci?.eventHistory || 0} events`
                 : 'Pages syntax or docs deployment needs attention';
 
             const memory = state.health.memory || {};
-            $('memory-tier-summary').textContent = `${memory.cortex || 0} cortex`;
+            $('memory-tier-summary').textContent = resourceFailed('health') ? 'health unavailable' : `${memory.cortex || 0} cortex`;
 
             const pod = state.pod || {};
-            $('pod-summary').textContent = `${(pod.activeWorkers || []).length} workers`;
-            $('pod-highlights').innerHTML = pod.activeWorkers?.length
+            $('pod-summary').textContent = resourceFailed('pod') ? 'unavailable' : `${(pod.activeWorkers || []).length} workers`;
+            $('pod-highlights').innerHTML = resourceFailed('pod') && !(pod.activeWorkers || []).length
+                ? emptyState('POD endpoint unavailable.')
+                : pod.activeWorkers?.length
                 ? pod.activeWorkers.slice(0, 4).map((worker) => `
                     <div class="card interactive ${state.selected?.kind === 'pod-worker' && state.selected.id === worker.workerId ? 'active' : ''}" data-kind="pod-worker" data-id="${escapeHtml(worker.workerId)}">
                         <div class="card-title">
@@ -1328,7 +1647,7 @@
                         <div class="list-inline">${(worker.tags || []).slice(0, 4).map((tag) => chip(tag)).join('')}</div>
                     </div>
                 `).join('')
-                : '<div class="empty">Waiting for POD traffic.</div>';
+                : emptyState('Waiting for POD traffic.');
         }
 
         function buildGraphModel() {
@@ -1374,7 +1693,14 @@
                 return { nodes, links };
             }
 
-            const nodes = (state.memoryNetwork.nodes || []).map((node) => ({ ...node }));
+            const nodes = (state.memoryNetwork.nodes || []).length
+                ? (state.memoryNetwork.nodes || []).map((node) => ({ ...node }))
+                : state.memories.slice(0, 18).map((memory) => ({
+                    id: memory.id,
+                    label: memory.excerpt,
+                    entityType: 'memory',
+                    tier: memory.tier,
+                }));
             const links = (state.memoryNetwork.links || []).map((link) => ({ ...link }));
             return { nodes, links };
         }
@@ -1394,7 +1720,19 @@
             if (!model.nodes.length) {
                 svg.innerHTML = '';
                 empty.classList.remove('hidden');
+                empty.textContent = state.graphMode === 'memory'
+                    ? resourceFailed('memory')
+                        ? 'Memory endpoint unavailable.'
+                        : 'No memory stored yet.'
+                    : state.graphMode === 'runs'
+                        ? resourceFailed('runs')
+                            ? 'Runs endpoint unavailable.'
+                            : 'No run graph data yet.'
+                        : resourceFailed('pod')
+                            ? 'POD endpoint unavailable.'
+                            : 'No POD topology data yet.';
                 $('graph-stats').innerHTML = '';
+                $('graph-note').textContent = empty.textContent;
                 return;
             }
 
@@ -1469,6 +1807,9 @@
                 state.graphMode === 'runs' ? chip(`${state.runs.length} recent runs`) : '',
                 state.graphMode === 'pod' ? chip(`${(state.pod.activeWorkers || []).length} pod workers`) : '',
             ].filter(Boolean).join('');
+            $('graph-note').textContent = state.graphMode === 'memory' && resourceFailed('memoryNetwork')
+                ? 'Memory network endpoint unavailable. Showing snapshot fallback topology.'
+                : config.subtitle;
         }
 
         function renderLibrary() {
@@ -1486,7 +1827,9 @@
             const container = $('library-list');
 
             if (state.libraryMode === 'memories') {
-                container.innerHTML = state.memories.length
+                container.innerHTML = resourceFailed('memory') && !state.memories.length
+                    ? emptyState('Memory endpoint unavailable.')
+                    : state.memories.length
                     ? state.memories.map((memory) => `
                         <div class="card interactive ${state.selected?.kind === 'memory' && state.selected.id === memory.id ? 'active' : ''}" data-kind="memory" data-id="${escapeHtml(memory.id)}">
                             <div class="card-title">
@@ -1497,9 +1840,11 @@
                             <div class="list-inline">${(memory.tags || []).slice(0, 5).map((tag) => chip(tag)).join('')}</div>
                         </div>
                     `).join('')
-                    : '<div class="empty">No memories yet.</div>';
+                    : emptyState('No memory stored yet.');
             } else if (state.libraryMode === 'skills') {
-                container.innerHTML = state.skills.length
+                container.innerHTML = resourceFailed('skills') && !state.skills.length
+                    ? emptyState('Skills endpoint unavailable.')
+                    : state.skills.length
                     ? state.skills.map((skill) => `
                         <div class="card interactive ${state.selected?.kind === 'skill' && state.selected.id === skill.skillId ? 'active' : ''}" data-kind="skill" data-id="${escapeHtml(skill.skillId)}">
                             <div class="card-title">
@@ -1514,9 +1859,11 @@
                             </div>
                         </div>
                     `).join('')
-                    : '<div class="empty">No skills loaded.</div>';
+                    : emptyState('No skills loaded.');
             } else if (state.libraryMode === 'workflows') {
-                container.innerHTML = state.workflows.length
+                container.innerHTML = resourceFailed('workflows') && !state.workflows.length
+                    ? emptyState('Workflows endpoint unavailable.')
+                    : state.workflows.length
                     ? state.workflows.map((workflow) => `
                         <div class="card interactive ${state.selected?.kind === 'workflow' && state.selected.id === workflow.workflowId ? 'active' : ''}" data-kind="workflow" data-id="${escapeHtml(workflow.workflowId)}">
                             <div class="card-title">
@@ -1527,9 +1874,11 @@
                             <div class="list-inline">${chip(`domain:${workflow.domain}`)}${chip(`verify:${workflow.effectiveness?.verificationPasses || 0}`)}</div>
                         </div>
                     `).join('')
-                    : '<div class="empty">No workflows loaded.</div>';
+                    : emptyState('No workflows loaded.');
             } else if (state.libraryMode === 'pod') {
-                container.innerHTML = state.pod.messages?.length
+                container.innerHTML = resourceFailed('pod') && !(state.pod.messages || []).length
+                    ? emptyState('POD endpoint unavailable.')
+                    : state.pod.messages?.length
                     ? state.pod.messages.map((message) => `
                         <div class="card interactive ${state.selected?.kind === 'pod-worker' && state.selected.id === message.workerId ? 'active' : ''}" data-kind="pod-worker" data-id="${escapeHtml(message.workerId)}">
                             <div class="card-title">
@@ -1541,9 +1890,11 @@
                             <div class="list-inline">${(message.tags || []).map((tag) => chip(tag)).join('')}</div>
                         </div>
                     `).join('')
-                    : '<div class="empty">No POD signals captured.</div>';
+                    : emptyState('No POD signals captured.');
             } else {
-                container.innerHTML = state.clients.length
+                container.innerHTML = resourceFailed('clients') && !state.clients.length
+                    ? emptyState('Clients endpoint unavailable.')
+                    : state.clients.length
                     ? state.clients.map((client) => `
                         <div class="card interactive ${state.selected?.kind === 'client' && state.selected.id === client.clientId ? 'active' : ''}" data-kind="client" data-id="${escapeHtml(client.clientId)}">
                             <div class="card-title">
@@ -1554,7 +1905,7 @@
                             <div class="list-inline">${(client.evidence || []).map((evidence) => chip(evidence)).join('')}</div>
                         </div>
                     `).join('')
-                    : '<div class="empty">No clients detected.</div>';
+                    : emptyState('No clients detected.');
             }
 
             container.querySelectorAll('.card.interactive').forEach((card) => {
@@ -1567,7 +1918,7 @@
         }
 
         function renderEvents() {
-            $('events-summary').textContent = `${state.events.length} signals`;
+            $('events-summary').textContent = resourceFailed('events') ? 'events unavailable' : `${state.events.length} signals`;
             document.querySelectorAll('#event-filters button').forEach((button) => {
                 button.classList.toggle('active', button.dataset.eventFilter === state.eventFilter);
             });
@@ -1593,7 +1944,9 @@
                         </details>
                     </article>
                 `).join('')
-                : '<div class="empty">No events for this filter.</div>';
+                : resourceFailed('events')
+                    ? emptyState('Events endpoint unavailable. Live stream may still populate this panel.')
+                    : emptyState('No events for this filter.');
         }
 
         function renderDrawer() {
@@ -2077,10 +2430,13 @@
             };
             stream.onmessage = (event) => {
                 try {
-                    const payload = JSON.parse(event.data);
-                    if (payload?.connected) return;
+                    const raw = JSON.parse(event.data);
+                    if (raw?.connected) return;
+                    const payload = normalizeEventCard(raw);
+                    if (!payload) return;
                     state.events.unshift(payload);
                     state.events = state.events.slice(0, 120);
+                    setResourceStatus('events', 'ready');
                     if (['runtime', 'memory', 'pod', 'skills', 'workflows', 'clients'].includes(payload.category)) {
                         void refreshAll().catch(() => {});
                     } else {
@@ -2095,11 +2451,10 @@
 
         async function bootstrap() {
             attachStaticHandlers();
-            try {
-                await refreshAll();
-            } catch (error) {
-                $('control-status').textContent = `Initial load failed: ${error.message}`;
-            }
+            await refreshAll();
+            $('control-status').textContent = state.banner?.message
+                ? state.banner.message
+                : 'Dashboard actions stay local and route through the runtime.';
             connectStream();
             setInterval(() => {
                 void refreshAll().catch(() => {});

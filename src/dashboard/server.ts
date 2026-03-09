@@ -12,8 +12,18 @@ import type { SubAgentRuntime } from '../phantom/runtime.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const PORT = parseInt(process.env.NEXUS_DASHBOARD_PORT || '3377', 10);
 const HOST = process.env.NEXUS_DASHBOARD_HOST || '127.0.0.1';
+const DEFAULT_PORT = parseInt(process.env.NEXUS_DASHBOARD_PORT || '3377', 10);
+const MAX_PORT_SCAN = 24;
+const DASHBOARD_API_VERSION = '2';
+const REQUIRED_CAPABILITIES = {
+    runs: true,
+    memory: true,
+    pod: true,
+    clients: true,
+    events: true,
+    stream: true,
+} as const;
 
 interface DashboardServerOptions {
     runtimeProvider?: () => SubAgentRuntime | undefined;
@@ -35,6 +45,33 @@ interface DashboardEventCard {
     payload: unknown;
 }
 
+interface DashboardCompatibilityProbe {
+    status: 'free' | 'compatible' | 'incompatible';
+    url: string;
+    health?: DashboardHealthResponse;
+    reason?: string;
+}
+
+interface DashboardProbeResponse {
+    statusCode: number;
+    body: string;
+}
+
+interface DashboardHealthResponse {
+    dashboardApiVersion: string;
+    capabilities: Record<string, boolean>;
+    dashboardUrl: string | null;
+    dashboardMode: 'idle' | 'bound' | 'reused';
+    connection: unknown;
+    runtime: unknown;
+    memory: unknown;
+    pod: unknown;
+    clients: unknown;
+    release: unknown;
+    docs: unknown;
+    ci: unknown;
+}
+
 export class DashboardServer {
     private server: http.Server;
     private clients: Set<http.ServerResponse> = new Set();
@@ -44,6 +81,11 @@ export class DashboardServer {
     private adaptersProvider?: () => Adapter[];
     private clientRegistryProvider?: () => ClientRegistry | undefined;
     private repoRoot: string;
+    private dashboardUrl: string | null = null;
+    private dashboardMode: 'idle' | 'bound' | 'reused' = 'idle';
+    private activePort: number | null = null;
+    private started = false;
+    private initializePromise: Promise<void> | null = null;
 
     constructor(options: DashboardServerOptions = {}) {
         this.runtimeProvider = options.runtimeProvider;
@@ -54,6 +96,11 @@ export class DashboardServer {
         this.server = http.createServer((req, res) => {
             void this.requestHandler(req, res);
         });
+        this.server.on('error', (error: NodeJS.ErrnoException) => {
+            if (this.dashboardMode === 'bound') {
+                console.error('[Dashboard] Server error:', error.message);
+            }
+        });
     }
 
     start(): void {
@@ -61,26 +108,17 @@ export class DashboardServer {
             console.error('[Dashboard] Disabled by NEXUS_DASHBOARD_DISABLED=1');
             return;
         }
-
-        this.server.listen(PORT, HOST, () => {
-            const address = this.server.address();
-            const printablePort = typeof address === 'object' && address ? address.port : PORT;
-            console.error(`[Dashboard] Runtime console live at http://${HOST}:${printablePort}`);
+        if (this.started) {
+            return;
+        }
+        this.started = true;
+        this.initializePromise = this.initialize().catch((error) => {
+            this.started = false;
+            this.dashboardMode = 'idle';
+            this.dashboardUrl = null;
+            this.activePort = null;
+            console.error('[Dashboard] Failed to start dashboard:', error instanceof Error ? error.message : String(error));
         });
-
-        this.server.on('error', (error: NodeJS.ErrnoException) => {
-            if (error.code === 'EADDRINUSE') {
-                console.error(`[Dashboard] Port ${PORT} occupied. Bridging to active dashboard cluster.`);
-            } else {
-                console.error('[Dashboard] Server error:', error.message);
-            }
-        });
-
-        this.unsubscribeBus = nexusEventBus.onEvent((event: NexusEvent) => {
-            this.broadcast(event);
-        });
-
-        nexusEventBus.startFilePolling(1500);
     }
 
     stop(): void {
@@ -89,24 +127,57 @@ export class DashboardServer {
             this.unsubscribeBus = null;
         }
 
-        nexusEventBus.stopFilePolling();
+        if (this.dashboardMode === 'bound') {
+            nexusEventBus.stopFilePolling();
 
-        for (const res of this.clients) {
-            res.end();
+            for (const res of this.clients) {
+                res.end();
+            }
+            this.clients.clear();
+
+            this.server.close();
         }
-        this.clients.clear();
 
-        this.server.close();
+        this.dashboardMode = 'idle';
+        this.dashboardUrl = null;
+        this.activePort = null;
+        this.started = false;
     }
 
     getAddress(): string | null {
-        const address = this.server.address();
-        if (!address || typeof address === 'string') return null;
-        return `http://${HOST}:${address.port}`;
+        return this.dashboardUrl;
+    }
+
+    private async initialize(): Promise<void> {
+        const probe = await this.probeDashboard(DEFAULT_PORT);
+
+        if (probe.status === 'compatible') {
+            this.dashboardMode = 'reused';
+            this.dashboardUrl = probe.url;
+            this.activePort = DEFAULT_PORT;
+            console.error(`[Dashboard] Reusing compatible dashboard at ${probe.url}`);
+            return;
+        }
+
+        const startPort = probe.status === 'incompatible' ? DEFAULT_PORT + 1 : DEFAULT_PORT;
+        const fallbackPort = await this.bindFirstAvailablePort(startPort, DEFAULT_PORT + MAX_PORT_SCAN);
+
+        this.dashboardMode = 'bound';
+        this.activePort = fallbackPort;
+        this.dashboardUrl = this.buildUrl(fallbackPort);
+        this.unsubscribeBus = nexusEventBus.onEvent((event) => this.broadcast(event));
+        nexusEventBus.startFilePolling();
+
+        if (probe.status === 'incompatible') {
+            console.error(`[Dashboard] Incompatible dashboard detected at ${probe.url} (${probe.reason || 'missing compatibility contract'}). New dashboard started at ${this.dashboardUrl}`);
+            return;
+        }
+
+        console.error(`[Dashboard] Topology console listening at ${this.dashboardUrl}`);
     }
 
     private async requestHandler(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
-        const url = new URL(req.url || '/', `http://${HOST}:${PORT}`);
+        const url = new URL(req.url || '/', this.dashboardUrl ?? this.buildUrl(this.activePort ?? DEFAULT_PORT));
 
         if (req.method === 'OPTIONS') {
             this.respondOptions(res);
@@ -461,7 +532,7 @@ export class DashboardServer {
         };
     }
 
-    private collectHealth(): Record<string, unknown> {
+    private collectHealth(): DashboardHealthResponse {
         const packageJsonPath = path.join(this.repoRoot, 'package.json');
         const workflowPath = path.join(this.repoRoot, '.github', 'workflows', 'pages.yml');
         const docsDir = path.join(this.repoRoot, 'docs');
@@ -488,6 +559,10 @@ export class DashboardServer {
         const clients = clientRegistry?.listClients(this.getAdapters()) ?? [];
 
         return {
+            dashboardApiVersion: DASHBOARD_API_VERSION,
+            capabilities: { ...REQUIRED_CAPABILITIES },
+            dashboardUrl: this.getAddress(),
+            dashboardMode: this.dashboardMode,
             connection: {
                 stream: this.clients.size > 0 ? 'connected' : 'idle',
                 subscribers: this.clients.size,
@@ -516,6 +591,143 @@ export class DashboardServer {
                 eventHistory: nexusEventBus.getHistory().length,
             },
         };
+    }
+
+    private buildUrl(port: number): string {
+        return `http://${HOST}:${port}`;
+    }
+
+    private async probeDashboard(port: number): Promise<DashboardCompatibilityProbe> {
+        const url = this.buildUrl(port);
+
+        try {
+            const response = await this.requestProbe(`${url}/api/health`);
+
+            if (response.statusCode !== 200) {
+                return {
+                    status: 'incompatible',
+                    url,
+                    reason: `health-status-${response.statusCode}`,
+                };
+            }
+
+            let payload: DashboardHealthResponse | null = null;
+            try {
+                payload = JSON.parse(response.body) as DashboardHealthResponse;
+            } catch {
+                return {
+                    status: 'incompatible',
+                    url,
+                    reason: 'health-invalid-json',
+                };
+            }
+
+            if (this.isCompatibleHealth(payload)) {
+                return {
+                    status: 'compatible',
+                    url,
+                    health: payload,
+                };
+            }
+
+            return {
+                status: 'incompatible',
+                url,
+                health: payload,
+                reason: 'health-incompatible',
+            };
+        } catch (error) {
+            if (this.isFreePortProbeError(error)) {
+                return {
+                    status: 'free',
+                    url,
+                    reason: error instanceof Error ? error.message : 'connection-refused',
+                };
+            }
+
+            return {
+                status: 'incompatible',
+                url,
+                reason: error instanceof Error ? error.message : 'probe-failed',
+            };
+        }
+    }
+
+    private isCompatibleHealth(payload: DashboardHealthResponse | null | undefined): payload is DashboardHealthResponse {
+        if (!payload || payload.dashboardApiVersion !== DASHBOARD_API_VERSION) {
+            return false;
+        }
+
+        return Object.entries(REQUIRED_CAPABILITIES).every(([key, expected]) => payload.capabilities?.[key] === expected);
+    }
+
+    private isFreePortProbeError(error: unknown): boolean {
+        const code = typeof error === 'object' && error && 'code' in error ? String((error as NodeJS.ErrnoException).code) : '';
+        return code === 'ECONNREFUSED' || code === 'ECONNRESET' || code === 'EHOSTUNREACH' || code === 'ENOTFOUND';
+    }
+
+    private requestProbe(url: string): Promise<DashboardProbeResponse> {
+        return new Promise((resolve, reject) => {
+            const req = http.get(url, { timeout: 1200 }, (res) => {
+                const chunks: Buffer[] = [];
+                res.on('data', (chunk) => {
+                    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+                });
+                res.on('end', () => {
+                    resolve({
+                        statusCode: res.statusCode ?? 0,
+                        body: Buffer.concat(chunks).toString('utf8'),
+                    });
+                });
+            });
+
+            req.on('timeout', () => {
+                req.destroy(new Error('probe-timeout'));
+            });
+            req.on('error', reject);
+        });
+    }
+
+    private async bindFirstAvailablePort(startPort: number, endPort: number): Promise<number> {
+        let lastError: unknown = null;
+
+        for (let port = startPort; port <= endPort; port += 1) {
+            try {
+                await this.listenOnPort(port);
+                return port;
+            } catch (error) {
+                lastError = error;
+                const code = typeof error === 'object' && error && 'code' in error ? String((error as NodeJS.ErrnoException).code) : '';
+                if (code !== 'EADDRINUSE') {
+                    throw error;
+                }
+            }
+        }
+
+        throw lastError instanceof Error
+            ? lastError
+            : new Error(`No free dashboard port found in range ${startPort}-${endPort}`);
+    }
+
+    private listenOnPort(port: number): Promise<void> {
+        return new Promise((resolve, reject) => {
+            const handleListening = () => {
+                cleanup();
+                resolve();
+            };
+            const handleError = (error: NodeJS.ErrnoException) => {
+                cleanup();
+                reject(error);
+            };
+            const cleanup = () => {
+                this.server.off('listening', handleListening);
+                this.server.off('error', handleError);
+            };
+
+            this.server.once('listening', handleListening);
+            this.server.once('error', handleError);
+            this.server.listen(port, HOST);
+        });
     }
 }
 
