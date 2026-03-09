@@ -3,25 +3,19 @@ import * as os from 'os';
 import * as path from 'path';
 import { randomUUID } from 'crypto';
 import { SkillCardRegistry, type SkillCard } from './skill-card.js';
+import {
+    BUILTIN_SKILL_PACKS,
+    detectDomains,
+    readMarkdownArtifacts,
+    slugify,
+    type RuntimeBinding,
+    type RuntimeBindingType,
+    type SkillCheckpoint,
+    type SkillRiskClass,
+    type SkillScope,
+} from './runtime-assets.js';
 
-export type SkillRiskClass = 'read' | 'orchestrate' | 'mutate';
-export type SkillScope = 'base' | 'session' | 'worker' | 'runtime-hot' | 'global';
-export type SkillCheckpoint = 'before-read' | 'before-mutate' | 'before-verify' | 'retry';
-
-export type SkillBindingType =
-    | 'write_file'
-    | 'append_file'
-    | 'replace_text'
-    | 'run_command';
-
-export interface SkillBinding {
-    type: SkillBindingType;
-    path?: string;
-    content?: string;
-    search?: string;
-    replace?: string;
-    command?: string;
-}
+export type { SkillCheckpoint, SkillRiskClass, SkillScope, RuntimeBinding as SkillBinding, RuntimeBindingType as SkillBindingType };
 
 export interface SkillValidationResult {
     valid: boolean;
@@ -40,8 +34,9 @@ export interface SkillArtifact {
     skillId: string;
     version: number;
     name: string;
+    domain?: string;
     instructions: string;
-    toolBindings: SkillBinding[];
+    toolBindings: RuntimeBinding[];
     riskClass: SkillRiskClass;
     scope: SkillScope;
     provenance: string;
@@ -64,27 +59,54 @@ export interface SkillRuntimeMetrics {
     verificationPassed?: boolean;
 }
 
+export interface SkillDerivationSignal {
+    goal: string;
+    workerCount: number;
+    memoryMatches?: string[];
+    repeatedFailures?: number;
+    sessionHints?: string[];
+}
+
 export class SkillRuntime {
     private rootDir: string;
+    private workspaceRoot: string;
     private artifacts = new Map<string, SkillArtifact>();
+    private bootstrapped = false;
 
-    constructor(private registry?: SkillCardRegistry, rootDir?: string) {
+    constructor(private registry?: SkillCardRegistry, rootDir?: string, workspaceRoot?: string) {
         this.rootDir = rootDir ?? path.join(os.tmpdir(), 'nexus-prime-runtime-skills');
+        this.workspaceRoot = workspaceRoot ?? process.cwd();
         fs.mkdirSync(this.rootDir, { recursive: true });
+        this.ensureBootstrapped();
     }
 
     getArtifact(skillId: string): SkillArtifact | undefined {
+        this.ensureBootstrapped();
         return this.artifacts.get(skillId);
     }
 
+    findByName(name: string): SkillArtifact | undefined {
+        this.ensureBootstrapped();
+        const normalized = name.toLowerCase();
+        return this.listArtifacts().find((artifact) =>
+            artifact.name.toLowerCase() === normalized || artifact.skillId.toLowerCase() === normalized
+        );
+    }
+
     listArtifacts(): SkillArtifact[] {
-        return [...this.artifacts.values()];
+        this.ensureBootstrapped();
+        return [...this.artifacts.values()].sort((a, b) => {
+            if ((a.scope === 'global' || a.scope === 'base') && b.scope !== 'global' && b.scope !== 'base') return -1;
+            if ((b.scope === 'global' || b.scope === 'base') && a.scope !== 'global' && a.scope !== 'base') return 1;
+            return a.name.localeCompare(b.name);
+        });
     }
 
     createSkill(input: {
         name: string;
+        domain?: string;
         instructions: string;
-        toolBindings: SkillBinding[];
+        toolBindings: RuntimeBinding[];
         riskClass: SkillRiskClass;
         scope: SkillScope;
         provenance: string;
@@ -93,6 +115,7 @@ export class SkillRuntime {
             skillId: `skill_${randomUUID().slice(0, 8)}`,
             version: 1,
             name: input.name,
+            domain: input.domain,
             instructions: input.instructions,
             toolBindings: input.toolBindings,
             riskClass: input.riskClass,
@@ -114,10 +137,23 @@ export class SkillRuntime {
         return artifact;
     }
 
-    generateRuntimeSkills(goal: string, workerCount: number): SkillArtifact[] {
-        const skills: SkillArtifact[] = [];
-        skills.push(this.createSkill({
-            name: `focused-read-${goal.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 24) || 'run'}`,
+    resolveSkillSelectors(names: string[], goal: string): SkillArtifact[] {
+        this.ensureBootstrapped();
+        const selectors = new Set(names.map((name) => name.toLowerCase()));
+        const domains = detectDomains(goal, names);
+
+        return dedupeSkills(this.listArtifacts().filter((artifact) =>
+            selectors.has(artifact.name.toLowerCase()) ||
+            selectors.has(artifact.skillId.toLowerCase()) ||
+            (artifact.domain ? domains.includes(artifact.domain) : false)
+        ));
+    }
+
+    generateRuntimeSkills(goal: string, workerCount: number, signal: Partial<SkillDerivationSignal> = {}): SkillArtifact[] {
+        this.ensureBootstrapped();
+        const runtimeSkills: SkillArtifact[] = [];
+        runtimeSkills.push(this.createSkill({
+            name: `focused-read-${slugify(goal).slice(0, 24) || 'run'}`,
             instructions: [
                 'Prioritize the assigned reading plan before full-file exploration.',
                 'Store concrete learnings before expanding scope.',
@@ -130,7 +166,7 @@ export class SkillRuntime {
         }));
 
         if (workerCount > 1) {
-            skills.push(this.createSkill({
+            runtimeSkills.push(this.createSkill({
                 name: `parallel-orchestrate-${workerCount}-workers`,
                 instructions: [
                     'Share findings through POD before duplicate work.',
@@ -144,7 +180,58 @@ export class SkillRuntime {
             }));
         }
 
-        return skills;
+        const matchedDomains = detectDomains(goal, signal.memoryMatches ?? []);
+        const bundledMatches = this.listArtifacts()
+            .filter((artifact) => artifact.scope === 'base' && artifact.domain && matchedDomains.includes(artifact.domain))
+            .slice(0, 4);
+        const derived = this.deriveFromSignals({
+            goal,
+            workerCount,
+            memoryMatches: signal.memoryMatches,
+            repeatedFailures: signal.repeatedFailures,
+            sessionHints: signal.sessionHints,
+        });
+
+        return dedupeSkills([...runtimeSkills, ...bundledMatches, ...derived]);
+    }
+
+    deriveFromSignals(signal: SkillDerivationSignal): SkillArtifact[] {
+        const derived: SkillArtifact[] = [];
+        const domains = detectDomains(signal.goal, signal.memoryMatches ?? []);
+
+        if ((signal.repeatedFailures ?? 0) > 0) {
+            derived.push(this.createSkill({
+                name: `derived-retry-skill-${slugify(signal.goal).slice(0, 18)}`,
+                domain: domains[0] ?? 'workflows',
+                instructions: [
+                    'Analyze the failing verifier commands before retrying.',
+                    'Reduce mutation scope to the smallest failing surface.',
+                    'Document why the retry plan is different from the previous pass.',
+                ].join('\n'),
+                toolBindings: [],
+                riskClass: 'orchestrate',
+                scope: 'session',
+                provenance: `derived:failure-cluster:${signal.repeatedFailures}`,
+            }));
+        }
+
+        for (const domain of domains.slice(0, 2)) {
+            derived.push(this.createSkill({
+                name: `derived-${domain}-pattern-${slugify(signal.goal).slice(0, 18)}`,
+                domain,
+                instructions: [
+                    `Leverage prior ${domain} learnings from memory before expanding scope.`,
+                    'Extract the reusable checklist from successful runs and apply it to this task.',
+                    'Only promote the pattern if verification improves.',
+                ].join('\n'),
+                toolBindings: [],
+                riskClass: 'read',
+                scope: 'session',
+                provenance: `derived:memory:${domain}`,
+            }));
+        }
+
+        return dedupeSkills(derived);
     }
 
     validate(artifact: SkillArtifact): SkillValidationResult {
@@ -195,7 +282,7 @@ export class SkillRuntime {
 
         const deployDir = path.join(worktreeDir, '.agent', 'skills', 'runtime');
         fs.mkdirSync(deployDir, { recursive: true });
-        const fileName = `${artifact.name.replace(/[^a-z0-9\-]+/gi, '-').toLowerCase() || artifact.skillId}.md`;
+        const fileName = `${slugify(artifact.name).toLowerCase() || artifact.skillId}.md`;
         fs.writeFileSync(path.join(deployDir, fileName), this.renderMarkdown(artifact), 'utf-8');
 
         artifact.rolloutStatus = checkpoint === 'before-verify' && artifact.riskClass === 'mutate' ? 'staged' : 'hot';
@@ -247,6 +334,68 @@ export class SkillRuntime {
         return artifact;
     }
 
+    private ensureBootstrapped(): void {
+        if (this.bootstrapped) return;
+        this.loadBundledDefaults();
+        this.loadLocalOverrides();
+        this.bootstrapped = true;
+    }
+
+    private loadBundledDefaults(): void {
+        for (const seed of BUILTIN_SKILL_PACKS) {
+            this.stage({
+                skillId: `skill_${slugify(seed.key)}`,
+                version: 1,
+                name: seed.name,
+                domain: seed.domain,
+                instructions: seed.instructions.join('\n'),
+                toolBindings: seed.toolBindings,
+                riskClass: seed.riskClass,
+                scope: seed.scope,
+                provenance: 'bundled',
+                validationStatus: 'validated',
+                rolloutStatus: 'promoted',
+                effectiveness: {
+                    successes: 0,
+                    failures: 0,
+                    tokenDelta: 0,
+                    retriesAvoided: 0,
+                    verificationPasses: 0,
+                },
+                deploymentPoints: [],
+            });
+        }
+    }
+
+    private loadLocalOverrides(): void {
+        const skillDir = path.join(this.workspaceRoot, '.agent', 'skills');
+        for (const entry of readMarkdownArtifacts(skillDir)) {
+            const frontmatter = entry.parsed.frontmatter;
+            const name = String(frontmatter.name ?? path.basename(entry.path, '.md'));
+            this.stage({
+                skillId: `skill_local_${slugify(name)}`,
+                version: 1,
+                name,
+                domain: String(frontmatter.domain ?? detectDomains(name)[0] ?? ''),
+                instructions: entry.parsed.body,
+                toolBindings: [],
+                riskClass: normalizeRiskClass(frontmatter.riskClass),
+                scope: 'base',
+                provenance: `local:${entry.path}`,
+                validationStatus: 'validated',
+                rolloutStatus: 'promoted',
+                effectiveness: {
+                    successes: 0,
+                    failures: 0,
+                    tokenDelta: 0,
+                    retriesAvoided: 0,
+                    verificationPasses: 0,
+                },
+                deploymentPoints: [],
+            });
+        }
+    }
+
     private persistArtifact(artifact: SkillArtifact): void {
         const dir = path.join(this.rootDir, artifact.skillId, `v${artifact.version}`);
         fs.mkdirSync(dir, { recursive: true });
@@ -259,7 +408,7 @@ export class SkillRuntime {
             '---',
             `name: ${artifact.name}`,
             `description: Runtime-generated skill (${artifact.riskClass})`,
-            `tags: [runtime, ${artifact.scope}, ${artifact.riskClass}]`,
+            `tags: [runtime, ${artifact.scope}, ${artifact.riskClass}${artifact.domain ? `, ${artifact.domain}` : ''}]`,
             '---',
             '',
             `# ${artifact.name}`,
@@ -310,5 +459,19 @@ export class SkillRuntime {
     }
 }
 
-export const createSkillRuntime = (registry?: SkillCardRegistry, rootDir?: string) =>
-    new SkillRuntime(registry, rootDir);
+function normalizeRiskClass(value: unknown): SkillRiskClass {
+    return value === 'mutate' || value === 'orchestrate' ? value : 'read';
+}
+
+function dedupeSkills(skills: SkillArtifact[]): SkillArtifact[] {
+    const seen = new Set<string>();
+    return skills.filter((skill) => {
+        const key = skill.name.toLowerCase();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+    });
+}
+
+export const createSkillRuntime = (registry?: SkillCardRegistry, rootDir?: string, workspaceRoot?: string) =>
+    new SkillRuntime(registry, rootDir, workspaceRoot);

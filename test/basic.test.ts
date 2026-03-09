@@ -59,6 +59,14 @@ async function test() {
       files: ['README.md', 'package.json'],
       workers: 2,
       verifyCommands: ['npm run build'],
+      skillNames: ['backend-playbook', 'orchestration-playbook'],
+      workflowSelectors: ['backend-execution-loop'],
+      backendSelectors: {
+        memoryBackend: 'temporal-hyperbolic-memory',
+        compressionBackend: 'meta-compression',
+        dslCompiler: 'agentlang-neural-compiler'
+      },
+      backendMode: 'experimental',
       actions: [
         {
           type: 'append_file',
@@ -89,6 +97,14 @@ async function test() {
       result.execution.workerResults.some(worker => worker.verified),
       'at least one worker should pass verification'
     );
+    assert.ok(result.execution.plannerResult, 'planner result should be present');
+    assert.ok(result.execution.verificationResults.length > 0, 'verifier results should be present');
+    assert.ok(result.execution.activeSkills.length > 0, 'skills should be active');
+    assert.ok(result.execution.activeWorkflows.length > 0, 'workflows should be active');
+    assert.strictEqual(result.execution.selectedBackends.memoryBackend, 'temporal-hyperbolic-memory');
+    assert.strictEqual(result.execution.selectedBackends.compressionBackend, 'meta-compression');
+    assert.strictEqual(result.execution.selectedBackends.dslCompiler, 'agentlang-neural-compiler');
+    assert.ok(result.execution.promotionDecisions.length > 0, 'promotion decisions should be recorded');
 
     await nexus.stop();
     console.log('✅ Stopped\n');

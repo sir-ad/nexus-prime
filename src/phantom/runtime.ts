@@ -3,32 +3,40 @@ import { promisify } from 'util';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { randomUUID } from 'crypto';
 import { GuardrailEngine } from '../engines/guardrails-bridge.js';
 import type { MemoryStats } from '../engines/memory.js';
 import { MemoryEngine } from '../engines/memory.js';
 import { SessionDNAManager } from '../engines/session-dna.js';
 import {
+    type BackendMode,
     type CompressionBackend,
     type CompressionShadow,
     type DSLCompilationResult,
     type DSLCompilerBackend,
-    type DSLExecutionSpec,
     type MemoryBackend,
     buildRunId,
-    createDeterministicCompressionBackend,
-    createDeterministicDSLCompilerBackend,
-    createSQLiteMemoryBackend,
+    createRuntimeBackendRegistry,
+    normalizeReadingPlan,
+    resolveBackend,
+    type RuntimeBackendRegistry,
 } from '../engines/runtime-backends.js';
 import {
     SkillRuntime,
     createSkillRuntime,
     type SkillArtifact,
+    type SkillRuntimeMetrics,
     type SkillBinding,
     type SkillCheckpoint,
 } from '../engines/skill-runtime.js';
+import {
+    WorkflowRuntime,
+    createWorkflowRuntime,
+    type WorkflowArtifact,
+} from '../engines/workflow-runtime.js';
 import { ByzantineConsensus } from '../engines/byzantine-consensus.js';
 import { podNetwork } from '../engines/pod-network.js';
+import { detectDomains, type SkillScope } from '../engines/runtime-assets.js';
+import { nexusEventBus } from '../engines/event-bus.js';
 import { MergeOracle } from './merge-oracle.js';
 import type { MergeDecision, WorkerResult } from './index.js';
 import type { FileRef, ReadingPlan } from '../engines/token-supremacy.js';
@@ -64,6 +72,16 @@ export interface SkillPolicy {
     allowMutateSkills: boolean;
 }
 
+export interface PromotionPolicy {
+    autoPromoteSkills: boolean;
+    autoPromoteWorkflows: boolean;
+    globalThreshold: number;
+}
+
+export interface DerivationPolicy {
+    mode: 'auto' | 'manual' | 'disabled';
+}
+
 export interface ExecutionTask {
     goal: string;
     files: string[];
@@ -77,9 +95,14 @@ export interface ExecutionTask {
     skillPolicy: SkillPolicy;
     backendSelectors: Partial<BackendSelection>;
     skillNames: string[];
+    workflowSelectors: string[];
     actions: SkillBinding[];
     inlineSkills: SkillArtifact[];
     nxlScript?: string;
+    promotionPolicy: PromotionPolicy;
+    derivationPolicy: DerivationPolicy;
+    checkpointPolicy: SkillCheckpoint[];
+    backendMode: BackendMode;
 }
 
 export interface WorkerSkillOverlay {
@@ -96,12 +119,15 @@ export interface WorkerManifest {
     worktreeDir: string | null;
     files: FileRef[];
     skillOverlays: WorkerSkillOverlay;
+    workflowOverlays: string[];
     allowedTools: string[];
     tokenBudget: number;
     verifyCommands: string[];
     checkpoints: SkillCheckpoint[];
     actions: SkillBinding[];
     inlineSkills: SkillArtifact[];
+    workflows: WorkflowArtifact[];
+    targetWorkerId?: string;
 }
 
 export interface CommandRecord {
@@ -113,9 +139,12 @@ export interface CommandRecord {
 }
 
 export interface WorkerVerification {
+    workerId: string;
+    verifierId: string;
     passed: boolean;
     commands: CommandRecord[];
     summary: string;
+    artifactsPath: string;
 }
 
 export interface RuntimeWorkerResult extends WorkerResult {
@@ -126,11 +155,30 @@ export interface RuntimeWorkerResult extends WorkerResult {
     modifiedFiles: string[];
 }
 
-export interface ExecutionShadowMetrics {
+export interface PlannerResult {
+    summary: string;
+    domains: string[];
+    selectedFiles: string[];
+    selectedWorkflows: string[];
+    strategyMap: Array<{ workerId: string; strategy: string }>;
+    risks: string[];
+}
+
+export interface BackendEvidence {
+    notes: string[];
     memory: Record<string, unknown>;
     compression: Record<string, unknown> | CompressionShadow;
     consensus: Record<string, unknown>;
     dsl?: Record<string, unknown>;
+    fallbacks: string[];
+}
+
+export interface PromotionDecision {
+    kind: 'skill' | 'workflow' | 'backend';
+    target: string;
+    scope: SkillScope | 'backend';
+    approved: boolean;
+    rationale: string;
 }
 
 export interface ExecutionRun {
@@ -141,10 +189,17 @@ export interface ExecutionRun {
     artifactsPath: string;
     workerManifests: WorkerManifest[];
     activeSkills: SkillArtifact[];
+    activeWorkflows: WorkflowArtifact[];
     selectedBackends: BackendSelection;
     finalDecision?: MergeDecision;
     workerResults: RuntimeWorkerResult[];
-    shadow: ExecutionShadowMetrics;
+    plannerResult?: PlannerResult;
+    verificationResults: WorkerVerification[];
+    skillEvents: Array<Record<string, unknown>>;
+    workflowEvents: Array<Record<string, unknown>>;
+    backendEvidence: BackendEvidence;
+    promotionDecisions: PromotionDecision[];
+    artifactsIndex: Record<string, string>;
     result: string;
 }
 
@@ -156,11 +211,13 @@ export interface SubAgentRuntimeOptions {
     guardrails?: GuardrailEngine;
     sessionDNA?: SessionDNAManager;
     skillRuntime?: SkillRuntime;
+    workflowRuntime?: WorkflowRuntime;
     artifactsRoot?: string;
 }
 
 class ArtifactRecorder {
     readonly runDir: string;
+    readonly index: Record<string, string> = {};
 
     constructor(readonly runId: string, baseDir?: string) {
         const root = baseDir ?? path.join(os.tmpdir(), 'nexus-prime-runs');
@@ -178,6 +235,7 @@ class ArtifactRecorder {
         const target = path.join(this.runDir, relativePath);
         fs.mkdirSync(path.dirname(target), { recursive: true });
         fs.writeFileSync(target, JSON.stringify(value, null, 2), 'utf-8');
+        this.index[relativePath] = target;
         return target;
     }
 
@@ -185,6 +243,7 @@ class ArtifactRecorder {
         const target = path.join(this.runDir, relativePath);
         fs.mkdirSync(path.dirname(target), { recursive: true });
         fs.writeFileSync(target, value, 'utf-8');
+        this.index[relativePath] = target;
         return target;
     }
 }
@@ -210,23 +269,7 @@ class WorktreeSession {
     }
 
     async run(command: string, allowFailure: boolean = false): Promise<CommandRecord> {
-        try {
-            const { stdout, stderr } = await exec(command, {
-                cwd: this.worktreeDir,
-                maxBuffer: 1024 * 1024 * 20,
-            });
-            return { command, cwd: this.worktreeDir, exitCode: 0, stdout, stderr };
-        } catch (error: any) {
-            const record: CommandRecord = {
-                command,
-                cwd: this.worktreeDir,
-                exitCode: typeof error?.code === 'number' ? error.code : 1,
-                stdout: String(error?.stdout ?? ''),
-                stderr: String(error?.stderr ?? error?.message ?? ''),
-            };
-            if (!allowFailure) throw new Error(record.stderr || record.stdout || `Command failed: ${command}`);
-            return record;
-        }
+        return runCommand(this.worktreeDir, command, allowFailure);
     }
 
     async applyBindings(bindings: SkillBinding[]): Promise<string[]> {
@@ -280,7 +323,7 @@ class WorktreeSession {
                     maxBuffer: 1024 * 1024 * 20,
                 });
             } catch {
-                // Runtime skill overlays live under .agent and should not enter repo patches.
+                // Runtime skill overlays stay outside repo patches.
             }
             const { stdout } = await exec('git diff --binary --cached HEAD', {
                 cwd: this.worktreeDir,
@@ -376,34 +419,60 @@ class MultiTierConsensusPolicy {
 
 export class SubAgentRuntime {
     private repoRoot: string;
-    private memoryBackend: MemoryBackend;
-    private compressionBackend: CompressionBackend;
-    private dslCompiler: DSLCompilerBackend;
+    private defaultMemoryBackend: MemoryBackend;
+    private defaultCompressionBackend?: CompressionBackend;
+    private defaultDslCompiler?: DSLCompilerBackend;
     private guardrails: GuardrailEngine;
     private sessionDNA?: SessionDNAManager;
     private skillRuntime: SkillRuntime;
+    private workflowRuntime: WorkflowRuntime;
     private artifactsRoot?: string;
-    private consensusPolicy: MultiTierConsensusPolicy;
+    private backendRegistry: RuntimeBackendRegistry;
+    private runs = new Map<string, ExecutionRun>();
 
     constructor(options: SubAgentRuntimeOptions = {}) {
         this.repoRoot = options.repoRoot ?? process.cwd();
-        this.memoryBackend = isMemoryBackend(options.memory)
+        const memoryLike = isMemoryBackend(options.memory)
+            ? null
+            : ((options.memory as MemoryEngine | undefined) ?? new MemoryEngine());
+        this.backendRegistry = createRuntimeBackendRegistry(memoryLike ?? {
+            recall: (query: string, k?: number) => Promise.resolve((options.memory as MemoryBackend).recall(query, k)),
+            store: (content: string, priority?: number, tags?: string[], parentId?: string, depth?: number) => String((options.memory as MemoryBackend).store(content, priority, tags, parentId, depth)),
+            getStats: () => (options.memory as MemoryBackend).stats() as MemoryStats,
+        });
+        this.defaultMemoryBackend = isMemoryBackend(options.memory)
             ? options.memory
-            : createSQLiteMemoryBackend((options.memory as MemoryEngine | undefined) ?? new MemoryEngine());
-        this.compressionBackend = options.compressionBackend ?? createDeterministicCompressionBackend();
-        this.dslCompiler = options.dslCompiler ?? createDeterministicDSLCompilerBackend();
+            : this.backendRegistry.memory.get('sqlite-memory')!;
+        this.defaultCompressionBackend = options.compressionBackend;
+        this.defaultDslCompiler = options.dslCompiler;
+        if (isMemoryBackend(options.memory)) {
+            this.backendRegistry.memory.set(options.memory.descriptor.kind, options.memory);
+        }
+        if (options.compressionBackend) {
+            this.backendRegistry.compression.set(options.compressionBackend.descriptor.kind, options.compressionBackend);
+        }
+        if (options.dslCompiler) {
+            this.backendRegistry.dsl.set(options.dslCompiler.descriptor.kind, options.dslCompiler);
+        }
         this.guardrails = options.guardrails ?? new GuardrailEngine();
         this.sessionDNA = options.sessionDNA;
-        this.skillRuntime = options.skillRuntime ?? createSkillRuntime();
+        this.skillRuntime = options.skillRuntime ?? createSkillRuntime(undefined, undefined, this.repoRoot);
+        this.workflowRuntime = options.workflowRuntime ?? createWorkflowRuntime(undefined, this.repoRoot);
         this.artifactsRoot = options.artifactsRoot;
-        this.consensusPolicy = new MultiTierConsensusPolicy(this.memoryBackend);
     }
 
     async run(input: Partial<ExecutionTask> & { goal: string }): Promise<ExecutionRun> {
         const runId = buildRunId('exec');
         const recorder = new ArtifactRecorder(runId, this.artifactsRoot);
         const task = await this.normalizeTask(input);
-        const selectedBackends = this.resolveBackends(task);
+        const backends = this.resolveBackends(task);
+        const selectedBackends: BackendSelection = {
+            memoryBackend: backends.memory.descriptor.kind,
+            compressionBackend: backends.compression.descriptor.kind,
+            consensusPolicy: 'multi-tier-byzantine',
+            dslCompiler: backends.dsl.descriptor.kind,
+        };
+
         const run: ExecutionRun = {
             runId,
             state: 'planned',
@@ -412,18 +481,28 @@ export class SubAgentRuntime {
             artifactsPath: recorder.runDir,
             workerManifests: [],
             activeSkills: [],
+            activeWorkflows: [],
             selectedBackends,
             workerResults: [],
-            shadow: {
+            verificationResults: [],
+            skillEvents: [],
+            workflowEvents: [],
+            backendEvidence: {
+                notes: [],
                 memory: {},
                 compression: {},
                 consensus: {},
+                dsl: {},
+                fallbacks: backends.fallbacks,
             },
+            promotionDecisions: [],
+            artifactsIndex: recorder.index,
             result: '',
         };
+        this.runs.set(runId, run);
 
-        this.sessionDNA?.recordDecision('Execution task accepted', task.goal, 0.8);
         recorder.writeJson('task.json', task);
+        this.sessionDNA?.recordDecision('Execution task accepted', task.goal, 0.8);
 
         const guardAction = `execute: ${task.goal}; verify=${task.verifyCommands.join(', ')}`;
         const guardrail = this.guardrails.check({
@@ -433,10 +512,12 @@ export class SubAgentRuntime {
             isDestructive: false,
         });
         recorder.writeJson('guardrail.json', guardrail);
+        nexusEventBus.emit('guardrail.check', { action: guardAction, passed: guardrail.passed, score: guardrail.score });
         if (!guardrail.passed) {
             run.state = 'failed';
             run.mode = 'analysis';
             run.result = 'Guardrails blocked execution.';
+            recorder.writeJson('run.json', run);
             return run;
         }
 
@@ -444,43 +525,116 @@ export class SubAgentRuntime {
 
         const fileRefs = task.files.length > 0
             ? this.resolveFileRefs(task.files)
-            : this.discoverTargetFiles(task.goal);
-        const plan = this.compressionBackend.planFiles(task.goal, fileRefs);
-        run.shadow.memory = await (this.memoryBackend.shadowRecall?.(task.goal, 5) ?? Promise.resolve({}));
-        run.shadow.compression = await this.compressionBackend.shadow(task.goal, fileRefs);
+            : this.discoverTargetFiles(task.goal, backends.compression.selected);
+        const memoryMatches = await backends.memory.selected.recall(task.goal, 6);
+        const planResult = normalizeReadingPlan(backends.compression.selected.planFiles(task.goal, fileRefs));
+        const plan = planResult.plan;
+        run.backendEvidence.memory = await (backends.memory.selected.shadowRecall?.(task.goal, 6) ?? Promise.resolve({ recalled: memoryMatches }));
+        run.backendEvidence.compression = await backends.compression.selected.shadow(task.goal, fileRefs);
+        run.backendEvidence.notes.push(...planResult.notes);
         recorder.writeJson('reading-plan.json', plan);
+        recorder.writeJson('memory-evidence.json', run.backendEvidence.memory);
+        recorder.writeJson('compression-evidence.json', run.backendEvidence.compression);
 
-        const generatedSkills = this.skillRuntime.generateRuntimeSkills(task.goal, task.workers);
-        const stagedSkills = [...generatedSkills, ...task.inlineSkills];
-        run.activeSkills = stagedSkills;
-        recorder.writeJson('skills.json', stagedSkills);
+        const domainMatches = detectDomains(task.goal, [...memoryMatches, ...task.skillNames, ...task.workflowSelectors]);
+        const resolvedSkills = this.skillRuntime.resolveSkillSelectors(task.skillNames, task.goal);
+        const generatedSkills = this.skillRuntime.generateRuntimeSkills(task.goal, task.workers, {
+            goal: task.goal,
+            workerCount: task.workers,
+            memoryMatches,
+            repeatedFailures: 0,
+            sessionHints: domainMatches,
+        });
+        const derivedSkills = task.derivationPolicy.mode === 'disabled'
+            ? []
+            : this.skillRuntime.deriveFromSignals({
+                goal: task.goal,
+                workerCount: task.workers,
+                memoryMatches,
+                repeatedFailures: 0,
+                sessionHints: domainMatches,
+            });
+        const activeSkills = dedupeSkillArtifacts([...resolvedSkills, ...generatedSkills, ...derivedSkills, ...task.inlineSkills]);
 
-        const manifests = this.createWorkerManifests(task, fileRefs, plan, stagedSkills);
+        const resolvedWorkflows = this.workflowRuntime.resolveWorkflowSelectors(task.workflowSelectors, task.goal);
+        const derivedWorkflows = task.derivationPolicy.mode === 'disabled'
+            ? []
+            : this.workflowRuntime.deriveFromSignals({
+                goal: task.goal,
+                memoryMatches,
+                repeatedFailures: 0,
+                sessionHints: domainMatches,
+            });
+        const activeWorkflows = dedupeWorkflowArtifacts([...resolvedWorkflows, ...derivedWorkflows]);
+        const workflowApplication = this.workflowRuntime.applyToTask(activeWorkflows, task.verifyCommands, task.actions);
+        const effectiveVerifyCommands = dedupeStrings(workflowApplication.verifyCommands);
+        const effectiveActions = workflowApplication.actions;
+
+        run.activeSkills = activeSkills;
+        run.activeWorkflows = activeWorkflows;
+        run.skillEvents = activeSkills.map((skill) => ({
+            type: 'skill.selected',
+            skillId: skill.skillId,
+            name: skill.name,
+            scope: skill.scope,
+            riskClass: skill.riskClass,
+            provenance: skill.provenance,
+        }));
+        run.workflowEvents = workflowApplication.events;
+        recorder.writeJson('skills.json', activeSkills);
+        recorder.writeJson('workflows.json', activeWorkflows);
+
+        const manifests = this.createWorkerManifests(task, fileRefs, plan, activeSkills, activeWorkflows, effectiveActions, effectiveVerifyCommands);
         run.workerManifests = manifests;
+        run.plannerResult = this.createPlannerResult(task, manifests, fileRefs, domainMatches);
+        recorder.writeJson('planner-result.json', run.plannerResult);
         recorder.writeJson('manifests.json', manifests);
 
-        this.consensusPolicy.registerAgents(manifests.map(m => m.workerId));
+        const consensusPolicy = new MultiTierConsensusPolicy(backends.memory.selected);
+        consensusPolicy.registerAgents(manifests.map((m) => m.workerId));
+        run.backendEvidence.consensus = consensusPolicy.shadowStats();
 
         run.state = 'running';
-        const workerResults = await Promise.all(
-            manifests
-                .filter(manifest => manifest.role === 'coder')
-                .map(manifest => this.runCoderWorker(runId, recorder, manifest))
-        );
-        run.workerResults = workerResults;
-        recorder.writeJson('worker-results.json', workerResults);
+        const coderManifests = manifests.filter((manifest) => manifest.role === 'coder');
+        const coderResults = await Promise.all(coderManifests.map((manifest) => this.runCoderWorker(runId, recorder, manifest)));
+        run.workerResults = coderResults;
+        recorder.writeJson('worker-results.json', coderResults);
 
         run.state = 'verifying';
-        const decision = await this.consensusPolicy.merge(workerResults);
+        const verifierManifests = manifests.filter((manifest) => manifest.role === 'verifier');
+        const verificationResults = await Promise.all(verifierManifests.map((manifest) => this.runVerifierWorker(runId, recorder, manifest, coderResults.find((result) => result.workerId === manifest.targetWorkerId))));
+        run.verificationResults = verificationResults;
+        recorder.writeJson('verification-results.json', verificationResults);
+
+        for (const result of run.workerResults) {
+            const verification = verificationResults.find((entry) => entry.workerId === result.workerId);
+            if (verification) {
+                result.verification = verification;
+                result.verified = verification.passed;
+                result.testsPassing = verification.commands.filter((command) => command.exitCode === 0).length;
+                result.outcome = verification.passed ? 'success' : (result.diff.trim() ? 'partial' : 'failed');
+            }
+        }
+
+        const decision = await consensusPolicy.merge(run.workerResults);
         run.finalDecision = decision;
-        run.shadow.consensus = this.consensusPolicy.shadowStats();
+        run.backendEvidence.consensus = consensusPolicy.shadowStats();
         recorder.writeJson('decision.json', decision);
 
-        const applied = await this.applyDecision(recorder, task, decision);
+        nexusEventBus.emit('phantom.merge', {
+            action: decision.action,
+            winner: decision.winner?.workerId ?? decision.recommendedStrategy,
+        });
+
+        const applied = await this.applyDecision(recorder, { ...task, verifyCommands: effectiveVerifyCommands }, decision, consensusPolicy);
         run.state = applied.applied
             ? (applied.rolledBack ? 'rolled_back' : 'merged')
             : 'failed';
         run.result = applied.summary;
+
+        const promotionDecisions = this.evaluatePromotions(run, consensusPolicy);
+        run.promotionDecisions = promotionDecisions;
+        recorder.writeJson('promotions.json', promotionDecisions);
         recorder.writeJson('run.json', run);
         this.sessionDNA?.recordDecision('Execution completed', applied.summary, applied.applied ? 0.86 : 0.42);
 
@@ -488,8 +642,115 @@ export class SubAgentRuntime {
     }
 
     async runNXL(goal: string, rawScript?: string, useCase?: string): Promise<ExecutionRun> {
-        const compiled = this.dslCompiler.compile(goal, rawScript, useCase);
-        return this.run(this.executionTaskFromCompiled(compiled, rawScript));
+        const parsed = rawScript ? (this.backendRegistry.dsl.get('deterministic-nxl-compiler')?.compile(goal, rawScript, useCase).raw ?? {}) : {};
+        const requestedCompiler = String((parsed as Record<string, unknown>).dslCompiler ?? (parsed as Record<string, unknown>).compiler ?? '');
+        const resolution = resolveBackend(this.backendRegistry.dsl, requestedCompiler || this.defaultDslCompiler?.descriptor.kind, 'deterministic-nxl-compiler');
+        const compiled = resolution.selected.compile(goal, rawScript, useCase);
+        const run = await this.run(this.executionTaskFromCompiled(compiled, rawScript));
+        run.backendEvidence.dsl = {
+            compiler: resolution.descriptor.kind,
+            notes: compiled.notes ?? [],
+            archetypes: compiled.archetypes.map((archetype) => archetype.name),
+        };
+        this.runs.set(run.runId, run);
+        return run;
+    }
+
+    listRuns(limit: number = 10): ExecutionRun[] {
+        return [...this.runs.values()]
+            .sort((a, b) => b.artifactsPath.localeCompare(a.artifactsPath))
+            .slice(0, limit);
+    }
+
+    getRun(runId: string): ExecutionRun | undefined {
+        return this.runs.get(runId);
+    }
+
+    listSkills(): SkillArtifact[] {
+        return this.skillRuntime.listArtifacts();
+    }
+
+    listWorkflows(): WorkflowArtifact[] {
+        return this.workflowRuntime.listArtifacts();
+    }
+
+    generateSkill(input: { name: string; instructions: string; riskClass?: SkillArtifact['riskClass']; scope?: SkillScope; provenance?: string }): SkillArtifact {
+        return this.skillRuntime.createSkill({
+            name: input.name,
+            instructions: input.instructions,
+            toolBindings: [],
+            riskClass: input.riskClass ?? 'orchestrate',
+            scope: input.scope ?? 'session',
+            provenance: input.provenance ?? 'mcp:generate',
+        });
+    }
+
+    deploySkill(skillId: string, scope: SkillScope = 'session'): SkillArtifact | undefined {
+        return this.skillRuntime.promote(skillId, scope);
+    }
+
+    revokeSkill(skillId: string): SkillArtifact | undefined {
+        return this.skillRuntime.revoke(skillId);
+    }
+
+    generateWorkflow(input: { name: string; description: string; domain?: string; scope?: SkillScope }): WorkflowArtifact {
+        return this.workflowRuntime.createWorkflow({
+            name: input.name,
+            domain: input.domain ?? detectDomains(input.name)[0] ?? 'workflows',
+            description: input.description,
+            triggerConditions: ['manual generation'],
+            expectedOutputs: ['workflow artifact'],
+            guardrails: ['Validate before promotion.'],
+            verifierHooks: [],
+            roleAffinity: ['planner', 'coder', 'verifier'],
+            steps: [
+                { title: 'Plan the workflow scope', checkpoint: 'before-read', role: 'planner', bindings: [] },
+                { title: 'Execute the workflow body', checkpoint: 'before-mutate', role: 'coder', bindings: [] },
+                { title: 'Verify the workflow outcome', checkpoint: 'before-verify', role: 'verifier', bindings: [] },
+            ],
+            scope: input.scope ?? 'session',
+            provenance: 'mcp:generate',
+        });
+    }
+
+    deployWorkflow(workflowId: string, scope: SkillScope = 'session'): WorkflowArtifact | undefined {
+        return this.workflowRuntime.deploy(workflowId, buildRunId('workflow-deploy'), scope);
+    }
+
+    revokeWorkflow(workflowId: string): WorkflowArtifact | undefined {
+        return this.workflowRuntime.revoke(workflowId);
+    }
+
+    async runWorkflow(workflowId: string, goal?: string): Promise<ExecutionRun> {
+        const workflow = this.workflowRuntime.getArtifact(workflowId) ?? this.workflowRuntime.findByName(workflowId);
+        if (!workflow) {
+            throw new Error(`Workflow not found: ${workflowId}`);
+        }
+
+        return this.run({
+            goal: goal ?? `Run workflow ${workflow.name}`,
+            workflowSelectors: [workflow.name],
+            workers: 2,
+        });
+    }
+
+    getBackendCatalog(): Record<string, unknown> {
+        return {
+            memory: [...this.backendRegistry.memory.values()].map((backend) => backend.descriptor),
+            compression: [...this.backendRegistry.compression.values()].map((backend) => backend.descriptor),
+            dsl: [...this.backendRegistry.dsl.values()].map((backend) => backend.descriptor),
+            consensus: [{ kind: 'multi-tier-byzantine', mode: 'default' }],
+        };
+    }
+
+    getHealth(): Record<string, unknown> {
+        return {
+            runtime: 'healthy',
+            runsTracked: this.runs.size,
+            skills: this.skillRuntime.listArtifacts().length,
+            workflows: this.workflowRuntime.listArtifacts().length,
+            artifactsRoot: this.artifactsRoot ?? path.join(os.tmpdir(), 'nexus-prime-runs'),
+        };
     }
 
     private async normalizeTask(input: Partial<ExecutionTask> & { goal: string }): Promise<ExecutionTask> {
@@ -497,7 +758,7 @@ export class SubAgentRuntime {
             goal: input.goal,
             files: input.files ?? [],
             workers: Math.max(1, Math.min(input.workers ?? 2, 7)),
-            roles: input.roles ?? ['planner', 'coder', 'verifier'],
+            roles: input.roles ?? ['planner', 'coder', 'verifier', 'skill-maker', 'research-shadow'],
             strategies: input.strategies ?? ['minimal', 'standard', 'thorough'],
             verifyCommands: input.verifyCommands ?? this.defaultVerifyCommands(),
             successCriteria: input.successCriteria ?? ['Verified diff applied successfully'],
@@ -506,13 +767,22 @@ export class SubAgentRuntime {
             skillPolicy: input.skillPolicy ?? { mode: 'guarded-hot', allowMutateSkills: false },
             backendSelectors: input.backendSelectors ?? {},
             skillNames: input.skillNames ?? [],
+            workflowSelectors: input.workflowSelectors ?? [],
             actions: input.actions ?? [],
             inlineSkills: input.inlineSkills ?? [],
             nxlScript: input.nxlScript,
+            promotionPolicy: input.promotionPolicy ?? {
+                autoPromoteSkills: true,
+                autoPromoteWorkflows: true,
+                globalThreshold: 1,
+            },
+            derivationPolicy: input.derivationPolicy ?? { mode: 'auto' },
+            checkpointPolicy: input.checkpointPolicy ?? ['before-read', 'before-mutate', 'before-verify', 'retry'],
+            backendMode: input.backendMode ?? 'default',
         };
 
         if (input.nxlScript && (!input.actions || input.actions.length === 0)) {
-            const compiled = this.dslCompiler.compile(task.goal, input.nxlScript);
+            const compiled = (this.defaultDslCompiler ?? this.backendRegistry.dsl.get('deterministic-nxl-compiler')!).compile(task.goal, input.nxlScript);
             const compiledTask = this.executionTaskFromCompiled(compiled, input.nxlScript);
             return {
                 ...task,
@@ -524,7 +794,7 @@ export class SubAgentRuntime {
         return task;
     }
 
-    private executionTaskFromCompiled(compiled: DSLCompilationResult, rawScript?: string): ExecutionTask {
+    private executionTaskFromCompiled(compiled: DSLCompilationResult, rawScript?: string): Partial<ExecutionTask> & { goal: string } {
         return {
             goal: compiled.spec.goal,
             files: compiled.spec.files,
@@ -543,22 +813,29 @@ export class SubAgentRuntime {
                 memoryBackend: compiled.spec.memoryBackend,
                 compressionBackend: compiled.spec.compressionBackend,
                 consensusPolicy: compiled.spec.consensus,
-                dslCompiler: this.dslCompiler.descriptor.kind,
+                dslCompiler: compiled.spec.dslCompiler ?? 'deterministic-nxl-compiler',
             },
             skillNames: compiled.spec.skills,
+            workflowSelectors: compiled.spec.workflows ?? [],
             actions: (compiled.spec.actions ?? []) as unknown as SkillBinding[],
             inlineSkills: [],
             nxlScript: rawScript,
+            derivationPolicy: { mode: compiled.spec.derivationPolicy ?? 'auto' },
+            backendMode: compiled.spec.backendMode ?? 'default',
         };
     }
 
-    private resolveBackends(task: ExecutionTask): BackendSelection {
-        return {
-            memoryBackend: task.backendSelectors.memoryBackend ?? this.memoryBackend.descriptor.kind,
-            compressionBackend: task.backendSelectors.compressionBackend ?? this.compressionBackend.descriptor.kind,
-            consensusPolicy: task.backendSelectors.consensusPolicy ?? this.consensusPolicy.descriptor.kind,
-            dslCompiler: task.backendSelectors.dslCompiler ?? this.dslCompiler.descriptor.kind,
-        };
+    private resolveBackends(task: ExecutionTask): {
+        memory: ReturnType<typeof resolveBackend<MemoryBackend>>;
+        compression: ReturnType<typeof resolveBackend<CompressionBackend>>;
+        dsl: ReturnType<typeof resolveBackend<DSLCompilerBackend>>;
+        fallbacks: string[];
+    } {
+        const memory = resolveBackend(this.backendRegistry.memory, task.backendSelectors.memoryBackend, this.defaultMemoryBackend.descriptor.kind);
+        const compression = resolveBackend(this.backendRegistry.compression, task.backendSelectors.compressionBackend, this.defaultCompressionBackend?.descriptor.kind ?? 'deterministic-token-supremacy');
+        const dsl = resolveBackend(this.backendRegistry.dsl, task.backendSelectors.dslCompiler, this.defaultDslCompiler?.descriptor.kind ?? 'deterministic-nxl-compiler');
+        const fallbacks = [memory.fallback, compression.fallback, dsl.fallback].filter(Boolean) as string[];
+        return { memory, compression, dsl, fallbacks };
     }
 
     private defaultVerifyCommands(): string[] {
@@ -571,44 +848,145 @@ export class SubAgentRuntime {
         task: ExecutionTask,
         files: FileRef[],
         plan: ReadingPlan,
-        activeSkills: SkillArtifact[]
+        activeSkills: SkillArtifact[],
+        activeWorkflows: WorkflowArtifact[],
+        actions: SkillBinding[],
+        verifyCommands: string[]
     ): WorkerManifest[] {
         const workerIds = new Array(task.workers).fill(null).map((_, idx) => `coder-${idx + 1}`);
-        const budgets = this.compressionBackend.allocateWorkerBudget(workerIds, plan);
+        const budgets = this.resolveCompressionBackend(task).allocateWorkerBudget(workerIds, plan);
         const sessionSkillIds = activeSkills.map(skill => skill.skillId);
+        const workflowIds = activeWorkflows.map((workflow) => workflow.workflowId);
 
-        return workerIds.map((workerId, idx) => ({
-            workerId,
-            role: 'coder',
-            strategy: task.strategies[idx % task.strategies.length],
-            worktreeDir: null,
-            files,
-            skillOverlays: {
-                base: task.skillNames,
-                session: sessionSkillIds,
-                worker: [],
-                runtimeHot: sessionSkillIds,
+        const manifests: WorkerManifest[] = [
+            {
+                workerId: 'planner-1',
+                role: 'planner',
+                strategy: 'plan',
+                worktreeDir: null,
+                files,
+                skillOverlays: { base: task.skillNames, session: sessionSkillIds, worker: [], runtimeHot: sessionSkillIds },
+                workflowOverlays: workflowIds,
+                allowedTools: ['read_file', 'run_command'],
+                tokenBudget: Math.max(200, Math.round(plan.totalEstimatedTokens * 0.3)),
+                verifyCommands,
+                checkpoints: task.checkpointPolicy,
+                actions: [],
+                inlineSkills: activeSkills,
+                workflows: activeWorkflows,
             },
-            allowedTools: ['write_file', 'append_file', 'replace_text', 'run_command'],
-            tokenBudget: budgets.get(workerId) ?? 500,
-            verifyCommands: task.verifyCommands,
-            checkpoints: ['before-read', 'before-mutate', 'before-verify'],
-            actions: task.actions,
-            inlineSkills: activeSkills,
-        }));
+            {
+                workerId: 'skill-maker-1',
+                role: 'skill-maker',
+                strategy: 'derive',
+                worktreeDir: null,
+                files,
+                skillOverlays: { base: task.skillNames, session: sessionSkillIds, worker: [], runtimeHot: sessionSkillIds },
+                workflowOverlays: workflowIds,
+                allowedTools: ['read_file', 'write_file'],
+                tokenBudget: 240,
+                verifyCommands,
+                checkpoints: task.checkpointPolicy,
+                actions: [],
+                inlineSkills: activeSkills,
+                workflows: activeWorkflows,
+            },
+            {
+                workerId: 'research-shadow-1',
+                role: 'research-shadow',
+                strategy: task.backendMode,
+                worktreeDir: null,
+                files,
+                skillOverlays: { base: task.skillNames, session: sessionSkillIds, worker: [], runtimeHot: sessionSkillIds },
+                workflowOverlays: workflowIds,
+                allowedTools: ['read_file', 'run_command'],
+                tokenBudget: 240,
+                verifyCommands,
+                checkpoints: task.checkpointPolicy,
+                actions: [],
+                inlineSkills: activeSkills,
+                workflows: activeWorkflows,
+            },
+        ];
+
+        workerIds.forEach((workerId, idx) => {
+            manifests.push({
+                workerId,
+                role: 'coder',
+                strategy: task.strategies[idx % task.strategies.length],
+                worktreeDir: null,
+                files,
+                skillOverlays: {
+                    base: task.skillNames,
+                    session: sessionSkillIds,
+                    worker: [],
+                    runtimeHot: sessionSkillIds,
+                },
+                workflowOverlays: workflowIds,
+                allowedTools: ['write_file', 'append_file', 'replace_text', 'run_command'],
+                tokenBudget: budgets.get(workerId) ?? 500,
+                verifyCommands,
+                checkpoints: task.checkpointPolicy,
+                actions,
+                inlineSkills: activeSkills,
+                workflows: activeWorkflows,
+            });
+            manifests.push({
+                workerId: `verifier-${idx + 1}`,
+                role: 'verifier',
+                strategy: `verify-${task.strategies[idx % task.strategies.length]}`,
+                worktreeDir: null,
+                files,
+                skillOverlays: {
+                    base: task.skillNames,
+                    session: sessionSkillIds,
+                    worker: [],
+                    runtimeHot: sessionSkillIds,
+                },
+                workflowOverlays: workflowIds,
+                allowedTools: ['run_command'],
+                tokenBudget: Math.max(200, Math.round((budgets.get(workerId) ?? 500) * 0.4)),
+                verifyCommands,
+                checkpoints: task.checkpointPolicy,
+                actions: [],
+                inlineSkills: activeSkills,
+                workflows: activeWorkflows,
+                targetWorkerId: workerId,
+            });
+        });
+
+        return manifests;
     }
 
-    private async runCoderWorker(
-        runId: string,
-        recorder: ArtifactRecorder,
-        manifest: WorkerManifest
-    ): Promise<RuntimeWorkerResult> {
+    private createPlannerResult(task: ExecutionTask, manifests: WorkerManifest[], files: FileRef[], domains: string[]): PlannerResult {
+        return {
+            summary: `Planner assigned ${manifests.filter((manifest) => manifest.role === 'coder').length} coder worker(s) and ${manifests.filter((manifest) => manifest.role === 'verifier').length} verifier worker(s).`,
+            domains,
+            selectedFiles: files.map((file) => path.relative(this.repoRoot, file.path) || file.path),
+            selectedWorkflows: task.workflowSelectors,
+            strategyMap: manifests
+                .filter((manifest) => manifest.role === 'coder')
+                .map((manifest) => ({ workerId: manifest.workerId, strategy: manifest.strategy })),
+            risks: [
+                task.verifyCommands.length === 0 ? 'No verification commands configured.' : 'Verification required before merge.',
+                task.skillPolicy.allowMutateSkills ? 'Mutate skills enabled.' : 'Mutate skills remain gated.',
+            ],
+        };
+    }
+
+    private async runCoderWorker(runId: string, recorder: ArtifactRecorder, manifest: WorkerManifest): Promise<RuntimeWorkerResult> {
         const session = new WorktreeSession(this.repoRoot, `${runId}-${manifest.workerId}`, 'coder', recorder);
         const start = Date.now();
         const learnings: string[] = [];
         const workerDir = recorder.workerDir(manifest.workerId);
 
         try {
+            nexusEventBus.emit('phantom.worker.start', {
+                workerId: manifest.workerId,
+                approach: manifest.strategy,
+                goal: manifest.files.map((file) => file.path).join(', '),
+            });
+
             await session.create();
             manifest.worktreeDir = session.worktreeDir;
             manifest.files.forEach(file => this.sessionDNA?.recordFileAccess(file.path));
@@ -636,37 +1014,20 @@ export class SubAgentRuntime {
             const diff = await session.captureDiff();
             recorder.writeText(path.join('workers', manifest.workerId, 'diff.patch'), diff);
             podNetwork.publish(manifest.workerId, `Produced ${modifiedFiles.length} modified files`, 0.8, ['#runtime-worker']);
+            nexusEventBus.emit('phantom.worker.complete', { workerId: manifest.workerId, confidence: diff.trim() ? 0.7 : 0.2 });
 
-            let verification: WorkerVerification | undefined;
-            let verified = false;
-            if (diff.trim() && manifest.verifyCommands.length > 0) {
-                verification = await this.runVerifier(manifest, diff, recorder);
-                verified = verification.passed;
-            }
-
-            const activeMutateSkills = manifest.inlineSkills.filter(skill => skill.riskClass === 'mutate');
-            activeMutateSkills.forEach(skill => {
-                this.sessionDNA?.recordSkillLearned(skill.name);
-                this.skillRuntime.recordOutcome(skill.skillId, {
-                    success: false,
-                    verificationPassed: false,
-                });
-            });
-
-            const confidence = verified ? 0.92 : (diff.trim() ? 0.65 : 0.35);
             return {
                 workerId: manifest.workerId,
                 role: manifest.role,
                 taskId: runId,
                 approach: manifest.strategy,
                 diff,
-                outcome: verified ? 'success' : (diff.trim() ? 'partial' : 'failed'),
-                confidence,
+                outcome: diff.trim() ? 'partial' : 'failed',
+                confidence: diff.trim() ? 0.68 : 0.18,
                 tokensUsed: Math.max(1, Math.round((Date.now() - start) / 100)),
                 learnings,
-                testsPassing: verification?.passed ? verification.commands.length : 0,
-                verified,
-                verification,
+                testsPassing: 0,
+                verified: false,
                 artifactsPath: workerDir,
                 modifiedFiles,
             };
@@ -690,40 +1051,65 @@ export class SubAgentRuntime {
         }
     }
 
-    private async runVerifier(manifest: WorkerManifest, diff: string, recorder: ArtifactRecorder): Promise<WorkerVerification> {
-        const verifier = new WorktreeSession(this.repoRoot, `${manifest.workerId}-verify`, 'verifier', recorder);
+    private async runVerifierWorker(
+        runId: string,
+        recorder: ArtifactRecorder,
+        manifest: WorkerManifest,
+        target?: RuntimeWorkerResult
+    ): Promise<WorkerVerification> {
+        const verifier = new WorktreeSession(this.repoRoot, `${runId}-${manifest.workerId}`, 'verifier', recorder);
         const records: CommandRecord[] = [];
+        const artifactsPath = recorder.workerDir(manifest.workerId);
+
         try {
             await verifier.create();
+            if (!target?.diff?.trim()) {
+                return {
+                    workerId: manifest.targetWorkerId ?? 'unknown',
+                    verifierId: manifest.workerId,
+                    passed: false,
+                    commands: [],
+                    summary: 'Verifier skipped because candidate diff was empty.',
+                    artifactsPath,
+                };
+            }
 
             const verifySkills = manifest.inlineSkills.filter(skill => skill.riskClass !== 'mutate');
             for (const skill of verifySkills) {
-                this.skillRuntime.deploy(skill, `${manifest.workerId}-verify`, verifier.worktreeDir, 'before-verify');
+                this.skillRuntime.deploy(skill, manifest.workerId, verifier.worktreeDir, 'before-verify');
             }
 
-            await verifier.applyPatchContent(diff);
+            await verifier.applyPatchContent(target.diff);
 
             for (const command of manifest.verifyCommands) {
                 const record = await verifier.run(command, true);
                 records.push(record);
             }
 
-            const passed = records.every(record => record.exitCode === 0);
+            const passed = records.length > 0 ? records.every((record) => record.exitCode === 0) : !!target.diff.trim();
+            const metrics: SkillRuntimeMetrics = {
+                success: passed,
+                verificationPassed: passed,
+                retriesAvoided: passed ? 1 : 0,
+            };
             manifest.inlineSkills
                 .filter(skill => skill.riskClass !== 'mutate')
                 .forEach(skill => {
-                    this.skillRuntime.recordOutcome(skill.skillId, {
-                        success: passed,
-                        verificationPassed: passed,
-                    });
+                    this.skillRuntime.recordOutcome(skill.skillId, metrics);
                 });
+            manifest.workflows.forEach((workflow) => {
+                this.workflowRuntime.recordOutcome(workflow.workflowId, { success: passed, verificationPassed: passed, retriesAvoided: passed ? 1 : 0 });
+            });
 
             return {
+                workerId: manifest.targetWorkerId ?? 'unknown',
+                verifierId: manifest.workerId,
                 passed,
                 commands: records,
                 summary: passed
                     ? `Verifier passed ${records.length} command(s).`
                     : `Verifier failed ${records.filter(record => record.exitCode !== 0).length} command(s).`,
+                artifactsPath,
             };
         } finally {
             await verifier.cleanup();
@@ -733,7 +1119,8 @@ export class SubAgentRuntime {
     private async applyDecision(
         recorder: ArtifactRecorder,
         task: ExecutionTask,
-        decision: MergeDecision
+        decision: MergeDecision,
+        consensusPolicy: MultiTierConsensusPolicy
     ): Promise<{ applied: boolean; rolledBack: boolean; summary: string }> {
         const candidateDiff = this.resolveCandidateDiff(decision);
         if (!candidateDiff.trim()) {
@@ -744,7 +1131,7 @@ export class SubAgentRuntime {
             };
         }
 
-        if (!this.consensusPolicy.approveRunLevelChange(
+        if (!consensusPolicy.approveRunLevelChange(
             decision.winner ? [decision.winner.workerId] : ['merge-oracle']
         )) {
             return {
@@ -795,6 +1182,55 @@ export class SubAgentRuntime {
         }
     }
 
+    private evaluatePromotions(run: ExecutionRun, consensusPolicy: MultiTierConsensusPolicy): PromotionDecision[] {
+        const verifiedWorkerIds = run.workerResults.filter((result) => result.verified).map((result) => result.workerId);
+        const decisions: PromotionDecision[] = [];
+
+        if (run.state === 'merged' && verifiedWorkerIds.length > 0) {
+            if (run.activeSkills.length > 0) {
+                for (const skill of run.activeSkills.filter((artifact) => artifact.scope !== 'base')) {
+                    const approved = consensusPolicy.approveGlobalPromotion(verifiedWorkerIds, [1, 1, 1]);
+                    if (approved && run.selectedBackends.consensusPolicy === 'multi-tier-byzantine') {
+                        this.skillRuntime.promote(skill.skillId, skill.riskClass === 'mutate' ? 'session' : 'global');
+                    }
+                    decisions.push({
+                        kind: 'skill',
+                        target: skill.name,
+                        scope: approved ? (skill.riskClass === 'mutate' ? 'session' : 'global') : 'session',
+                        approved,
+                        rationale: approved ? 'Global promotion passed consensus.' : 'Global promotion stayed session-scoped.',
+                    });
+                }
+            }
+
+            if (run.activeWorkflows.length > 0) {
+                for (const workflow of run.activeWorkflows.filter((artifact) => artifact.scope !== 'base')) {
+                    const approved = consensusPolicy.approveGlobalPromotion(verifiedWorkerIds, [1, 1, 1]);
+                    if (approved) {
+                        this.workflowRuntime.deploy(workflow.workflowId, run.runId, 'global');
+                    }
+                    decisions.push({
+                        kind: 'workflow',
+                        target: workflow.name,
+                        scope: approved ? 'global' : 'session',
+                        approved,
+                        rationale: approved ? 'Workflow promotion passed consensus.' : 'Workflow stayed session-scoped.',
+                    });
+                }
+            }
+        }
+
+        decisions.push({
+            kind: 'backend',
+            target: `${run.selectedBackends.memoryBackend}/${run.selectedBackends.compressionBackend}/${run.selectedBackends.dslCompiler}`,
+            scope: 'backend',
+            approved: true,
+            rationale: 'Backend evidence recorded in the run ledger.',
+        });
+
+        return decisions;
+    }
+
     private resolveCandidateDiff(decision: MergeDecision): string {
         const synthesized = decision.synthesized ?? '';
         if (looksLikePatch(synthesized)) {
@@ -823,18 +1259,18 @@ export class SubAgentRuntime {
         });
     }
 
-    private discoverTargetFiles(goal: string): FileRef[] {
+    private discoverTargetFiles(goal: string, compressionBackend: CompressionBackend): FileRef[] {
         const files = scanFiles(this.repoRoot);
-        const plan = this.compressionBackend.planFiles(taskLike(goal), files);
+        const plan = normalizeReadingPlan(compressionBackend.planFiles(goal, files)).plan;
         return plan.files
             .filter(filePlan => filePlan.action !== 'skip')
             .slice(0, 8)
             .map(filePlan => filePlan.file);
     }
-}
 
-function taskLike(goal: string): string {
-    return goal;
+    private resolveCompressionBackend(task: ExecutionTask): CompressionBackend {
+        return resolveBackend(this.backendRegistry.compression, task.backendSelectors.compressionBackend, 'deterministic-token-supremacy').selected;
+    }
 }
 
 async function runCommand(cwd: string, command: string, allowFailure: boolean = false): Promise<CommandRecord> {
@@ -896,7 +1332,7 @@ function looksLikePatch(diff: string): boolean {
 }
 
 function sanitizeFileName(value: string): string {
-    return value.replace(/[^a-z0-9\-]+/gi, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'command';
+    return value.replace(/[^a-z0-9-]+/gi, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'command';
 }
 
 function relativeTo(root: string, target: string): string {
@@ -906,6 +1342,30 @@ function relativeTo(root: string, target: string): string {
 
 function quote(value: string): string {
     return `'${value.replace(/'/g, `'\\''`)}'`;
+}
+
+function dedupeStrings(values: string[]): string[] {
+    return [...new Set(values.filter(Boolean))];
+}
+
+function dedupeSkillArtifacts(values: SkillArtifact[]): SkillArtifact[] {
+    const seen = new Set<string>();
+    return values.filter((value) => {
+        const key = value.name.toLowerCase();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+    });
+}
+
+function dedupeWorkflowArtifacts(values: WorkflowArtifact[]): WorkflowArtifact[] {
+    const seen = new Set<string>();
+    return values.filter((value) => {
+        const key = value.name.toLowerCase();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+    });
 }
 
 export function summarizeExecution(run: ExecutionRun): string {

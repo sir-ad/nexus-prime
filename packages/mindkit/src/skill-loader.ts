@@ -52,19 +52,23 @@ export interface WorkflowStep {
 
 export class SkillLoader {
     private agentDir: string;
+    private bundledSkills: Skill[];
+    private bundledWorkflows: Workflow[];
 
     constructor(cwd?: string) {
         this.agentDir = path.join(cwd ?? process.cwd(), '.agent');
+        this.bundledSkills = createBundledSkills();
+        this.bundledWorkflows = createBundledWorkflows();
     }
 
     // ── Skills ───────────────────────────────────────────────────────────────
 
     loadSkills(): Skill[] {
         const skillsDir = path.join(this.agentDir, 'skills');
-        if (!fs.existsSync(skillsDir)) return [];
-
-        const files = this.findMarkdownFiles(skillsDir);
-        return files.map(f => this.parseSkill(f)).filter(Boolean) as Skill[];
+        const local = fs.existsSync(skillsDir)
+            ? this.findMarkdownFiles(skillsDir).map(f => this.parseSkill(f)).filter(Boolean) as Skill[]
+            : [];
+        return this.mergeByName([...this.bundledSkills, ...local], (skill) => skill.name);
     }
 
     getSkill(name: string): Skill | null {
@@ -79,10 +83,10 @@ export class SkillLoader {
 
     loadWorkflows(): Workflow[] {
         const workflowsDir = path.join(this.agentDir, 'workflows');
-        if (!fs.existsSync(workflowsDir)) return [];
-
-        const files = this.findMarkdownFiles(workflowsDir);
-        return files.map(f => this.parseWorkflow(f)).filter(Boolean) as Workflow[];
+        const local = fs.existsSync(workflowsDir)
+            ? this.findMarkdownFiles(workflowsDir).map(f => this.parseWorkflow(f)).filter(Boolean) as Workflow[]
+            : [];
+        return this.mergeByName([...this.bundledWorkflows, ...local], (workflow) => workflow.name);
     }
 
     getWorkflow(slashCommand: string): Workflow | null {
@@ -272,6 +276,14 @@ Add project-specific rules here.
         return result;
     }
 
+    private mergeByName<T>(items: T[], selector: (item: T) => string): T[] {
+        const map = new Map<string, T>();
+        for (const item of items) {
+            map.set(selector(item).toLowerCase(), item);
+        }
+        return Array.from(map.values());
+    }
+
     private findMarkdownFiles(dir: string): string[] {
         const results: string[] = [];
         const entries = fs.readdirSync(dir, { withFileTypes: true });
@@ -285,6 +297,42 @@ Add project-specific rules here.
         }
         return results;
     }
+}
+
+function createBundledSkills(): Skill[] {
+    const domains = ['marketing', 'product', 'backend', 'frontend', 'sales', 'finance', 'workflows', 'orchestration'];
+    return domains.flatMap((domain) => ([
+        {
+            name: `${domain}-playbook`,
+            description: `Bundled ${domain} runtime playbook.`,
+            tags: [domain, 'bundled', 'runtime'],
+            instructions: `# ${domain} playbook\n\nUse this bundled ${domain} skill to shape outputs, guardrails, and verification notes during runtime work.`,
+            source: `bundled:${domain}-playbook`,
+        },
+        {
+            name: `${domain}-reviewer`,
+            description: `Bundled ${domain} reviewer.`,
+            tags: [domain, 'bundled', 'review'],
+            instructions: `# ${domain} reviewer\n\nUse this reviewer skill to validate ${domain} outputs against evidence before promotion.`,
+            source: `bundled:${domain}-reviewer`,
+        },
+    ]));
+}
+
+function createBundledWorkflows(): Workflow[] {
+    const domains = ['marketing', 'product', 'backend', 'frontend', 'sales', 'finance', 'workflows', 'orchestration'];
+    return domains.map((domain) => ({
+        name: `${domain}-execution-loop`,
+        description: `Bundled ${domain} execution loop with plan, execute, and verify steps.`,
+        slashCommand: `/${domain}-execution-loop`,
+        isTurboAll: false,
+        source: `bundled:${domain}-execution-loop`,
+        steps: [
+            { number: 1, description: `Plan ${domain} outputs`, isTurbo: false },
+            { number: 2, description: `Execute ${domain} pass`, isTurbo: false },
+            { number: 3, description: `Verify ${domain} evidence`, isTurbo: false },
+        ],
+    }));
 }
 
 export const createSkillLoader = (cwd?: string) => new SkillLoader(cwd);

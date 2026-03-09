@@ -571,6 +571,15 @@ export class MemoryEngine {
     };
   }
 
+  snapshot(limit: number = 100): MemoryItem[] {
+    const rows = this.db.prepare(`
+      SELECT * FROM memories
+      ORDER BY priority DESC, timestamp DESC
+      LIMIT ?
+    `).all(limit) as any[];
+    return rows.map(row => this.rowToItem(row));
+  }
+
   clear(): void {
     this.prefrontal = [];
     this.db.exec('DELETE FROM memory_links; DELETE FROM memories;');

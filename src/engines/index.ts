@@ -53,6 +53,8 @@ export { NXLInterpreter, nxl } from './nxl-interpreter.js';
 export type { AgentArchetype, SwarmConfig, NXLExecutionSpec } from './nxl-interpreter.js';
 
 export {
+  createRuntimeBackendRegistry,
+  normalizeReadingPlan,
   createSQLiteMemoryBackend,
   createDeterministicCompressionBackend,
   createDeterministicDSLCompilerBackend,
@@ -63,10 +65,12 @@ export type {
   BackendMode,
   MemoryBackend,
   CompressionBackend,
+  CompressionPlanResult,
   CompressionShadow,
   DSLExecutionSpec,
   DSLCompilationResult,
-  DSLCompilerBackend
+  DSLCompilerBackend,
+  RuntimeBackendRegistry
 } from './runtime-backends.js';
 
 export { SkillRuntime, createSkillRuntime } from './skill-runtime.js';
@@ -81,3 +85,16 @@ export type {
   SkillScope,
   SkillValidationResult
 } from './skill-runtime.js';
+
+export { WorkflowRuntime, createWorkflowRuntime } from './workflow-runtime.js';
+export type {
+  WorkflowArtifact,
+  WorkflowDeploymentRecord,
+  WorkflowRuntimeMetrics,
+  WorkflowStep
+} from './workflow-runtime.js';
+
+export type {
+  RuntimeBinding,
+  RuntimeBindingType
+} from './runtime-assets.js';

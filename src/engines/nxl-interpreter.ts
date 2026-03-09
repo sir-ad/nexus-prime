@@ -31,11 +31,16 @@ export interface NXLExecutionSpec {
     strategies: string[];
     verify: string[];
     skills: string[];
+    workflows: string[];
     guardrails: boolean;
     consensus: 'local' | 'run' | 'global';
     memoryBackend: string;
     compressionBackend: string;
+    dslCompiler?: string;
+    backendMode?: 'default' | 'shadow' | 'experimental';
     skillPolicy: 'guarded-hot' | 'session-only' | 'manual';
+    workflowPolicy?: 'guarded-hot' | 'session-only' | 'manual';
+    derivationPolicy?: 'auto' | 'manual' | 'disabled';
     actions?: Array<Record<string, unknown>>;
     metadata?: Record<string, unknown>;
 }
@@ -131,11 +136,15 @@ export class NXLInterpreter {
         const strategies = normalizeStringArray(parsedInput.strategies) ?? ['minimal', 'standard', 'thorough'];
         const verify = normalizeStringArray(parsedInput.verify) ?? [];
         const skills = normalizeStringArray(parsedInput.skills) ?? [];
+        const workflows = normalizeStringArray(parsedInput.workflows) ?? [];
         const files = normalizeStringArray(parsedInput.files) ?? [];
         const workers = normalizeNumber(parsedInput.workers) ?? Math.max(1, roles.filter(role => role.includes('coder')).length || roles.length || 1);
         const skillPolicy = normalizeSkillPolicy(parsedInput.skillPolicy);
+        const workflowPolicy = normalizeSkillPolicy(parsedInput.workflowPolicy);
         const consensus = normalizeConsensus(parsedInput.consensus);
         const guardrails = typeof parsedInput.guardrails === 'boolean' ? parsedInput.guardrails : true;
+        const derivationPolicy = normalizeDerivationPolicy(parsedInput.derivationPolicy);
+        const backendMode = normalizeBackendMode(parsedInput.backendMode);
 
         return {
             goal: String(parsedInput.goal ?? goal),
@@ -145,11 +154,16 @@ export class NXLInterpreter {
             strategies,
             verify,
             skills,
+            workflows,
             guardrails,
             consensus,
             memoryBackend: String(parsedInput.memoryBackend ?? 'sqlite-memory'),
             compressionBackend: String(parsedInput.compressionBackend ?? 'deterministic-token-supremacy'),
+            dslCompiler: String(parsedInput.dslCompiler ?? 'deterministic-nxl-compiler'),
+            backendMode,
             skillPolicy,
+            workflowPolicy,
+            derivationPolicy,
             actions: Array.isArray(parsedInput.actions)
                 ? parsedInput.actions.filter((value): value is Record<string, unknown> => !!value && typeof value === 'object')
                 : [],
@@ -182,4 +196,14 @@ function normalizeSkillPolicy(value: unknown): 'guarded-hot' | 'session-only' | 
 function normalizeConsensus(value: unknown): 'local' | 'run' | 'global' {
     if (value === 'run' || value === 'global') return value;
     return 'local';
+}
+
+function normalizeDerivationPolicy(value: unknown): 'auto' | 'manual' | 'disabled' {
+    if (value === 'manual' || value === 'disabled') return value;
+    return 'auto';
+}
+
+function normalizeBackendMode(value: unknown): 'default' | 'shadow' | 'experimental' {
+    if (value === 'shadow' || value === 'experimental') return value;
+    return 'default';
 }

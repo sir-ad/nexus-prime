@@ -38,6 +38,8 @@ function printExecutionSummary(execution: ExecutionRun): void {
   console.log(`📝 Modified Files: ${modifiedFiles}`);
   console.log(`⚖️  Decision: ${execution.finalDecision?.action ?? 'none'}`);
   console.log(`🛠️  Backends: memory=${execution.selectedBackends.memoryBackend}, compression=${execution.selectedBackends.compressionBackend}, consensus=${execution.selectedBackends.consensusPolicy}, dsl=${execution.selectedBackends.dslCompiler}`);
+  console.log(`🧭 Workflows: ${execution.activeWorkflows.length > 0 ? execution.activeWorkflows.map(workflow => workflow.name).join(', ') : 'none'}`);
+  console.log(`🎯 Promotions: ${execution.promotionDecisions.length > 0 ? execution.promotionDecisions.map(decision => `${decision.kind}:${decision.target}:${decision.approved ? 'approved' : 'held'}`).join(', ') : 'none'}`);
 }
 
 program
@@ -235,6 +237,12 @@ program
   .option('--verify <commands...>', 'Verification commands')
   .option('--actions-file <path>', 'JSON file containing runtime action bindings')
   .option('--nxl-file <path>', 'NXL/YAML file to compile and execute')
+  .option('--skills <skills...>', 'Runtime skill selectors')
+  .option('--workflows <workflows...>', 'Runtime workflow selectors')
+  .option('--memory-backend <id>', 'Memory backend selector')
+  .option('--compression-backend <id>', 'Compression backend selector')
+  .option('--dsl-compiler <id>', 'DSL compiler selector')
+  .option('--backend-mode <mode>', 'Backend mode (default, shadow, experimental)')
   .action(async (
     agentId: string,
     task: string,
@@ -244,6 +252,12 @@ program
       verify?: string[];
       actionsFile?: string;
       nxlFile?: string;
+      skills?: string[];
+      workflows?: string[];
+      memoryBackend?: string;
+      compressionBackend?: string;
+      dslCompiler?: string;
+      backendMode?: 'default' | 'shadow' | 'experimental';
     }
   ) => {
     if (!nexus) {
@@ -269,6 +283,14 @@ program
       workers: parsedWorkers,
       verifyCommands: options.verify,
       actions,
+      skillNames: options.skills,
+      workflowSelectors: options.workflows,
+      backendSelectors: {
+        memoryBackend: options.memoryBackend,
+        compressionBackend: options.compressionBackend,
+        dslCompiler: options.dslCompiler,
+      },
+      backendMode: options.backendMode,
     });
     console.log(`📝 Result: ${result.result}`);
     console.log(`📊 Value: ${result.experience.value.toFixed(2)}`);

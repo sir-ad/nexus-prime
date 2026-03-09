@@ -2,7 +2,7 @@
   <h1>🧬 Nexus Prime</h1>
   <p><strong>The Cognitive Operating System for Multi-Agent Swarms</strong></p>
 
-  [![Version](https://img.shields.io/badge/version-3.0.0-00ff88?style=for-the-badge&logoRepository=nexus-prime)](https://github.com/sir-ad/nexus-prime/releases)
+  [![Version](https://img.shields.io/badge/version-3.2.0-00ff88?style=for-the-badge&logoRepository=nexus-prime)](https://github.com/sir-ad/nexus-prime/releases)
   [![License: MIT](https://img.shields.io/badge/License-MIT-00d4ff?style=for-the-badge)](LICENSE)
   [![Agentic OS](https://img.shields.io/badge/Ecosystem-Agentic_OS-8b5cf6?style=for-the-badge)](https://github.com/topics/agentic-os)
   [![Build Status](https://img.shields.io/badge/build-passing-success?style=for-the-badge)](https://github.com/sir-ad/nexus-prime/actions)
@@ -29,7 +29,7 @@ npx nexus-prime mcp
 
 ---
 
-**Nexus Prime** is an autonomous, hyper-optimized, distributed, Byzantine-fault-tolerant cognitive operating system. Exposed as an MCP (Model Context Protocol) server or integrated programmatically, it provides single and multi-agent systems with **permanent memory, mathematically optimized context limits, safety guardrails, and massively parallel Git-worktree execution.**
+**Nexus Prime** is a local-first coding-agent operating system. Exposed as an MCP (Model Context Protocol) server or integrated programmatically, it provides single and multi-agent systems with **persistent memory, selectable runtime backends, guarded live skills, workflow artifacts, a live dashboard, and parallel Git-worktree execution with verification.**
 
 ---
 
@@ -169,7 +169,18 @@ Formulates file-reading as a **Greedy Knapsack Problem**, solving for maximum in
 Parallelize complex tasks using isolated Git Worktrees. Ghost Pass performs read-only risk analysis, coder workers execute real file mutations in detached worktrees, verifier workers run build/test commands independently, and the Merge Oracle selects the final patch with an auditable artifact trail.
 </details>
 
-### 4. Quantum-Inspired Entanglement (Phase 9A)
+### 4. Live Skills, Workflows, and Derivation
+<details>
+<summary><b>View Details</b></summary>
+Nexus Prime now ships bundled domain skill packs and workflow packs for **marketing, product, backend, frontend, sales, finance, workflows, and orchestration**. Runs can generate new skills and workflows, deploy them at runtime checkpoints, and promote them only after verifier evidence plus multi-tier consensus.
+</details>
+
+### 5. Runtime Console
+<details>
+<summary><b>View Details</b></summary>
+The built-in dashboard exposes active and recent runs, worker states, verifier results, backend catalogs, skills, workflows, live events, and docs/release health from the same runtime ledger that powers CLI and MCP execution.
+</details>
+### 6. Quantum-Inspired Entanglement (Phase 9A)
 <details>
 <summary><b>View Details</b></summary>
 Agents share mathematical state in a high-dimensional Hilbert space. When an agent acts, the shared probabilistic state collapses, causing entangled agents to automatically make correlated decisions across the swarm without explicit communication overhead.
@@ -177,7 +188,7 @@ Agents share mathematical state in a high-dimensional Hilbert space. When an age
 
 ---
 
-## 🛠️ MCP Tooling Checklist (v1.5)
+## 🛠️ MCP Tooling Checklist
 
 Nexus Prime exposes 20 native MCP tools that any agent can invoke. Below are key examples:
 
@@ -189,6 +200,9 @@ Nexus Prime exposes 20 native MCP tools that any agent can invoke. Below are key
 | `nexus_spawn_workers` | Execute parallel worktree swarm with verification and artifacts | Autonomy |
 | `nexus_mindkit_check` | Guardrail validation | Safety |
 | `nexus_ghost_pass` | Pre-flight risk analysis | Analysis |
+| `nexus_run_status` | Inspect run ledger state | Runtime |
+| `nexus_skill_generate` | Generate deployable runtime skills | Runtime |
+| `nexus_workflow_run` | Execute workflow artifacts | Runtime |
 | `nexus_entangle` | Measure entangled agent state | Quantum |
 
 ### Real Runtime Execution
@@ -197,6 +211,9 @@ Nexus Prime exposes 20 native MCP tools that any agent can invoke. Below are key
 nexus-prime execute <agent-id> "apply runtime patch" \
   --files README.md package.json \
   --verify "npm run build" \
+  --skills backend-playbook orchestration-playbook \
+  --workflows backend-execution-loop \
+  --compression-backend meta-compression \
   --actions-file ./actions.json
 
 # Execute an NXL graph directly

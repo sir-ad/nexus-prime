@@ -2,6 +2,26 @@
 
 All notable changes to Nexus Prime will be documented in this file.
 
+## [3.2.0] - 2026-03-09
+
+### Added
+- **Bundled Domain Packs**: Added built-in skill and workflow packs for marketing, product, backend, frontend, sales, finance, workflows, and orchestration, with project-local `.agent` overrides.
+- **Workflow Runtime**: Added first-class workflow artifacts, deployment state, derivation hooks, runtime application, and MCP workflow control surfaces.
+- **Backend Registry**: Added selectable runtime backend registry for temporal/hyperbolic memory, meta-compression, deterministic NXL compilation, and experimental AgentLang/neural compilation.
+- **Runtime Control MCP Tools**: Added `nexus_skill_generate`, `nexus_skill_deploy`, `nexus_skill_revoke`, `nexus_workflow_generate`, `nexus_workflow_deploy`, `nexus_workflow_run`, and `nexus_run_status`.
+- **Dashboard APIs and Smoke Coverage**: Added `/api/runs`, `/api/runs/:id`, `/api/skills`, `/api/workflows`, `/api/backends`, `/api/health`, plus a dashboard integration test.
+
+### Changed
+- **Execution Graph Topology**: Promoted the shared runtime to a multi-role execution graph with planner, coder, verifier, skill-maker, and research-shadow manifests, verification results, promotion decisions, workflow events, and backend evidence.
+- **Truthful CLI and MCP Surfaces**: CLI execution now accepts skill, workflow, and backend selectors; swarm and NXL responses now expose planner summaries, workflows, promotions, and backend selections.
+- **Dashboard UX**: Rebuilt the dashboard into a live runtime console backed by the execution ledger and SSE stream instead of static telemetry panels.
+- **Package Version**: Bumped package metadata to `3.2.0`.
+
+### Fixed
+- **Pages Deployment Workflow**: Fixed GitHub Pages environment URL syntax in `.github/workflows/pages.yml`.
+- **Lint Gate**: Removed the runtime-blocking regex lint errors so `npm run lint` is green again.
+- **Memory Backend Extensibility**: Added `MemoryEngine.snapshot()` so promoted temporal/hyperbolic ranking can operate on real persisted memories.
+
 ## [3.1.0] - 2026-03-09
 
 ### Added

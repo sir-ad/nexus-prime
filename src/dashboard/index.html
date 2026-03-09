@@ -1,877 +1,610 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nexus Prime v1.5 | Intelligence Dashboard</title>
-    <!-- Import D3.js -->
-    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <title>Nexus Prime Runtime Console</title>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;600&display=swap');
+
         :root {
-            /* Premium Apple-like Dark Mode */
-            --bg-base: #000000;
-            --bg-surface: rgba(20, 20, 22, 0.7);
-            --bg-panel: rgba(30, 30, 35, 0.4);
-            --bg-card: rgba(45, 45, 55, 0.3);
-
-            --primary: #00ff41;
-            /* Matrix green accent */
-            --primary-glow: rgba(0, 255, 65, 0.4);
-
-            --text-main: #f5f5f7;
-            --text-muted: #86868b;
-            --danger: #ff453a;
-            --blue: #0a84ff;
-            --magenta: #bf5af2;
-            --yellow: #ffd60a;
-            --orange: #ff9f0a;
-
-            --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", "Helvetica Neue", sans-serif;
-            --font-mono: 'JetBrains Mono', "SF Mono", "Fira Code", monospace;
-
-            --border-std: 1px solid rgba(255, 255, 255, 0.1);
-            --radius-panel: 24px;
-            --radius-card: 16px;
+            --bg: #0f1310;
+            --bg-alt: #15201a;
+            --panel: rgba(245, 242, 230, 0.07);
+            --panel-strong: rgba(245, 242, 230, 0.12);
+            --line: rgba(245, 242, 230, 0.12);
+            --text: #f3efe2;
+            --muted: #b9b29d;
+            --accent: #f6b94d;
+            --accent-soft: rgba(246, 185, 77, 0.18);
+            --good: #64d2a3;
+            --warn: #f6b94d;
+            --bad: #ff7d66;
+            --font-sans: 'Space Grotesk', sans-serif;
+            --font-mono: 'IBM Plex Mono', monospace;
+            --radius: 24px;
         }
-
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;700&display=swap');
 
         * {
             box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
         }
 
         body {
-            background-color: var(--bg-base);
-            color: var(--text-main);
+            margin: 0;
+            min-height: 100vh;
             font-family: var(--font-sans);
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            background-image:
-                radial-gradient(circle at 15% 50%, rgba(10, 132, 255, 0.1), transparent 25%),
-                radial-gradient(circle at 85% 30%, rgba(191, 90, 242, 0.1), transparent 25%),
-                radial-gradient(circle at 50% 80%, rgba(0, 255, 65, 0.05), transparent 40%);
+            color: var(--text);
+            background:
+                radial-gradient(circle at top left, rgba(246, 185, 77, 0.12), transparent 24rem),
+                radial-gradient(circle at bottom right, rgba(100, 210, 163, 0.12), transparent 28rem),
+                linear-gradient(135deg, var(--bg), #0a0d0b 60%, var(--bg-alt));
         }
 
         header {
-            padding: 1.5rem 3rem;
+            padding: 1.5rem clamp(1rem, 3vw, 2rem);
             display: flex;
             justify-content: space-between;
             align-items: center;
-            background: rgba(0, 0, 0, 0.5);
-            backdrop-filter: blur(20px) saturate(180%);
-            -webkit-backdrop-filter: blur(20px) saturate(180%);
-            border-bottom: var(--border-std);
+            gap: 1rem;
+            border-bottom: 1px solid var(--line);
+            position: sticky;
+            top: 0;
+            backdrop-filter: blur(24px);
+            background: rgba(10, 13, 11, 0.72);
             z-index: 10;
         }
 
         h1 {
-            font-size: 1.5rem;
-            font-weight: 600;
-            letter-spacing: -0.02em;
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
+            margin: 0;
+            font-size: clamp(1.4rem, 2.6vw, 2.1rem);
+            letter-spacing: -0.05em;
         }
 
-        h1::before {
-            content: '⬡';
-            display: inline-block;
-            color: var(--primary);
-            font-size: 1.2rem;
-            text-shadow: 0 0 12px var(--primary-glow);
+        .subtitle {
+            margin-top: 0.25rem;
+            color: var(--muted);
+            font-size: 0.95rem;
         }
 
-        .status {
+        .stream-pill {
+            padding: 0.65rem 0.9rem;
+            border: 1px solid var(--line);
+            background: var(--panel);
+            border-radius: 999px;
             font-size: 0.85rem;
-            font-weight: 500;
-            color: var(--text-muted);
-            display: flex;
+            display: inline-flex;
             align-items: center;
-            gap: 0.5rem;
-            padding: 0.5rem 1rem;
-            background: var(--bg-card);
-            border-radius: 20px;
-            border: var(--border-std);
+            gap: 0.55rem;
         }
 
-        .status-dot {
-            width: 8px;
-            height: 8px;
+        .stream-pill::before {
+            content: '';
+            width: 0.7rem;
+            height: 0.7rem;
             border-radius: 50%;
-            background-color: var(--primary);
-            box-shadow: 0 0 8px var(--primary);
-            animation: pulse 2s infinite ease-in-out;
+            background: var(--warn);
+            box-shadow: 0 0 0 0.4rem rgba(246, 185, 77, 0.12);
         }
 
-        @keyframes pulse {
-            0% {
-                box-shadow: 0 0 0 0 rgba(0, 255, 65, 0.4);
-            }
-
-            70% {
-                box-shadow: 0 0 0 8px rgba(0, 255, 65, 0);
-            }
-
-            100% {
-                box-shadow: 0 0 0 0 rgba(0, 255, 65, 0);
-            }
+        .stream-pill.live::before {
+            background: var(--good);
+            box-shadow: 0 0 0 0.4rem rgba(100, 210, 163, 0.12);
         }
 
-        .layout {
+        main {
+            padding: 1.25rem clamp(1rem, 3vw, 2rem) 2rem;
             display: grid;
-            grid-template-columns: 350px 1fr 380px;
-            gap: 1.5rem;
-            padding: 1.5rem;
-            flex: 1;
-            height: calc(100vh - 75px);
-        }
-
-        .panel {
-            background: var(--bg-panel);
-            border: var(--border-std);
-            border-radius: var(--radius-panel);
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            backdrop-filter: blur(30px);
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1);
-        }
-
-        .panel-header {
-            padding: 1rem 1.5rem;
-            border-bottom: var(--border-std);
-            font-size: 0.8rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            color: var(--text-muted);
-            background: rgba(255, 255, 255, 0.02);
-            display: flex;
-            justify-content: space-between;
-        }
-
-        .panel-content {
-            flex: 1;
-            overflow-y: auto;
-            padding: 1.5rem;
-            scrollbar-width: none;
-        }
-
-        .panel-content::-webkit-scrollbar {
-            display: none;
-        }
-
-        /* Left: Metrics & Tokens */
-        .metric-card {
-            background: var(--bg-card);
-            border: var(--border-std);
-            border-radius: var(--radius-card);
-            padding: 1.25rem;
-            margin-bottom: 1rem;
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-        }
-
-        .metric-label {
-            font-size: 0.75rem;
-            font-weight: 500;
-            color: var(--text-muted);
-            text-transform: uppercase;
-        }
-
-        .metric-val {
-            font-family: var(--font-mono);
-            font-size: 1.75rem;
-            color: var(--text-main);
-            font-weight: 700;
-            letter-spacing: -0.02em;
-        }
-
-        /* Token Dial */
-        .token-dial-container {
-            position: relative;
-            width: 100%;
-            display: flex;
-            justify-content: center;
-            margin: 1.5rem 0;
-        }
-
-        #token-dial {
-            width: 160px;
-            height: 160px;
-            transform: rotate(-90deg);
-        }
-
-        .dial-bg {
-            fill: none;
-            stroke: rgba(255, 255, 255, 0.1);
-            stroke-width: 12;
-        }
-
-        .dial-fg {
-            fill: none;
-            stroke: var(--primary);
-            stroke-width: 12;
-            stroke-dasharray: 440;
-            /* 2 * pi * r (70) = 439.8 */
-            stroke-dashoffset: 440;
-            stroke-linecap: round;
-            transition: stroke-dashoffset 1s cubic-bezier(0.16, 1, 0.3, 1);
-            filter: drop-shadow(0 0 8px var(--primary-glow));
-        }
-
-        .token-dial-text {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            text-align: center;
-        }
-
-        .dial-pct {
-            font-family: var(--font-mono);
-            font-size: 1.8rem;
-            font-weight: 700;
-            color: var(--text-main);
-            text-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
-        }
-
-        .dial-label {
-            font-size: 0.65rem;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            margin-top: 2px;
-        }
-
-        /* Center: D3 Memory Graph */
-        #graph-container {
-            width: 100%;
-            height: 100%;
-            position: relative;
-        }
-
-        .node circle {
-            stroke-width: 1.5px;
-        }
-
-        .node text {
-            font-family: var(--font-mono);
-            font-size: 10px;
-            fill: rgba(255, 255, 255, 0.7);
-            pointer-events: none;
-        }
-
-        .link {
-            stroke: rgba(255, 255, 255, 0.15);
-            stroke-width: 1px;
-        }
-
-        /* Right: HUD Streams */
-        .hud-tab-bar {
-            display: flex;
             gap: 1rem;
-            margin-bottom: 1rem;
-            border-bottom: var(--border-std);
-            padding-bottom: 0.5rem;
         }
 
-        .hud-tab {
-            font-size: 0.75rem;
-            font-weight: 600;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            cursor: pointer;
-            padding-bottom: 0.25rem;
-            border-bottom: 2px solid transparent;
-            transition: all 0.2s;
+        .hero {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
         }
 
-        .hud-tab.active {
-            color: var(--text-main);
-            border-bottom-color: var(--primary);
-        }
-
-        .event-item {
-            font-family: var(--font-mono);
-            font-size: 0.75rem;
-            margin-bottom: 1rem;
-            padding: 1rem;
-            background: rgba(0, 0, 0, 0.3);
-            border-radius: 12px;
-            border: var(--border-std);
-            border-left: 4px solid var(--text-muted);
-            animation: slideUp 0.3s ease forwards;
-        }
-
-        .event-item.memory {
-            border-left-color: var(--blue);
-        }
-
-        .event-item.phantom {
-            border-left-color: var(--magenta);
-            background: rgba(191, 90, 242, 0.05);
-        }
-
-        .event-item.fission {
-            border-left-color: var(--primary);
-            background: rgba(0, 255, 65, 0.1);
-            animation: pulse-border 1s infinite;
-        }
-
-        @keyframes pulse-border {
-            0% {
-                border-color: var(--primary);
-            }
-
-            50% {
-                border-color: var(--cyan);
-            }
-
-            100% {
-                border-color: var(--primary);
-            }
-        }
-
-        .event-item.tokens {
-            border-left-color: var(--yellow);
-        }
-
-        .event-item.guardrail {
-            border-left-color: var(--danger);
-            background: rgba(255, 69, 58, 0.05);
-        }
-
-        .event-header {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 0.5rem;
-            color: var(--text-muted);
-        }
-
-        .worker-badge {
-            background: var(--magenta);
-            color: #000;
-            padding: 1px 6px;
-            border-radius: 8px;
-            font-weight: 700;
-            letter-spacing: -0.5px;
-        }
-
-        .event-data {
-            color: #d1d1d6;
-            white-space: pre-wrap;
-            word-break: break-all;
-        }
-
-        /* Ecosystem Status */
-        .ecosystem-grid {
+        .stat {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            padding: 1rem 1.1rem;
+            min-height: 8rem;
             display: flex;
             flex-direction: column;
-            gap: 0.75rem;
-            margin-top: 1rem;
-        }
-
-        .tool-card {
-            background: var(--bg-card);
-            border: var(--border-std);
-            border-radius: 12px;
-            padding: 0.75rem 1rem;
-            display: flex;
-            align-items: center;
             justify-content: space-between;
-            transition: all 0.2s ease;
         }
 
-        .tool-card:hover {
-            background: rgba(255, 255, 255, 0.05);
-            transform: translateX(5px);
+        .stat label {
+            color: var(--muted);
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
         }
 
-        .tool-info {
-            display: flex;
-            align-items: center;
+        .stat strong {
+            font-size: 2rem;
+            letter-spacing: -0.05em;
+        }
+
+        .stat code,
+        .chip,
+        pre,
+        .meta {
+            font-family: var(--font-mono);
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1.6fr 1fr;
+            gap: 1rem;
+        }
+
+        .stack {
+            display: grid;
+            gap: 1rem;
+        }
+
+        section {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            padding: 1rem;
+            min-height: 12rem;
+        }
+
+        section h2 {
+            margin: 0 0 0.9rem;
+            font-size: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.09em;
+            color: var(--muted);
+        }
+
+        .list {
+            display: grid;
             gap: 0.75rem;
         }
 
-        .tool-name {
-            font-size: 0.85rem;
-            font-weight: 600;
+        .card {
+            background: var(--panel-strong);
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            padding: 0.9rem;
         }
 
-        .tool-status {
-            font-size: 0.7rem;
-            color: var(--text-muted);
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 0.75rem;
+            margin-bottom: 0.45rem;
+        }
+
+        .card h3 {
+            margin: 0;
+            font-size: 1rem;
+        }
+
+        .card p {
+            margin: 0;
+            color: var(--muted);
+            line-height: 1.45;
+        }
+
+        .chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.45rem;
+            margin-top: 0.7rem;
+        }
+
+        .chip {
+            padding: 0.28rem 0.55rem;
+            border-radius: 999px;
+            font-size: 0.74rem;
+            border: 1px solid var(--line);
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .state {
+            padding: 0.25rem 0.55rem;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-family: var(--font-mono);
             text-transform: uppercase;
-            letter-spacing: 0.05em;
         }
 
-        .indicator {
-            width: 6px;
-            height: 6px;
-            border-radius: 50%;
-            background: var(--text-muted);
+        .state.good {
+            color: var(--good);
+            background: rgba(100, 210, 163, 0.12);
         }
 
-        .indicator.active {
-            background: var(--primary);
-            box-shadow: 0 0 8px var(--primary-glow);
+        .state.warn {
+            color: var(--warn);
+            background: rgba(246, 185, 77, 0.12);
         }
 
-        @keyframes slideUp {
-            from {
-                opacity: 0;
-                transform: translateY(15px);
-            }
+        .state.bad {
+            color: var(--bad);
+            background: rgba(255, 125, 102, 0.12);
+        }
 
-            to {
-                opacity: 1;
-                transform: translateY(0);
+        .meta {
+            color: var(--muted);
+            font-size: 0.8rem;
+        }
+
+        .empty {
+            color: var(--muted);
+            border: 1px dashed var(--line);
+            border-radius: 18px;
+            padding: 1rem;
+        }
+
+        .event-feed {
+            max-height: 26rem;
+            overflow: auto;
+            display: grid;
+            gap: 0.55rem;
+        }
+
+        .event {
+            border-left: 3px solid var(--accent);
+            padding: 0.6rem 0.75rem;
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .event strong {
+            display: block;
+            margin-bottom: 0.25rem;
+        }
+
+        @media (max-width: 1000px) {
+            .grid {
+                grid-template-columns: 1fr;
             }
         }
     </style>
 </head>
-
 <body>
-
     <header>
-        <h1>Nexus Prime</h1>
-        <div class="status">
-            <div class="status-dot" id="conn-dot"></div>
-            <span id="conn-text">Connecting...</span>
+        <div>
+            <h1>Nexus Prime Runtime Console</h1>
+            <div class="subtitle">Live runs, backends, skills, workflows, verifier evidence, and release health.</div>
         </div>
+        <div id="stream-pill" class="stream-pill">Event stream waiting</div>
     </header>
 
-    <div class="layout">
-        <!-- LEFT: Telemetry & Tokens -->
-        <div class="panel">
-            <div class="panel-header">Token Supremacy Engine</div>
-            <div class="panel-content">
+    <main>
+        <section class="hero" aria-label="runtime stats">
+            <div class="stat">
+                <label>Tracked Runs</label>
+                <strong id="runs-count">0</strong>
+                <div class="meta" id="latest-run-state">No execution yet</div>
+            </div>
+            <div class="stat">
+                <label>Bundled Skills</label>
+                <strong id="skills-count">0</strong>
+                <div class="meta">Live, session, and base skills</div>
+            </div>
+            <div class="stat">
+                <label>Workflow Library</label>
+                <strong id="workflows-count">0</strong>
+                <div class="meta">Bundled, local, and derived workflows</div>
+            </div>
+            <div class="stat">
+                <label>Package Version</label>
+                <strong id="release-version">unknown</strong>
+                <div class="meta" id="pages-health">Pages status unknown</div>
+            </div>
+        </section>
 
-                <div class="metric-card" style="border-color: var(--primary)">
-                    <span class="metric-label" style="color: var(--primary)">Connected Ecosystem</span>
-                    <div class="ecosystem-grid">
-                        <div class="tool-card">
-                            <div class="tool-info">
-                                <div class="indicator active"></div>
-                                <span class="tool-name">Cursor</span>
-                            </div>
-                            <span class="tool-status">Active</span>
-                        </div>
-                        <div class="tool-card">
-                            <div class="tool-info">
-                                <div class="indicator active"></div>
-                                <span class="tool-name">Claude Code</span>
-                            </div>
-                            <span class="tool-status">Active</span>
-                        </div>
-                        <div class="tool-card">
-                            <div class="tool-info">
-                                <div class="indicator"></div>
-                                <span class="tool-name">Opencode</span>
-                            </div>
-                            <span class="tool-status">Ready</span>
-                        </div>
-                        <div class="tool-card">
-                            <div class="tool-info">
-                                <div class="indicator"></div>
-                                <span class="tool-name">Codex</span>
-                            </div>
-                            <span class="tool-status">Standby</span>
-                        </div>
+        <div class="grid">
+            <div class="stack">
+                <section>
+                    <h2>Runs</h2>
+                    <div id="runs-list" class="list">
+                        <div class="empty">No runs yet.</div>
                     </div>
-                </div>
+                </section>
 
-                <div class="token-dial-container">
-                    <svg id="token-dial">
-                        <circle class="dial-bg" cx="80" cy="80" r="70"></circle>
-                        <circle class="dial-fg" cx="80" cy="80" r="70" id="dial-progress"></circle>
-                    </svg>
-                    <div class="token-dial-text">
-                        <div class="dial-pct" id="dial-pct">0%</div>
-                        <div class="dial-label">Avg Compression</div>
+                <section>
+                    <h2>Skills</h2>
+                    <div id="skills-list" class="list">
+                        <div class="empty">No skills loaded.</div>
                     </div>
-                </div>
+                </section>
 
-                <div class="metric-card">
-                    <span class="metric-label">Gross Tokens Consumed</span>
-                    <span class="metric-val" id="val-gross">0</span>
-                </div>
-                <div class="metric-card">
-                    <span class="metric-label">Net Tokens Forwarded</span>
-                    <span class="metric-val" id="val-net">0</span>
-                </div>
-                <div class="metric-card">
-                    <span class="metric-label" style="color:var(--primary)">Tokens Saved</span>
-                    <span class="metric-val" style="color:var(--primary)" id="val-saved">0</span>
-                </div>
-
-                <div class="metric-card" style="margin-top: 1rem; border-color: var(--blue)">
-                    <span class="metric-label" style="color:var(--blue)">POD Swarm Synchronization</span>
-                    <div id="pod-sync-indicator"
-                        style="display:flex; justify-content:space-between; align-items:center; margin-top: 0.5rem;">
-                        <span id="pod-last-worker" style="font-size: 0.7rem; color: var(--text-dim)">Idle</span>
-                        <div class="pod-pulse" id="pod-pulse"
-                            style="width: 10px; height: 10px; background: var(--blue); border-radius: 50%; box-shadow: 0 0 10px var(--blue); opacity: 0.3; transition: all 0.2s;">
-                        </div>
+                <section>
+                    <h2>Workflows</h2>
+                    <div id="workflows-list" class="list">
+                        <div class="empty">No workflows loaded.</div>
                     </div>
-                </div>
+                </section>
+            </div>
+
+            <div class="stack">
+                <section>
+                    <h2>Backends</h2>
+                    <div id="backends-list" class="list">
+                        <div class="empty">Backend catalog unavailable.</div>
+                    </div>
+                </section>
+
+                <section>
+                    <h2>Health</h2>
+                    <div id="health-panel" class="list">
+                        <div class="empty">Health status unavailable.</div>
+                    </div>
+                </section>
+
+                <section>
+                    <h2>Live Events</h2>
+                    <div id="event-feed" class="event-feed">
+                        <div class="empty">Waiting for runtime activity.</div>
+                    </div>
+                </section>
             </div>
         </div>
-
-        <!-- CENTER: D3 Memory Topology -->
-        <div class="panel" style="border: 1px solid rgba(0,100,255,0.1); box-shadow: 0 0 30px rgba(0,100,255,0.05);">
-            <div class="panel-header" style="background: rgba(0,100,255,0.05);">Memory Topology Graph</div>
-            <div id="graph-container">
-                <!-- D3 appends SVG here -->
-            </div>
-        </div>
-
-        <!-- RIGHT: Sub-Agent & Event HUD -->
-        <div class="panel">
-            <div class="panel-header">
-                Neural Stream HUD
-                <span id="event-count">0 signals</span>
-            </div>
-            <div class="panel-content">
-                <div class="hud-tab-bar">
-                    <div class="hud-tab active" id="tab-all">All Streams</div>
-                    <div class="hud-tab" id="tab-phantom">Phantom Swarm</div>
-                </div>
-                <div id="log-container"></div>
-            </div>
-        </div>
-    </div>
+    </main>
 
     <script>
-        // ─────────────────────────────────────────────────────────
-        // STATE
-        // ─────────────────────────────────────────────────────────
-        let stats = {
-            totalGross: 0,
-            totalNet: 0,
-            totalSaved: 0,
-            eventCount: 0
+        const state = {
+            runs: [],
+            skills: [],
+            workflows: [],
+            backends: {},
+            health: {},
+            events: [],
         };
 
-        const memNodes = [];
-        const memLinks = [];
-        const tagMap = new Map(); // tag => [nodeIds]
-
-        let filterPhantomOnly = false;
-        const eventHistory = []; // stores HTML nodes
-
-        // ─────────────────────────────────────────────────────────
-        // DOM ELEMENTS
-        // ─────────────────────────────────────────────────────────
-        const connDot = document.getElementById('conn-dot');
-        const connText = document.getElementById('conn-text');
-
-        const dialProgress = document.getElementById('dial-progress');
-        const dialPct = document.getElementById('dial-pct');
-        const valGross = document.getElementById('val-gross');
-        const valNet = document.getElementById('val-net');
-        const valSaved = document.getElementById('val-saved');
-
-        const logContainer = document.getElementById('log-container');
-        const countLabel = document.getElementById('event-count');
-
-        document.getElementById('tab-all').onclick = (e) => setTab(e.target, false);
-        document.getElementById('tab-phantom').onclick = (e) => setTab(e.target, true);
-
-        function setTab(target, isPhantom) {
-            document.querySelectorAll('.hud-tab').forEach(t => t.classList.remove('active'));
-            target.classList.add('active');
-            filterPhantomOnly = isPhantom;
-
-            // basic re-render of matching items
-            Array.from(logContainer.children).forEach(el => {
-                const isPhantomEvt = el.classList.contains('phantom');
-                if (filterPhantomOnly && !isPhantomEvt) {
-                    el.style.display = 'none';
-                } else {
-                    el.style.display = 'block';
-                }
-            });
+        function render() {
+            renderStats();
+            renderRuns();
+            renderSkills();
+            renderWorkflows();
+            renderBackends();
+            renderHealth();
+            renderEvents();
         }
 
-        // ─────────────────────────────────────────────────────────
-        // D3 GRAPH ENGINE
-        // ─────────────────────────────────────────────────────────
-        const width = document.getElementById('graph-container').clientWidth;
-        const height = document.getElementById('graph-container').clientHeight;
-
-        const svg = d3.select("#graph-container")
-            .append("svg")
-            .attr("width", "100%")
-            .attr("height", "100%")
-            .call(d3.zoom().on("zoom", (event) => {
-                g.attr("transform", event.transform);
-            }))
-            .append("g");
-
-        const g = svg.append("g");
-
-        let linkGroup = g.append("g").attr("class", "links");
-        let nodeGroup = g.append("g").attr("class", "nodes");
-
-        const simulation = d3.forceSimulation(memNodes)
-            .force("charge", d3.forceManyBody().strength(-150))
-            .force("center", d3.forceCenter(width / 2, height / 2))
-            .force("link", d3.forceLink(memLinks).id(d => d.id).distance(80))
-            .force("collide", d3.forceCollide().radius(20));
-
-        function updateGraph() {
-            // Update links
-            const linkElements = linkGroup.selectAll("line").data(memLinks, d => `${d.source.id || d.source}-${d.target.id || d.target}`);
-            linkElements.enter().append("line")
-                .attr("class", "link")
-                .merge(linkElements);
-            linkElements.exit().remove();
-
-            // Update nodes
-            const nodeElements = nodeGroup.selectAll("g.node").data(memNodes, d => d.id);
-            const nodeEnter = nodeElements.enter().append("g")
-                .attr("class", "node")
-                .call(d3.drag()
-                    .on("start", dragstarted)
-                    .on("drag", dragged)
-                    .on("end", dragended));
-
-            nodeEnter.append("circle")
-                .attr("r", d => d.tier === 'cortex' ? 8 : 5)
-                .style("fill", d => d.tier === 'cortex' ? "var(--magenta)" : "var(--blue)")
-                .style("stroke", "#000")
-                .style("opacity", d => d.entropy || 1.0); // v1.5 Entropy Decay
-
-            nodeEnter.append("text")
-                .attr("dx", 12)
-                .attr("dy", ".35em")
-                .text(d => d.id.substring(0, 6));
-
-            nodeElements.exit().remove();
-
-            // Restart simulation
-            simulation.nodes(memNodes);
-            simulation.force("link").links(memLinks);
-            simulation.alpha(1).restart();
+        function stateClass(value) {
+            if (['merged', 'healthy', 'connected', true].includes(value)) return 'good';
+            if (['rolled_back', 'idle'].includes(value)) return 'warn';
+            return 'bad';
         }
 
-        simulation.on("tick", () => {
-            linkGroup.selectAll("line")
-                .attr("x1", d => d.source.x)
-                .attr("y1", d => d.source.y)
-                .attr("x2", d => d.target.x)
-                .attr("y2", d => d.target.y);
-
-            nodeGroup.selectAll("g.node")
-                .attr("transform", d => `translate(${d.x},${d.y})`);
-        });
-
-        // Drag functions
-        function dragstarted(event, d) {
-            if (!event.active) simulation.alphaTarget(0.3).restart();
-            d.fx = d.x; d.fy = d.y;
-        }
-        function dragged(event, d) {
-            d.fx = event.x; d.fy = event.y;
-        }
-        function dragended(event, d) {
-            if (!event.active) simulation.alphaTarget(0);
-            d.fx = null; d.fy = null;
+        function createChip(text) {
+            return `<span class="chip">${escapeHtml(text)}</span>`;
         }
 
-        function addMemoryNode(evtData) {
-            const newNode = {
-                id: evtData.id || `node-${Date.now()}`,
-                tier: evtData.tier || 'hippocampus',
-                tags: evtData.tags || []
-            };
-            memNodes.push(newNode);
-
-            // Create links between nodes sharing tags
-            newNode.tags.forEach(tag => {
-                if (!tagMap.has(tag)) tagMap.set(tag, []);
-                const sharedNodes = tagMap.get(tag);
-                sharedNodes.forEach(targetId => {
-                    memLinks.push({ source: newNode.id, target: targetId });
-                });
-                sharedNodes.push(newNode.id);
-            });
-
-            updateGraph();
+        function escapeHtml(value) {
+            return String(value)
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;');
         }
 
-        // ─────────────────────────────────────────────────────────
-        // EVENT STREAM & UI UPDATES
-        // ─────────────────────────────────────────────────────────
-        function updateTokenDial() {
-            if (stats.totalGross === 0) return;
-            const pct = (stats.totalSaved / stats.totalGross) * 100;
-            const offset = 440 - (440 * (pct / 100)); // 440 depends on stroke-dasharray
-            dialProgress.style.strokeDashoffset = offset;
-            dialPct.innerText = `${Math.round(pct)}%`;
+        function renderStats() {
+            document.getElementById('runs-count').textContent = String(state.runs.length);
+            document.getElementById('skills-count').textContent = String(state.skills.length);
+            document.getElementById('workflows-count').textContent = String(state.workflows.length);
+            document.getElementById('release-version').textContent = state.health.release?.packageVersion || 'unknown';
+
+            const latestRun = state.runs[0];
+            document.getElementById('latest-run-state').textContent = latestRun
+                ? `${latestRun.state} · ${latestRun.selectedBackends?.memoryBackend || 'unknown'}`
+                : 'No execution yet';
+            document.getElementById('pages-health').textContent = state.health.docs?.pagesWorkflowValid
+                ? 'Pages workflow healthy'
+                : 'Pages workflow needs attention';
         }
 
-        function getColorClass(type) {
-            if (type.startsWith('memory')) return 'memory';
-            if (type.startsWith('tokens')) return 'tokens';
-            if (type.startsWith('phantom')) return 'phantom';
-            if (type.startsWith('guardrail')) return 'guardrail';
-            if (type.startsWith('pod')) return 'pod';
-            return '';
-        }
-
-        function buildEventHTML(evt) {
-            const dt = new Date(evt.timestamp);
-            const time = !isNaN(dt) ? dt.toISOString().split('T')[1].slice(0, 12) : new Date().toISOString().split('T')[1].slice(0, 12);
-            let headerExtra = '';
-
-            // Sub-Agent Badge visually styling
-            if (evt.type.startsWith('phantom.worker')) {
-                const wId = evt.data.workerId || 'W-??';
-                headerExtra = `<span class="worker-badge">${wId}</span>`;
-            } else if (evt.type === 'phantom.merge') {
-                headerExtra = `<span class="worker-badge" style="background:var(--primary)">Oracle</span>`;
+        function renderRuns() {
+            const container = document.getElementById('runs-list');
+            if (!state.runs.length) {
+                container.innerHTML = '<div class="empty">No runs yet.</div>';
+                return;
             }
 
-            let dataStr = JSON.stringify(evt.data, null, 2).replace(/[{}"]/g, '').trim();
+            container.innerHTML = state.runs.map((run) => `
+                <article class="card">
+                    <div class="card-header">
+                        <div>
+                            <h3>${escapeHtml(run.goal)}</h3>
+                            <div class="meta">${escapeHtml(run.runId)} · ${escapeHtml(run.artifactsPath || '')}</div>
+                        </div>
+                        <span class="state ${stateClass(run.state)}">${escapeHtml(run.state)}</span>
+                    </div>
+                    <p>${escapeHtml(run.result || 'Run recorded.')}</p>
+                    <div class="chips">
+                        ${createChip(`workers:${run.workerResults?.length || 0}`)}
+                        ${createChip(`verified:${(run.workerResults || []).filter((item) => item.verified).length}`)}
+                        ${createChip(`memory:${run.selectedBackends?.memoryBackend || 'n/a'}`)}
+                        ${createChip(`compression:${run.selectedBackends?.compressionBackend || 'n/a'}`)}
+                    </div>
+                </article>
+            `).join('');
+        }
 
-            return `
-                <div class="event-header">
-                    <span>${headerExtra} <strong style="color:var(--text-main)">${evt.type}</strong></span>
-                    <span style="font-size:0.65rem">${time}</span>
-                </div>
-                <div class="event-data">${dataStr}</div>
+        function renderSkills() {
+            const container = document.getElementById('skills-list');
+            if (!state.skills.length) {
+                container.innerHTML = '<div class="empty">No skills loaded.</div>';
+                return;
+            }
+
+            container.innerHTML = state.skills.slice(0, 12).map((skill) => `
+                <article class="card">
+                    <div class="card-header">
+                        <div>
+                            <h3>${escapeHtml(skill.name)}</h3>
+                            <div class="meta">${escapeHtml(skill.provenance || '')}</div>
+                        </div>
+                        <span class="state ${stateClass(skill.rolloutStatus === 'revoked' ? 'failed' : skill.rolloutStatus === 'promoted' ? 'merged' : 'idle')}">${escapeHtml(skill.rolloutStatus)}</span>
+                    </div>
+                    <p>${escapeHtml((skill.instructions || '').split('\n')[0] || 'Skill artifact')}</p>
+                    <div class="chips">
+                        ${createChip(`risk:${skill.riskClass}`)}
+                        ${createChip(`scope:${skill.scope}`)}
+                        ${skill.domain ? createChip(`domain:${skill.domain}`) : ''}
+                    </div>
+                </article>
+            `).join('');
+        }
+
+        function renderWorkflows() {
+            const container = document.getElementById('workflows-list');
+            if (!state.workflows.length) {
+                container.innerHTML = '<div class="empty">No workflows loaded.</div>';
+                return;
+            }
+
+            container.innerHTML = state.workflows.slice(0, 12).map((workflow) => `
+                <article class="card">
+                    <div class="card-header">
+                        <div>
+                            <h3>${escapeHtml(workflow.name)}</h3>
+                            <div class="meta">${escapeHtml(workflow.provenance || '')}</div>
+                        </div>
+                        <span class="state ${stateClass(workflow.rolloutStatus === 'revoked' ? 'failed' : workflow.rolloutStatus === 'promoted' ? 'merged' : 'idle')}">${escapeHtml(workflow.rolloutStatus)}</span>
+                    </div>
+                    <p>${escapeHtml(workflow.description || 'Workflow artifact')}</p>
+                    <div class="chips">
+                        ${createChip(`domain:${workflow.domain}`)}
+                        ${createChip(`steps:${(workflow.steps || []).length}`)}
+                        ${createChip(`scope:${workflow.scope}`)}
+                    </div>
+                </article>
+            `).join('');
+        }
+
+        function renderBackends() {
+            const container = document.getElementById('backends-list');
+            const groups = Object.entries(state.backends || {});
+            if (!groups.length) {
+                container.innerHTML = '<div class="empty">Backend catalog unavailable.</div>';
+                return;
+            }
+
+            container.innerHTML = groups.map(([group, entries]) => `
+                <article class="card">
+                    <div class="card-header">
+                        <h3>${escapeHtml(group)}</h3>
+                    </div>
+                    <div class="chips">
+                        ${(entries || []).map((entry) => createChip(`${entry.kind}:${entry.mode}`)).join('')}
+                    </div>
+                </article>
+            `).join('');
+        }
+
+        function renderHealth() {
+            const container = document.getElementById('health-panel');
+            const health = state.health || {};
+            if (!Object.keys(health).length) {
+                container.innerHTML = '<div class="empty">Health status unavailable.</div>';
+                return;
+            }
+
+            container.innerHTML = `
+                <article class="card">
+                    <div class="card-header">
+                        <h3>Runtime</h3>
+                        <span class="state ${stateClass(health.runtime?.runtime || 'failed')}">${escapeHtml(health.runtime?.runtime || 'unknown')}</span>
+                    </div>
+                    <div class="chips">
+                        ${createChip(`runs:${health.runtime?.runsTracked || 0}`)}
+                        ${createChip(`skills:${health.runtime?.skills || 0}`)}
+                        ${createChip(`workflows:${health.runtime?.workflows || 0}`)}
+                    </div>
+                </article>
+                <article class="card">
+                    <div class="card-header">
+                        <h3>Docs / Release</h3>
+                    </div>
+                    <div class="chips">
+                        ${createChip(`version:${health.release?.packageVersion || 'unknown'}`)}
+                        ${createChip(`docs:${health.docs?.present ? 'present' : 'missing'}`)}
+                        ${createChip(`pages:${health.docs?.pagesWorkflowValid ? 'valid' : 'broken'}`)}
+                        ${createChip(`stream:${health.connection?.stream || 'unknown'}`)}
+                    </div>
+                </article>
             `;
         }
 
-        const podPulse = document.getElementById('pod-pulse');
-        const podWorkerLabel = document.getElementById('pod-last-worker');
-
-        function processEvent(event) {
-            // 1. Process Logic
-            if (event.type === 'tokens.optimized') {
-                // Determine gross tokens if we only got savings + pct
-                const savings = event.data.savings || 0;
-                const pct = event.data.pct || 0;
-                let gross = savings;
-                if (pct > 0 && pct <= 100) {
-                    gross = savings / (pct / 100);
-                }
-
-                stats.totalSaved += savings;
-                stats.totalGross += gross;
-                stats.totalNet += (gross - savings);
-
-                valSaved.innerText = Math.floor(stats.totalSaved).toLocaleString();
-                valGross.innerText = Math.floor(stats.totalGross).toLocaleString();
-                valNet.innerText = Math.floor(stats.totalNet).toLocaleString();
-                updateTokenDial();
+        function renderEvents() {
+            const container = document.getElementById('event-feed');
+            if (!state.events.length) {
+                container.innerHTML = '<div class="empty">Waiting for runtime activity.</div>';
+                return;
             }
 
-            if (event.type === 'pod.signal') {
-                // Visual pulse for the POD widget
-                podPulse.style.opacity = '1';
-                podPulse.style.transform = 'scale(1.5)';
-                podWorkerLabel.innerText = `Sync: ${event.data.workerId || 'Node'}`;
-                setTimeout(() => {
-                    podPulse.style.opacity = '0.3';
-                    podPulse.style.transform = 'scale(1)';
-                }, 500);
+            container.innerHTML = state.events.slice(0, 20).map((event) => `
+                <div class="event">
+                    <strong>${escapeHtml(event.type)}</strong>
+                    <div class="meta">${new Date(event.timestamp).toLocaleTimeString()}</div>
+                    <pre>${escapeHtml(JSON.stringify(event.data, null, 2))}</pre>
+                </div>
+            `).join('');
+        }
+
+        async function loadJson(url) {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error(`${url} failed`);
+            return response.json();
+        }
+
+        async function refreshAll() {
+            const [runs, skills, workflows, backends, health] = await Promise.all([
+                loadJson('/api/runs'),
+                loadJson('/api/skills'),
+                loadJson('/api/workflows'),
+                loadJson('/api/backends'),
+                loadJson('/api/health'),
+            ]);
+            state.runs = Array.isArray(runs) ? runs : [];
+            state.skills = Array.isArray(skills) ? skills : [];
+            state.workflows = Array.isArray(workflows) ? workflows : [];
+            state.backends = backends || {};
+            state.health = health || {};
+            render();
+        }
+
+        async function boot() {
+            try {
+                await refreshAll();
+            } catch (error) {
+                console.error(error);
             }
 
-            if (event.type === 'memory.store') {
-                addMemoryNode(event.data);
-            }
-
-            if (event.type === 'memory.fission') {
-                // v1.5 Fission Effect: Flash relevant nodes
-                const affectedIds = event.data.nodes || [];
-                nodeGroup.selectAll("circle")
-                    .filter(d => affectedIds.includes(d.id))
-                    .transition()
-                    .duration(500)
-                    .attr("r", 15)
-                    .style("fill", "var(--primary)")
-                    .transition()
-                    .duration(500)
-                    .attr("r", d => d.tier === 'cortex' ? 8 : 5)
-                    .style("fill", d => d.tier === 'cortex' ? "var(--magenta)" : "var(--blue)");
-            }
-
-            if (event.type === 'memory.entropy') {
-                // v1.5 Entropy Decay: Update node opacities
-                const updates = event.data.updates || []; // id -> entropy
-                memNodes.forEach(node => {
-                    if (updates[node.id] !== undefined) {
-                        node.entropy = updates[node.id];
+            const eventSource = new EventSource('/stream');
+            eventSource.addEventListener('open', () => {
+                const pill = document.getElementById('stream-pill');
+                pill.classList.add('live');
+                pill.textContent = 'Event stream live';
+            });
+            eventSource.addEventListener('error', () => {
+                const pill = document.getElementById('stream-pill');
+                pill.classList.remove('live');
+                pill.textContent = 'Event stream reconnecting';
+            });
+            eventSource.onmessage = async (event) => {
+                const parsed = JSON.parse(event.data);
+                state.events.unshift(parsed);
+                state.events = state.events.slice(0, 40);
+                renderEvents();
+                if (parsed.type.startsWith('phantom.') || parsed.type.startsWith('skill.') || parsed.type.startsWith('guardrail') || parsed.type.startsWith('memory.')) {
+                    try {
+                        await refreshAll();
+                    } catch (error) {
+                        console.error(error);
                     }
-                });
-                nodeGroup.selectAll("circle")
-                    .style("opacity", d => d.entropy || 1.0);
-            }
-
-            // 2. HUD Logic
-            stats.eventCount++;
-            countLabel.innerText = `${stats.eventCount} signals`;
-
-            const typeClass = getColorClass(event.type);
-            const el = document.createElement('div');
-            el.className = `event-item ${typeClass}`;
-            el.innerHTML = buildEventHTML(event);
-
-            // Filter logic
-            if (filterPhantomOnly && !typeClass.includes('phantom')) {
-                el.style.display = 'none';
-            }
-
-            logContainer.prepend(el);
-            if (logContainer.children.length > 50) {
-                logContainer.lastChild.remove();
-            }
-        }
-
-        // ─────────────────────────────────────────────────────────
-        // SERVER SENT EVENTS
-        // ─────────────────────────────────────────────────────────
-        function connectSSE() {
-            const evtSource = new EventSource('/stream');
-
-            evtSource.onopen = () => {
-                connText.innerText = 'Synchronized';
-                connDot.style.backgroundColor = 'var(--primary)';
-                connDot.style.boxShadow = '0 0 12px var(--primary-glow)';
-            };
-
-            evtSource.onmessage = (e) => {
-                try {
-                    const event = JSON.parse(e.data);
-                    processEvent(event);
-                } catch (err) {
-                    // ignore invalid JSON
                 }
             };
-
-            evtSource.onerror = () => {
-                connText.innerText = 'Reconnecting...';
-                connDot.style.backgroundColor = 'var(--danger)';
-                connDot.style.boxShadow = '0 0 12px var(--danger)';
-                evtSource.close();
-                setTimeout(connectSSE, 3000);
-            };
         }
 
-        connectSSE();
+        boot();
     </script>
 </body>
-
 </html>

@@ -20,7 +20,6 @@ import {
     GhostPass,
     createSubAgentRuntime,
     summarizeExecution,
-    type ExecutionRun,
     type SubAgentRuntime,
 } from '../../phantom/index.js';
 import { GuardrailEngine } from '../../engines/guardrails-bridge.js';
@@ -39,8 +38,7 @@ import {
     ContinuousAttentionStream,
     createKVBridge,
     nxl,
-    OrchestratorEngine,
-    AgentArchetype
+    OrchestratorEngine
 } from '../../engines/index.js';
 import { FederationEngine, type TraceEntry } from '../../engines/federation.js';
 
@@ -327,7 +325,13 @@ export class MCPAdapter implements Adapter {
                             workers: { type: 'number', description: 'Number of phantom workers to spawn (max 7)', default: 3 },
                             verify: { type: 'array', items: { type: 'string' }, description: 'Verification commands to run in verifier worktrees' },
                             strategies: { type: 'array', items: { type: 'string' }, description: 'Optional worker strategies such as minimal, standard, thorough' },
-                            actions: { type: 'array', items: { type: 'object' }, description: 'Optional runtime actions or skill bindings to execute in worker worktrees' }
+                            actions: { type: 'array', items: { type: 'object' }, description: 'Optional runtime actions or skill bindings to execute in worker worktrees' },
+                            skills: { type: 'array', items: { type: 'string' }, description: 'Runtime skill selectors' },
+                            workflows: { type: 'array', items: { type: 'string' }, description: 'Workflow selectors' },
+                            memoryBackend: { type: 'string', description: 'Memory backend selector' },
+                            compressionBackend: { type: 'string', description: 'Compression backend selector' },
+                            dslCompiler: { type: 'string', description: 'DSL compiler selector' },
+                            backendMode: { type: 'string', enum: ['default', 'shadow', 'experimental'], description: 'Backend execution mode' }
                         },
                         required: ['goal', 'files'],
                     },
@@ -395,6 +399,92 @@ export class MCPAdapter implements Adapter {
                             }
                         },
                         required: ['card'],
+                    },
+                },
+                {
+                    name: 'nexus_skill_generate',
+                    description: 'Generate a live runtime skill artifact that can be deployed to future runs or promoted after evidence-backed execution.',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {
+                            name: { type: 'string', description: 'Skill name' },
+                            instructions: { type: 'string', description: 'Instructions for the generated skill' },
+                            riskClass: { type: 'string', enum: ['read', 'orchestrate', 'mutate'], description: 'Risk class for the skill' },
+                            scope: { type: 'string', enum: ['session', 'worker', 'global'], description: 'Initial scope for the skill' }
+                        },
+                        required: ['name', 'instructions'],
+                    },
+                },
+                {
+                    name: 'nexus_skill_deploy',
+                    description: 'Promote or deploy a live runtime skill artifact so future runs can activate it.',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {
+                            skillId: { type: 'string', description: 'Skill artifact ID or exact name' },
+                            scope: { type: 'string', enum: ['session', 'worker', 'global'], description: 'Deployment scope' }
+                        },
+                        required: ['skillId'],
+                    },
+                },
+                {
+                    name: 'nexus_skill_revoke',
+                    description: 'Revoke a live runtime skill artifact.',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {
+                            skillId: { type: 'string', description: 'Skill artifact ID or exact name' }
+                        },
+                        required: ['skillId'],
+                    },
+                },
+                {
+                    name: 'nexus_workflow_generate',
+                    description: 'Generate a workflow artifact that can be deployed to runs or promoted through runtime evidence.',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {
+                            name: { type: 'string', description: 'Workflow name' },
+                            description: { type: 'string', description: 'Workflow description' },
+                            domain: { type: 'string', description: 'Optional workflow domain' },
+                            scope: { type: 'string', enum: ['session', 'worker', 'global'], description: 'Initial workflow scope' }
+                        },
+                        required: ['name', 'description'],
+                    },
+                },
+                {
+                    name: 'nexus_workflow_deploy',
+                    description: 'Deploy or promote a workflow artifact for future runs.',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {
+                            workflowId: { type: 'string', description: 'Workflow artifact ID or exact name' },
+                            scope: { type: 'string', enum: ['session', 'worker', 'global'], description: 'Deployment scope' }
+                        },
+                        required: ['workflowId'],
+                    },
+                },
+                {
+                    name: 'nexus_workflow_run',
+                    description: 'Run a workflow artifact through the real execution runtime.',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {
+                            workflowId: { type: 'string', description: 'Workflow artifact ID or exact name' },
+                            goal: { type: 'string', description: 'Optional override goal' }
+                        },
+                        required: ['workflowId'],
+                    },
+                },
+                {
+                    name: 'nexus_run_status',
+                    description: 'Return the current recorded state of a runtime execution run.',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {
+                            runId: { type: 'string', description: 'Execution run ID' }
+                        },
+                        required: ['runId'],
                     },
                 },
                 // ── Darwin Loop ──────────────────────────────────────────────────
@@ -850,15 +940,37 @@ export class MCPAdapter implements Adapter {
                 const actions = Array.isArray(request.params.arguments?.actions)
                     ? (request.params.arguments.actions as any[])
                     : [];
+                const skills = Array.isArray(request.params.arguments?.skills)
+                    ? (request.params.arguments.skills as unknown[]).map(String)
+                    : undefined;
+                const workflows = Array.isArray(request.params.arguments?.workflows)
+                    ? (request.params.arguments.workflows as unknown[]).map(String)
+                    : undefined;
+                const memoryBackend = request.params.arguments?.memoryBackend
+                    ? String(request.params.arguments.memoryBackend)
+                    : undefined;
+                const compressionBackend = request.params.arguments?.compressionBackend
+                    ? String(request.params.arguments.compressionBackend)
+                    : undefined;
+                const dslCompiler = request.params.arguments?.dslCompiler
+                    ? String(request.params.arguments.dslCompiler)
+                    : undefined;
+                const backendMode = request.params.arguments?.backendMode
+                    ? String(request.params.arguments.backendMode) as 'default' | 'shadow' | 'experimental'
+                    : undefined;
 
                 const execution = await this.getRuntime().run({
                     goal,
                     files: rawFiles,
                     workers: workersCount,
-                    roles: ['planner', 'coder', 'verifier'],
+                    roles: ['planner', 'coder', 'verifier', 'skill-maker', 'research-shadow'],
                     verifyCommands,
                     strategies,
                     actions,
+                    skillNames: skills,
+                    workflowSelectors: workflows,
+                    backendSelectors: { memoryBackend, compressionBackend, dslCompiler },
+                    backendMode,
                 });
 
                 const verifiedWorkers = execution.workerResults.filter(result => result.verified).length;
@@ -913,8 +1025,11 @@ export class MCPAdapter implements Adapter {
                             `Modified Files: ${modifiedFiles}`,
                             `Decision: ${execution.finalDecision?.action ?? 'none'}`,
                             `Recommended Strategy: ${execution.finalDecision?.recommendedStrategy ?? 'n/a'}`,
+                            `Planner: ${execution.plannerResult?.summary ?? 'n/a'}`,
                             `Backends: memory=${execution.selectedBackends.memoryBackend}, compression=${execution.selectedBackends.compressionBackend}, consensus=${execution.selectedBackends.consensusPolicy}, dsl=${execution.selectedBackends.dslCompiler}`,
                             `Active Skills: ${execution.activeSkills.length > 0 ? execution.activeSkills.map(skill => `${skill.name}(${skill.riskClass})`).join(', ') : 'none'}`,
+                            `Active Workflows: ${execution.activeWorkflows.length > 0 ? execution.activeWorkflows.map(workflow => workflow.name).join(', ') : 'none'}`,
+                            `Promotions: ${execution.promotionDecisions.length > 0 ? execution.promotionDecisions.map(decision => `${decision.kind}:${decision.target}:${decision.approved ? 'approved' : 'held'}`).join(', ') : 'none'}`,
                             '',
                             `Result: ${execution.result}`
                         ].join('\n')
@@ -1099,6 +1214,133 @@ export class MCPAdapter implements Adapter {
                         type: 'text',
                         text: `🎯 Skill Card "${card.name}" registered successfully!\nEntity ID: ${id}\nYAML serialized and stored in Graph Knowledge Engine.`
                     }]
+                };
+            }
+
+            case 'nexus_skill_generate': {
+                const name = String(request.params.arguments?.name ?? '');
+                const instructions = String(request.params.arguments?.instructions ?? '');
+                const riskClass = String(request.params.arguments?.riskClass ?? 'orchestrate') as 'read' | 'orchestrate' | 'mutate';
+                const scope = String(request.params.arguments?.scope ?? 'session') as 'session' | 'worker' | 'global';
+                const artifact = this.getRuntime().generateSkill({ name, instructions, riskClass, scope, provenance: 'mcp:generate' });
+                this.sessionDNA.recordSkillLearned(artifact.name);
+                return {
+                    content: [{
+                        type: 'text',
+                        text: `🧠 Runtime skill generated\nID: ${artifact.skillId}\nName: ${artifact.name}\nRisk: ${artifact.riskClass}\nScope: ${artifact.scope}\nProvenance: ${artifact.provenance}`,
+                    }],
+                };
+            }
+
+            case 'nexus_skill_deploy': {
+                const skillId = String(request.params.arguments?.skillId ?? '');
+                const scope = String(request.params.arguments?.scope ?? 'session') as 'session' | 'worker' | 'global';
+                const runtime = this.getRuntime();
+                const known = runtime.listSkills().find((skill) => skill.skillId === skillId || skill.name === skillId);
+                const artifact = known ? runtime.deploySkill(known.skillId, scope) : undefined;
+                if (!artifact) {
+                    return { content: [{ type: 'text', text: `❌ Skill not found: ${skillId}` }] };
+                }
+                this.sessionDNA.recordSkill(artifact.name);
+                return {
+                    content: [{
+                        type: 'text',
+                        text: `🚚 Runtime skill deployed\nID: ${artifact.skillId}\nName: ${artifact.name}\nScope: ${artifact.scope}\nRollout: ${artifact.rolloutStatus}`,
+                    }],
+                };
+            }
+
+            case 'nexus_skill_revoke': {
+                const skillId = String(request.params.arguments?.skillId ?? '');
+                const runtime = this.getRuntime();
+                const known = runtime.listSkills().find((skill) => skill.skillId === skillId || skill.name === skillId);
+                const artifact = known ? runtime.revokeSkill(known.skillId) : undefined;
+                if (!artifact) {
+                    return { content: [{ type: 'text', text: `❌ Skill not found: ${skillId}` }] };
+                }
+                return {
+                    content: [{
+                        type: 'text',
+                        text: `🧯 Runtime skill revoked\nID: ${artifact.skillId}\nName: ${artifact.name}\nRollout: ${artifact.rolloutStatus}`,
+                    }],
+                };
+            }
+
+            case 'nexus_workflow_generate': {
+                const name = String(request.params.arguments?.name ?? '');
+                const description = String(request.params.arguments?.description ?? '');
+                const domain = request.params.arguments?.domain ? String(request.params.arguments?.domain) : undefined;
+                const scope = String(request.params.arguments?.scope ?? 'session') as 'session' | 'worker' | 'global';
+                const artifact = this.getRuntime().generateWorkflow({ name, description, domain, scope });
+                return {
+                    content: [{
+                        type: 'text',
+                        text: `🧭 Workflow generated\nID: ${artifact.workflowId}\nName: ${artifact.name}\nDomain: ${artifact.domain}\nScope: ${artifact.scope}`,
+                    }],
+                };
+            }
+
+            case 'nexus_workflow_deploy': {
+                const workflowId = String(request.params.arguments?.workflowId ?? '');
+                const scope = String(request.params.arguments?.scope ?? 'session') as 'session' | 'worker' | 'global';
+                const runtime = this.getRuntime();
+                const known = runtime.listWorkflows().find((workflow) => workflow.workflowId === workflowId || workflow.name === workflowId);
+                const artifact = known ? runtime.deployWorkflow(known.workflowId, scope) : undefined;
+                if (!artifact) {
+                    return { content: [{ type: 'text', text: `❌ Workflow not found: ${workflowId}` }] };
+                }
+                return {
+                    content: [{
+                        type: 'text',
+                        text: `🚚 Workflow deployed\nID: ${artifact.workflowId}\nName: ${artifact.name}\nScope: ${artifact.scope}\nRollout: ${artifact.rolloutStatus}`,
+                    }],
+                };
+            }
+
+            case 'nexus_workflow_run': {
+                const workflowId = String(request.params.arguments?.workflowId ?? '');
+                const goalOverride = request.params.arguments?.goal ? String(request.params.arguments.goal) : undefined;
+                try {
+                    const execution = await this.getRuntime().runWorkflow(workflowId, goalOverride);
+                    return {
+                        content: [{
+                            type: 'text',
+                            text: [
+                                `🧭 Workflow Runtime — ${summarizeExecution(execution)}`,
+                                `Run ID: ${execution.runId}`,
+                                `Artifacts: ${execution.artifactsPath}`,
+                                `Decision: ${execution.finalDecision?.action ?? 'none'}`,
+                                `Workflows: ${execution.activeWorkflows.map((workflow) => workflow.name).join(', ') || 'none'}`,
+                                `Result: ${execution.result}`,
+                            ].join('\n'),
+                        }],
+                    };
+                } catch (error: any) {
+                    return { content: [{ type: 'text', text: `❌ Workflow runtime error: ${error.message}` }] };
+                }
+            }
+
+            case 'nexus_run_status': {
+                const runId = String(request.params.arguments?.runId ?? '');
+                const run = this.getRuntime().getRun(runId);
+                if (!run) {
+                    return { content: [{ type: 'text', text: `❌ Run not found: ${runId}` }] };
+                }
+                return {
+                    content: [{
+                        type: 'text',
+                        text: JSON.stringify({
+                            runId: run.runId,
+                            state: run.state,
+                            result: run.result,
+                            artifactsPath: run.artifactsPath,
+                            workers: run.workerResults.length,
+                            verifiedWorkers: run.workerResults.filter((worker) => worker.verified).length,
+                            workflows: run.activeWorkflows.map((workflow) => workflow.name),
+                            promotions: run.promotionDecisions,
+                            backends: run.selectedBackends,
+                        }, null, 2),
+                    }],
                 };
             }
 
@@ -1407,8 +1649,11 @@ export class MCPAdapter implements Adapter {
                                 `Workers: ${execution.workerResults.length}`,
                                 `Verified Workers: ${verifiedWorkers}`,
                                 `Decision: ${execution.finalDecision?.action ?? 'none'}`,
+                                `Planner: ${execution.plannerResult?.summary ?? 'n/a'}`,
                                 `Backends: memory=${execution.selectedBackends.memoryBackend}, compression=${execution.selectedBackends.compressionBackend}, consensus=${execution.selectedBackends.consensusPolicy}, dsl=${execution.selectedBackends.dslCompiler}`,
                                 `Active Skills: ${execution.activeSkills.length > 0 ? execution.activeSkills.map(skill => skill.name).join(', ') : 'none'}`,
+                                `Active Workflows: ${execution.activeWorkflows.length > 0 ? execution.activeWorkflows.map(workflow => workflow.name).join(', ') : 'none'}`,
+                                `Promotions: ${execution.promotionDecisions.length > 0 ? execution.promotionDecisions.map(decision => `${decision.kind}:${decision.target}:${decision.approved ? 'approved' : 'held'}`).join(', ') : 'none'}`,
                                 '',
                                 `Result: ${execution.result}`
                             ].join('\n')
@@ -1466,7 +1711,7 @@ export class MCPAdapter implements Adapter {
         const transport = new StdioServerTransport();
         await this.server.connect(transport);
         this.connected = true;
-        console.error('[MCP Adapter] Connected — 16 tools active');
+        console.error('[MCP Adapter] Connected — runtime tools active');
     }
 
     async disconnect(): Promise<void> {

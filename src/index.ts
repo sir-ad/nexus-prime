@@ -8,8 +8,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { NexusConfig, Experience, Pattern, NetworkMessage, Agent, AgentType } from './core/types.js';
 import { MemorySystem, createMemory } from './core/memory.js';
 import { EvolutionEngine, FissionProtocol, createEvolutionEngine, createFissionProtocol } from './core/evolution.js';
-import { AttentionEconomics, TokenOptimizer, InfiniteContext, createAttentionEconomics, createInfiniteContext } from './core/optimize.js';
-import { AgentCoordinator, createCoordinator, Topology, Consensus } from './agents/coordinator.js';
+import { AttentionEconomics, InfiniteContext, createAttentionEconomics, createInfiniteContext } from './core/optimize.js';
+import { AgentCoordinator, createCoordinator } from './agents/coordinator.js';
 import { Adapter, createAdapter, AdapterType } from './agents/adapters.js';
 import { AgentLearner } from './agents/learner.js';
 
@@ -20,6 +20,7 @@ import {
   createMemoryEngine,
   createOrchestrator
 } from './engines/index.js';
+import { SessionDNAManager } from './engines/session-dna.js';
 import { DashboardServer } from './dashboard/server.js';
 import { nexusEventBus } from './engines/event-bus.js';
 import {
@@ -43,6 +44,7 @@ export class NexusPrime {
   private orchestrator: any;
   private runtime: SubAgentRuntime;
   private learner: AgentLearner;
+  private sessionDNA: SessionDNAManager;
 
   private coordinator: AgentCoordinator;
   private evolution: EvolutionEngine;
@@ -94,13 +96,18 @@ export class NexusPrime {
     this.tokenOptimizer = createTokenOptimizer(this.config.memory.cortex.enabled ? 128000 : 64000);
     this.contextEngine = createContextEngine();
     this.memoryEngine = createMemoryEngine(memoryDbPath);
+    this.sessionDNA = new SessionDNAManager(`nexus-${Date.now()}`);
     this.runtime = createSubAgentRuntime({
       repoRoot: process.cwd(),
       memory: this.memoryEngine,
+      sessionDNA: this.sessionDNA,
     });
     this.orchestrator = createOrchestrator(this.memoryEngine, this.runtime);
     this.learner = new AgentLearner(this.memoryEngine);
-    this.dashboardServer = new DashboardServer();
+    this.dashboardServer = new DashboardServer({
+      runtimeProvider: () => this.runtime,
+      repoRoot: process.cwd(),
+    });
   }
 
   async start(): Promise<void> {
@@ -111,7 +118,7 @@ export class NexusPrime {
     }
 
     this.dashboardServer.start();
-    nexusEventBus.emit('system.boot', { version: '2.0.0', toolsCount: 11 });
+    nexusEventBus.emit('system.boot', { version: '3.2.0', toolsCount: 32 });
 
     this.running = true;
     console.error('✅ Nexus Prime running with engines!');
@@ -125,6 +132,7 @@ export class NexusPrime {
     }
 
     this.dashboardServer.stop();
+    this.sessionDNA.flush();
 
     this.running = false;
     console.error('✅ Nexus Prime stopped');
@@ -297,8 +305,8 @@ export class NexusPrime {
     }
 
     // Use NEW engines
-    const tokenPlan = this.optimizeTokens(task);
-    const context = this.getContext(task);
+    this.optimizeTokens(task);
+    this.getContext(task);
 
     agent.state.current = 'working';
     agent.state.history.push(task);
