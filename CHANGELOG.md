@@ -2,6 +2,22 @@
 
 All notable changes to Nexus Prime will be documented in this file.
 
+## [3.2.1] - 2026-03-09
+
+### Added
+- **Topology-First Dashboard APIs**: Added `/api/memory`, `/api/memory/:id`, `/api/memory/:id/network`, `/api/pod`, `/api/pod/:workerId`, `/api/clients`, and `/api/events` to back the restored dashboard with real runtime data.
+- **Client Registry**: Added a heartbeat-first, heuristic-second client registry that surfaces Codex, Claude Code, Antigravity, Opencode, and MCP presence with truthful status aging.
+- **Dashboard Control Plane**: Added safe local dashboard `POST` routes for runtime execution plus skill, workflow, and client actions.
+
+### Changed
+- **Dashboard UX**: Replaced the card-heavy runtime console with the earlier topology-first layout: ecosystem rail, center graph canvas, live stream rail, and a persistent inspector drawer.
+- **Runtime Resilience**: Dashboard run listings now fall back to persisted run artifacts so recent executions survive refresh and process boundaries.
+- **Memory Surface**: Memory snapshots now expose lineage, linked memories, artifact-derived references, and network DTOs for interactive inspection.
+
+### Fixed
+- **POD Visibility**: Promoted POD signals to typed event-bus events and added worker/tag/confidence summaries for the dashboard.
+- **Dashboard Smoke Coverage**: Expanded integration coverage to verify the restored shell, graph data APIs, client visibility, and guarded control-plane actions.
+
 ## [3.2.0] - 2026-03-09
 
 ### Added
