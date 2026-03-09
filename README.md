@@ -111,7 +111,7 @@ Nexus Prime significantly reduces cognitive load and token expenditure compared 
 
 ---
 
-## 🏛️ Swarm Topology & Orchestration
+## 🏛️ Architecture & Swarm Topology
 
 Nexus Prime enables true parallelization by isolating agents into dynamically generated Git worktrees. Inter-worker communication happens over the local **POD Network**, and merges are mediated by the **Merge Oracle**.
 
@@ -137,11 +137,67 @@ sequenceDiagram
     M-->>U: JSON-RPC Response
 ```
 
+### 🐝 Phantom Swarm Execution Topology
+
+The original Phantom concept remains central to Nexus Prime: `GhostPass()` evaluates risk, workers execute in isolated worktrees, the entanglement layer shares runtime state, and the Merge Oracle decides what lands back on the main branch.
+
+```text
+┌─────────────────────────────────────────────────────────────────────┐
+│ SWARM EXECUTION TOPOLOGY                                            │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│  [Main Branch] ──▶ GhostPass() (Risk Analysis)                      │
+│                          │                                          │
+│           ┌──────────────┼──────────────┐                           │
+│           │              │              │                           │
+│     [Worktree A]   [Worktree B]   [Worktree C]                      │
+│     (UX Agent)     (API Agent)    (DB Agent)                        │
+│           │              │              │                           │
+│           └────┬─────────┴─────────┬────┘                           │
+│                │                   │                                │
+│                ▼                   ▼                                │
+│        Entanglement Engine (Quantum-Inspired Hilbert Space)         │
+│                │                                                    │
+│                ▼                   ▼                                │
+│      Merge Oracle (Byzantine Consensus + Hierarchical Synthesis)    │
+│                │                                                    │
+│                ▼                                                    │
+│  [Main Branch] ◀── Commit & State Collapse                          │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
 <div align="center">
   <img src="./docs/assets/screenshots/swarm_trace.png" alt="Swarm Induction Trace" width="80%">
   <br>
   <i>Mandatory Induction: A 7-worker swarm coordinating via POD Network.</i>
 </div>
+
+### Execution Protocol (Agent Orchestrator)
+
+When invoking `nexus_spawn_workers`, workflow execution, or a runtime swarm task, Nexus Prime follows explicit routing patterns rather than improvised worker fan-out:
+
+| Request Intent | Sub-Agents Spawned | Execution Order |
+| :--- | :--- | :--- |
+| Full stack feature | UX Designer + Backend Engineer | Parallel, cross-communicating via POD |
+| Database migration | DB Architect + Backend Engineer | Sequential, schema first |
+| Bug hunt | 3x QA / verifier workers | Parallel competitive |
+| Refactor module | Senior Coder + Security / verifier pass | Sequential pipeline |
+
+```typescript
+import { PhantomSwarm } from 'nexus-prime/orchestrator';
+
+const swarm = new PhantomSwarm();
+
+const results = await swarm.dispatch({
+  goal: 'Migrate user settings to Postgres',
+  agents: ['db-migrator', 'api-refactor'],
+  topology: 'parallel-mesh',
+});
+
+swarm.on('consensus.reach', (state) => {
+  console.log(`Merged ${state.filesResolved} files with ${state.confidence}% certainty.`);
+});
+```
 
 ---
 
