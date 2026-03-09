@@ -657,13 +657,41 @@ export class SubAgentRuntime {
     }
 
     listRuns(limit: number = 10): ExecutionRun[] {
-        return [...this.runs.values()]
-            .sort((a, b) => b.artifactsPath.localeCompare(a.artifactsPath))
+        const persisted = this.loadPersistedRuns(limit * 2);
+        const combined = new Map<string, ExecutionRun>();
+
+        for (const run of persisted) {
+            combined.set(run.runId, run);
+        }
+        for (const run of this.runs.values()) {
+            combined.set(run.runId, run);
+        }
+
+        return [...combined.values()]
+            .sort((a, b) => {
+                const left = extractRunTimestamp(a);
+                const right = extractRunTimestamp(b);
+                return right - left;
+            })
             .slice(0, limit);
     }
 
     getRun(runId: string): ExecutionRun | undefined {
-        return this.runs.get(runId);
+        const existing = this.runs.get(runId);
+        if (existing) return existing;
+
+        const target = path.join(this.resolveArtifactsRoot(), runId, 'run.json');
+        if (!fs.existsSync(target)) {
+            return undefined;
+        }
+
+        try {
+            const run = JSON.parse(fs.readFileSync(target, 'utf8')) as ExecutionRun;
+            this.runs.set(runId, run);
+            return run;
+        } catch {
+            return undefined;
+        }
     }
 
     listSkills(): SkillArtifact[] {
@@ -749,8 +777,38 @@ export class SubAgentRuntime {
             runsTracked: this.runs.size,
             skills: this.skillRuntime.listArtifacts().length,
             workflows: this.workflowRuntime.listArtifacts().length,
-            artifactsRoot: this.artifactsRoot ?? path.join(os.tmpdir(), 'nexus-prime-runs'),
+            artifactsRoot: this.resolveArtifactsRoot(),
         };
+    }
+
+    private resolveArtifactsRoot(): string {
+        return this.artifactsRoot ?? path.join(os.tmpdir(), 'nexus-prime-runs');
+    }
+
+    private loadPersistedRuns(limit: number): ExecutionRun[] {
+        const root = this.resolveArtifactsRoot();
+        if (!fs.existsSync(root)) {
+            return [];
+        }
+
+        try {
+            return fs.readdirSync(root, { withFileTypes: true })
+                .filter((entry) => entry.isDirectory())
+                .map((entry) => path.join(root, entry.name, 'run.json'))
+                .filter((runPath) => fs.existsSync(runPath))
+                .map((runPath) => {
+                    try {
+                        return JSON.parse(fs.readFileSync(runPath, 'utf8')) as ExecutionRun;
+                    } catch {
+                        return undefined;
+                    }
+                })
+                .filter((run): run is ExecutionRun => Boolean(run))
+                .sort((a, b) => extractRunTimestamp(b) - extractRunTimestamp(a))
+                .slice(0, Math.max(limit, 1));
+        } catch {
+            return [];
+        }
     }
 
     private async normalizeTask(input: Partial<ExecutionTask> & { goal: string }): Promise<ExecutionTask> {
@@ -1366,6 +1424,18 @@ function dedupeWorkflowArtifacts(values: WorkflowArtifact[]): WorkflowArtifact[]
         seen.add(key);
         return true;
     });
+}
+
+function extractRunTimestamp(run: ExecutionRun): number {
+    const match = run.runId.match(/(\d{13})/);
+    if (match) {
+        return Number(match[1]);
+    }
+    try {
+        return fs.statSync(run.artifactsPath).mtimeMs;
+    } catch {
+        return 0;
+    }
 }
 
 export function summarizeExecution(run: ExecutionRun): string {

@@ -180,7 +180,7 @@ export interface EvolutionConfig {
 
 export interface Adapter {
   name: string;
-  type: 'openclaw' | 'claude-code' | 'ruflo' | 'langchain' | 'autogen' | 'custom';
+  type: 'openclaw' | 'claude-code' | 'ruflo' | 'langchain' | 'autogen' | 'custom' | 'mcp';
   connected: boolean;
   agents: string[];
   send(message: NetworkMessage): Promise<void>;

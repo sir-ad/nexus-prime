@@ -11,6 +11,7 @@ export type NexusEventType =
     | 'system.boot'
     | 'memory.store'
     | 'memory.recall'
+    | 'pod.signal'
     | 'tokens.optimized'
     | 'phantom.worker.start'
     | 'phantom.worker.complete'
@@ -22,6 +23,14 @@ export type NexusEventType =
     | 'darwin.cycle'
     | 'session.dna'
     | 'skill.register'
+    | 'skill.deploy'
+    | 'skill.revoke'
+    | 'workflow.deploy'
+    | 'workflow.run'
+    | 'client.heartbeat'
+    | 'client.inferred'
+    | 'client.status'
+    | 'dashboard.action'
     | 'nexusnet.publish'
     | 'nexusnet.sync'
     // Phase 9A: Quantum-Inspired Entanglement
@@ -41,6 +50,7 @@ export interface NexusEventPayloads {
     'system.boot': { version: string; toolsCount: number };
     'memory.store': { id: string; priority: number; tags: string[]; tier: string };
     'memory.recall': { query: string; count: number };
+    'pod.signal': { workerId: string; type: string; content: string; confidence?: number; tags?: string[] };
     'tokens.optimized': { savings: number; pct: number; files: number };
     'phantom.worker.start': { workerId: string; approach: string; goal: string };
     'phantom.worker.complete': { workerId: string; confidence: number };
@@ -52,6 +62,14 @@ export interface NexusEventPayloads {
     'darwin.cycle': { hypothesis: string; outcome: string };
     'session.dna': { sessionId: string; action: 'generated' | 'loaded' };
     'skill.register': { name: string; id: string };
+    'skill.deploy': { skillId: string; scope: string; status: string };
+    'skill.revoke': { skillId: string; status: string };
+    'workflow.deploy': { workflowId: string; scope: string; status: string };
+    'workflow.run': { workflowId: string; runId: string; status: string };
+    'client.heartbeat': { clientId: string; displayName: string; source: string; state: string };
+    'client.inferred': { clientId: string; displayName: string; source: string; state: string; evidence: string[] };
+    'client.status': { clientId: string; displayName: string; previous: string; next: string; source: string };
+    'dashboard.action': { action: string; status: string; target?: string };
     'nexusnet.publish': { type: string; byteSize: number };
     'nexusnet.sync': { newItemsCount: number };
     // Phase 9A
@@ -235,4 +253,3 @@ class EventBusEngine {
 
 // Export a singleton instance
 export const nexusEventBus = new EventBusEngine();
-

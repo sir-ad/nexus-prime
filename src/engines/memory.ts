@@ -53,6 +53,55 @@ export interface MemoryStats {
   topTags: string[];
 }
 
+export interface MemoryEntityReference {
+  type: 'session' | 'run' | 'skill' | 'workflow';
+  id: string;
+}
+
+export interface MemorySnapshot {
+  id: string;
+  tier: MemoryItem['tier'];
+  priority: number;
+  timestamp: number;
+  tags: string[];
+  excerpt: string;
+  parentId?: string;
+  depth?: number;
+  accessCount: number;
+  linkCount: number;
+  sessionId?: string;
+  related: MemoryEntityReference[];
+}
+
+export interface MemoryDetail extends MemorySnapshot {
+  content: string;
+  lineage: MemorySnapshot[];
+  linkedMemories: MemorySnapshot[];
+  timeline: MemorySnapshot[];
+}
+
+export interface MemoryNetworkNode {
+  id: string;
+  label: string;
+  entityType: 'memory' | 'session' | 'run' | 'skill' | 'workflow';
+  tier?: MemoryItem['tier'];
+  priority?: number;
+  timestamp?: number;
+}
+
+export interface MemoryNetworkLink {
+  source: string;
+  target: string;
+  type: 'semantic' | 'temporal' | 'tagged' | 'lineage' | 'artifact-derived';
+  weight: number;
+}
+
+export interface MemoryNetworkSnapshot {
+  focusId?: string;
+  nodes: MemoryNetworkNode[];
+  links: MemoryNetworkLink[];
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // MemoryEngine
 // ─────────────────────────────────────────────────────────────────────────────
@@ -539,6 +588,104 @@ export class MemoryEngine {
     return rows.map(row => this.rowToItem(row));
   }
 
+  private toSnapshot(item: MemoryItem): MemorySnapshot {
+    return {
+      id: item.id,
+      tier: item.tier,
+      priority: item.priority,
+      timestamp: item.timestamp,
+      tags: item.tags,
+      excerpt: item.content.length > 140 ? `${item.content.slice(0, 137)}...` : item.content,
+      parentId: item.parentId,
+      depth: item.depth,
+      accessCount: item.accessCount,
+      linkCount: this.getLinkCount(item.id),
+      sessionId: item.sessionId,
+      related: this.extractEntityReferences(item),
+    };
+  }
+
+  private getLinkCount(id: string): number {
+    const row = this.db.prepare(`
+      SELECT COUNT(*) as c FROM memory_links WHERE from_id = ? OR to_id = ?
+    `).get(id, id) as { c?: number } | undefined;
+    return row?.c ?? 0;
+  }
+
+  private getLinkedMemories(id: string): MemoryItem[] {
+    const rows = this.db.prepare(`
+      SELECT m.*
+      FROM memory_links l
+      JOIN memories m ON m.id = l.to_id
+      WHERE l.from_id = ?
+      ORDER BY l.weight DESC, m.priority DESC
+      LIMIT 12
+    `).all(id) as any[];
+    return rows.map((row) => this.rowToItem(row));
+  }
+
+  private buildLineage(item: MemoryItem): MemorySnapshot[] {
+    const lineage: MemorySnapshot[] = [];
+    let currentParentId = item.parentId;
+
+    while (currentParentId) {
+      const parentRow = this.db.prepare('SELECT * FROM memories WHERE id = ?').get(currentParentId) as any;
+      if (!parentRow) break;
+      const parentItem = this.rowToItem(parentRow);
+      lineage.unshift(this.toSnapshot(parentItem));
+      currentParentId = parentItem.parentId;
+    }
+
+    lineage.push(this.toSnapshot(item));
+    return lineage;
+  }
+
+  private buildTimeline(item: MemoryItem): MemorySnapshot[] {
+    const lineage = this.buildLineage(item);
+    const rootId = lineage[0]?.id ?? item.id;
+    const related = this.getAllItems().filter((candidate) => {
+      if (candidate.id === item.id) return true;
+      if (candidate.sessionId && candidate.sessionId === item.sessionId) return true;
+      return this.belongsToLineage(candidate, rootId);
+    });
+
+    return related
+      .sort((a, b) => a.timestamp - b.timestamp)
+      .slice(0, 24)
+      .map((candidate) => this.toSnapshot(candidate));
+  }
+
+  private belongsToLineage(item: MemoryItem, rootId: string): boolean {
+    let current: MemoryItem | undefined = item;
+    while (current?.parentId) {
+      if (current.parentId === rootId) return true;
+      const row = this.db.prepare('SELECT * FROM memories WHERE id = ?').get(current.parentId) as any;
+      current = row ? this.rowToItem(row) : undefined;
+    }
+    return item.id === rootId;
+  }
+
+  private extractEntityReferences(item: MemoryItem): MemoryEntityReference[] {
+    const refs: MemoryEntityReference[] = [];
+    const patterns: Array<[MemoryEntityReference['type'], RegExp]> = [
+      ['run', /\bexec_[a-z0-9_-]+\b/gi],
+      ['skill', /\bskill_[a-z0-9_-]+\b/gi],
+      ['workflow', /\bworkflow_[a-z0-9_-]+\b/gi],
+    ];
+
+    if (item.sessionId) {
+      refs.push({ type: 'session', id: item.sessionId });
+    }
+
+    for (const [type, pattern] of patterns) {
+      for (const match of item.content.match(pattern) ?? []) {
+        refs.push({ type, id: match });
+      }
+    }
+
+    return dedupeReferences(refs);
+  }
+
   getStats(): MemoryStats {
     const counts = this.db.prepare(`
       SELECT tier, COUNT(*) as c FROM memories GROUP BY tier
@@ -580,6 +727,120 @@ export class MemoryEngine {
     return rows.map(row => this.rowToItem(row));
   }
 
+  listSnapshots(limit: number = 80, filters: {
+    tier?: MemoryItem['tier'];
+    tag?: string;
+    recencyMs?: number;
+    linkedType?: MemoryEntityReference['type'];
+  } = {}): MemorySnapshot[] {
+    const now = Date.now();
+    return this.getAllItems()
+      .filter((item) => !filters.tier || item.tier === filters.tier)
+      .filter((item) => !filters.tag || item.tags.includes(filters.tag))
+      .filter((item) => !filters.recencyMs || now - item.timestamp <= filters.recencyMs)
+      .map((item) => this.toSnapshot(item))
+      .filter((item) => !filters.linkedType || item.related.some((reference) => reference.type === filters.linkedType))
+      .sort((a, b) => (b.priority - a.priority) || (b.timestamp - a.timestamp))
+      .slice(0, Math.max(limit, 1));
+  }
+
+  getSnapshot(id: string): MemorySnapshot | undefined {
+    const row = this.db.prepare('SELECT * FROM memories WHERE id = ?').get(id) as any;
+    if (!row) return undefined;
+    return this.toSnapshot(this.rowToItem(row));
+  }
+
+  getDetail(id: string): MemoryDetail | undefined {
+    const row = this.db.prepare('SELECT * FROM memories WHERE id = ?').get(id) as any;
+    if (!row) return undefined;
+    const item = this.rowToItem(row);
+    const linkedMemories = this.getLinkedMemories(item.id).slice(0, 8).map((linked) => this.toSnapshot(linked));
+
+    return {
+      ...this.toSnapshot(item),
+      content: item.content,
+      lineage: this.buildLineage(item),
+      linkedMemories,
+      timeline: this.buildTimeline(item),
+    };
+  }
+
+  getNetworkSnapshot(id?: string, depth: number = 2, limit: number = 18): MemoryNetworkSnapshot {
+    const focus = id ? this.getDetail(id) : undefined;
+    const baseItems = focus ? [focus, ...focus.linkedMemories] : this.listSnapshots(limit);
+    const allItems = this.getAllItems();
+    const itemMap = new Map(allItems.map((item) => [item.id, item]));
+    const nodes = new Map<string, MemoryNetworkNode>();
+    const links: MemoryNetworkLink[] = [];
+
+    const pushMemoryNode = (snapshot: MemorySnapshot) => {
+      nodes.set(snapshot.id, {
+        id: snapshot.id,
+        label: snapshot.excerpt,
+        entityType: 'memory',
+        tier: snapshot.tier,
+        priority: snapshot.priority,
+        timestamp: snapshot.timestamp,
+      });
+    };
+
+    for (const snapshot of baseItems.slice(0, limit)) {
+      pushMemoryNode(snapshot);
+
+      if (snapshot.parentId) {
+        const parent = itemMap.get(snapshot.parentId);
+        if (parent) {
+          const parentSnapshot = this.toSnapshot(parent);
+          pushMemoryNode(parentSnapshot);
+          links.push({
+            source: parentSnapshot.id,
+            target: snapshot.id,
+            type: 'lineage',
+            weight: 1,
+          });
+        }
+      }
+
+      const dbLinks = this.db.prepare(`
+        SELECT to_id, weight, type FROM memory_links WHERE from_id = ? ORDER BY weight DESC LIMIT ?
+      `).all(snapshot.id, depth * 4) as Array<{ to_id: string; weight: number; type: MemoryLink['type'] }>;
+      for (const link of dbLinks) {
+        const target = itemMap.get(link.to_id);
+        if (!target) continue;
+        pushMemoryNode(this.toSnapshot(target));
+        links.push({
+          source: snapshot.id,
+          target: target.id,
+          type: link.type,
+          weight: link.weight,
+        });
+      }
+
+      for (const reference of snapshot.related) {
+        const referenceId = `${reference.type}:${reference.id}`;
+        if (!nodes.has(referenceId)) {
+          nodes.set(referenceId, {
+            id: referenceId,
+            label: reference.id,
+            entityType: reference.type,
+          });
+        }
+        links.push({
+          source: snapshot.id,
+          target: referenceId,
+          type: 'artifact-derived',
+          weight: 0.7,
+        });
+      }
+    }
+
+    return {
+      focusId: focus?.id,
+      nodes: [...nodes.values()].slice(0, limit * 3),
+      links: dedupeLinks(links).slice(0, limit * 6),
+    };
+  }
+
   clear(): void {
     this.prefrontal = [];
     this.db.exec('DELETE FROM memory_links; DELETE FROM memories;');
@@ -608,3 +869,27 @@ export class MemoryEngine {
 }
 
 export const createMemoryEngine = (dbPath?: string) => new MemoryEngine(dbPath);
+
+function dedupeReferences(references: MemoryEntityReference[]): MemoryEntityReference[] {
+  const seen = new Set<string>();
+  const result: MemoryEntityReference[] = [];
+  for (const reference of references) {
+    const key = `${reference.type}:${reference.id}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(reference);
+  }
+  return result;
+}
+
+function dedupeLinks(links: MemoryNetworkLink[]): MemoryNetworkLink[] {
+  const seen = new Set<string>();
+  const result: MemoryNetworkLink[] = [];
+  for (const link of links) {
+    const key = `${link.source}:${link.target}:${link.type}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(link);
+  }
+  return result;
+}

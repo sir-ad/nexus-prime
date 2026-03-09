@@ -23,6 +23,7 @@ import {
 import { SessionDNAManager } from './engines/session-dna.js';
 import { DashboardServer } from './dashboard/server.js';
 import { nexusEventBus } from './engines/event-bus.js';
+import { ClientRegistry } from './engines/client-registry.js';
 import {
   createSubAgentRuntime,
   summarizeExecution,
@@ -45,6 +46,7 @@ export class NexusPrime {
   private runtime: SubAgentRuntime;
   private learner: AgentLearner;
   private sessionDNA: SessionDNAManager;
+  private clientRegistry: ClientRegistry;
 
   private coordinator: AgentCoordinator;
   private evolution: EvolutionEngine;
@@ -97,6 +99,7 @@ export class NexusPrime {
     this.contextEngine = createContextEngine();
     this.memoryEngine = createMemoryEngine(memoryDbPath);
     this.sessionDNA = new SessionDNAManager(`nexus-${Date.now()}`);
+    this.clientRegistry = new ClientRegistry();
     this.runtime = createSubAgentRuntime({
       repoRoot: process.cwd(),
       memory: this.memoryEngine,
@@ -106,6 +109,9 @@ export class NexusPrime {
     this.learner = new AgentLearner(this.memoryEngine);
     this.dashboardServer = new DashboardServer({
       runtimeProvider: () => this.runtime,
+      memoryProvider: () => this.memoryEngine,
+      adaptersProvider: () => this.getAdapters(),
+      clientRegistryProvider: () => this.clientRegistry,
       repoRoot: process.cwd(),
     });
   }
@@ -129,6 +135,10 @@ export class NexusPrime {
 
     for (const [, adapter] of this.adapters) {
       await adapter.disconnect();
+      this.clientRegistry.recordDisconnect(adapter.name, {
+        source: 'adapter-heartbeat',
+        metadata: { adapterType: adapter.type },
+      });
     }
 
     this.dashboardServer.stop();
@@ -181,6 +191,10 @@ export class NexusPrime {
     }
     await adapter.connect();
     this.adapters.set(adapter.name, adapter);
+    this.clientRegistry.recordHeartbeat(adapter.name, {
+      source: 'adapter-heartbeat',
+      metadata: { adapterType: adapter.type, agents: adapter.agents.length },
+    });
   }
 
   async createAgent(

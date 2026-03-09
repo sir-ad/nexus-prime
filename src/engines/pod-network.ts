@@ -14,6 +14,27 @@ export interface PodMessage {
     confidence: number;
 }
 
+export interface PodWorkerSnapshot {
+    workerId: string;
+    lastMessageTimestamp: number;
+    messageCount: number;
+    avgConfidence: number;
+    state: 'active' | 'idle';
+    tags: string[];
+}
+
+export interface PodDashboardSnapshot {
+    lastMessageTimestamp: number | null;
+    messages: PodMessage[];
+    tagClusters: Array<{ tag: string; count: number }>;
+    activeWorkers: PodWorkerSnapshot[];
+    confidenceBands: {
+        high: number;
+        medium: number;
+        low: number;
+    };
+}
+
 export class PODNetwork {
     private messages: PodMessage[] = [];
     private subscribers: Map<string, Set<(msg: PodMessage) => void>> = new Map();
@@ -94,12 +115,84 @@ export class PODNetwork {
         ).sort((a, b) => b.timestamp - a.timestamp);
     }
 
+    getMessages(limit: number = 40): PodMessage[] {
+        this.loadMessages();
+        return [...this.messages]
+            .sort((a, b) => b.timestamp - a.timestamp)
+            .slice(0, Math.max(limit, 1));
+    }
+
+    getWorker(workerId: string, limit: number = 20): PodWorkerSnapshot & { messages: PodMessage[] } {
+        const messages = this.getMessages(Math.max(limit * 2, 20)).filter((message) => message.workerId === workerId).slice(0, limit);
+        const tags = [...new Set(messages.flatMap((message) => message.tags))].slice(0, 8);
+        const avgConfidence = messages.length
+            ? messages.reduce((sum, message) => sum + message.confidence, 0) / messages.length
+            : 0;
+        const lastMessageTimestamp = messages[0]?.timestamp ?? 0;
+
+        return {
+            workerId,
+            lastMessageTimestamp,
+            messageCount: messages.length,
+            avgConfidence,
+            state: lastMessageTimestamp && Date.now() - lastMessageTimestamp < 10 * 60 * 1000 ? 'active' : 'idle',
+            tags,
+            messages,
+        };
+    }
+
+    getDashboardSnapshot(limit: number = 40): PodDashboardSnapshot {
+        const messages = this.getMessages(limit);
+        const tagCounts = new Map<string, number>();
+        const workerMessages = new Map<string, PodMessage[]>();
+
+        for (const message of messages) {
+            for (const tag of message.tags) {
+                tagCounts.set(tag, (tagCounts.get(tag) ?? 0) + 1);
+            }
+            const bucket = workerMessages.get(message.workerId) ?? [];
+            bucket.push(message);
+            workerMessages.set(message.workerId, bucket);
+        }
+
+        const activeWorkers: PodWorkerSnapshot[] = [...workerMessages.entries()]
+            .map(([workerId, entries]) => {
+                const lastMessageTimestamp = entries[0]?.timestamp ?? 0;
+                return {
+                    workerId,
+                    lastMessageTimestamp,
+                    messageCount: entries.length,
+                    avgConfidence: entries.reduce((sum, message) => sum + message.confidence, 0) / entries.length,
+                    state: (Date.now() - lastMessageTimestamp < 10 * 60 * 1000 ? 'active' : 'idle') as 'active' | 'idle',
+                    tags: [...new Set(entries.flatMap((message) => message.tags))].slice(0, 8),
+                };
+            })
+            .sort((a, b) => b.lastMessageTimestamp - a.lastMessageTimestamp);
+
+        return {
+            lastMessageTimestamp: messages[0]?.timestamp ?? null,
+            messages,
+            tagClusters: [...tagCounts.entries()]
+                .map(([tag, count]) => ({ tag, count }))
+                .sort((a, b) => b.count - a.count)
+                .slice(0, 12),
+            activeWorkers,
+            confidenceBands: {
+                high: messages.filter((message) => message.confidence >= 0.85).length,
+                medium: messages.filter((message) => message.confidence >= 0.6 && message.confidence < 0.85).length,
+                low: messages.filter((message) => message.confidence < 0.6).length,
+            },
+        };
+    }
+
     /** Internal broadcast to active sub-agent listeners */
     private broadcast(msg: PodMessage): void {
-        nexusEventBus.emit('pod.signal' as any, {
+        nexusEventBus.emit('pod.signal', {
             workerId: msg.workerId,
             type: msg.type,
-            content: msg.content.substring(0, 50) + (msg.content.length > 50 ? '...' : '')
+            content: msg.content.substring(0, 50) + (msg.content.length > 50 ? '...' : ''),
+            confidence: msg.confidence,
+            tags: msg.tags,
         });
 
         for (const tag of msg.tags) {

@@ -3,264 +3,814 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nexus Prime Runtime Console</title>
+    <title>Nexus Prime Topology Console</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;600&display=swap');
 
         :root {
-            --bg: #0f1310;
-            --bg-alt: #15201a;
-            --panel: rgba(245, 242, 230, 0.07);
-            --panel-strong: rgba(245, 242, 230, 0.12);
-            --line: rgba(245, 242, 230, 0.12);
-            --text: #f3efe2;
-            --muted: #b9b29d;
-            --accent: #f6b94d;
-            --accent-soft: rgba(246, 185, 77, 0.18);
-            --good: #64d2a3;
-            --warn: #f6b94d;
-            --bad: #ff7d66;
-            --font-sans: 'Space Grotesk', sans-serif;
-            --font-mono: 'IBM Plex Mono', monospace;
-            --radius: 24px;
+            --bg: #040507;
+            --bg-deep: #090b14;
+            --panel: rgba(19, 23, 34, 0.82);
+            --panel-strong: rgba(27, 33, 48, 0.9);
+            --panel-soft: rgba(22, 28, 41, 0.66);
+            --line: rgba(188, 204, 255, 0.12);
+            --line-strong: rgba(188, 204, 255, 0.22);
+            --text: #f6f7fb;
+            --muted: #9ea6bc;
+            --accent: #54ff87;
+            --accent-soft: rgba(84, 255, 135, 0.14);
+            --blue: #3da1ff;
+            --violet: #b05cff;
+            --amber: #ffd14d;
+            --red: #ff6d63;
+            --cyan: #49f0ff;
+            --mono: 'IBM Plex Mono', monospace;
+            --sans: 'Space Grotesk', sans-serif;
+            --radius-panel: 24px;
+            --radius-card: 18px;
+            --shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
         }
 
         * {
             box-sizing: border-box;
         }
 
+        html,
         body {
             margin: 0;
-            min-height: 100vh;
-            font-family: var(--font-sans);
-            color: var(--text);
+            min-height: 100%;
             background:
-                radial-gradient(circle at top left, rgba(246, 185, 77, 0.12), transparent 24rem),
-                radial-gradient(circle at bottom right, rgba(100, 210, 163, 0.12), transparent 28rem),
-                linear-gradient(135deg, var(--bg), #0a0d0b 60%, var(--bg-alt));
+                radial-gradient(circle at 18% 18%, rgba(61, 161, 255, 0.16), transparent 18rem),
+                radial-gradient(circle at 84% 14%, rgba(176, 92, 255, 0.12), transparent 22rem),
+                radial-gradient(circle at 55% 88%, rgba(84, 255, 135, 0.12), transparent 20rem),
+                linear-gradient(180deg, #020306 0%, var(--bg) 40%, var(--bg-deep) 100%);
+            color: var(--text);
+            font-family: var(--sans);
+            overflow: hidden;
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+        }
+
+        button,
+        input,
+        select,
+        textarea {
+            font: inherit;
+            color: inherit;
+        }
+
+        button {
+            cursor: pointer;
+        }
+
+        a {
+            color: inherit;
         }
 
         header {
-            padding: 1.5rem clamp(1rem, 3vw, 2rem);
             display: flex;
-            justify-content: space-between;
             align-items: center;
+            justify-content: space-between;
             gap: 1rem;
+            padding: 1.2rem 1.6rem;
             border-bottom: 1px solid var(--line);
-            position: sticky;
-            top: 0;
-            backdrop-filter: blur(24px);
-            background: rgba(10, 13, 11, 0.72);
-            z-index: 10;
+            background: rgba(5, 8, 13, 0.76);
+            backdrop-filter: blur(28px);
+            position: relative;
+            z-index: 3;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 0.9rem;
+        }
+
+        .brand-mark {
+            width: 1.15rem;
+            height: 1.15rem;
+            border: 1px solid rgba(84, 255, 135, 0.7);
+            transform: rotate(45deg);
+            box-shadow: 0 0 20px rgba(84, 255, 135, 0.18);
         }
 
         h1 {
             margin: 0;
-            font-size: clamp(1.4rem, 2.6vw, 2.1rem);
-            letter-spacing: -0.05em;
+            font-size: clamp(1.35rem, 2vw, 1.9rem);
+            letter-spacing: -0.04em;
         }
 
         .subtitle {
-            margin-top: 0.25rem;
+            margin-top: 0.15rem;
             color: var(--muted);
-            font-size: 0.95rem;
+            font-size: 0.92rem;
         }
 
-        .stream-pill {
-            padding: 0.65rem 0.9rem;
-            border: 1px solid var(--line);
-            background: var(--panel);
-            border-radius: 999px;
-            font-size: 0.85rem;
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+
+        .status-pill,
+        .mini-pill {
             display: inline-flex;
             align-items: center;
             gap: 0.55rem;
+            padding: 0.58rem 0.9rem;
+            border-radius: 999px;
+            border: 1px solid var(--line);
+            background: rgba(255, 255, 255, 0.03);
+            color: var(--muted);
         }
 
-        .stream-pill::before {
-            content: '';
-            width: 0.7rem;
-            height: 0.7rem;
+        .status-pill .dot,
+        .client-dot {
+            width: 0.58rem;
+            height: 0.58rem;
             border-radius: 50%;
-            background: var(--warn);
-            box-shadow: 0 0 0 0.4rem rgba(246, 185, 77, 0.12);
+            background: var(--muted);
+            box-shadow: 0 0 0 0 transparent;
         }
 
-        .stream-pill.live::before {
-            background: var(--good);
-            box-shadow: 0 0 0 0.4rem rgba(100, 210, 163, 0.12);
+        .status-pill.live .dot,
+        .client-dot.active {
+            background: var(--accent);
+            box-shadow: 0 0 12px rgba(84, 255, 135, 0.55);
         }
 
-        main {
-            padding: 1.25rem clamp(1rem, 3vw, 2rem) 2rem;
+        .status-pill.warn .dot,
+        .client-dot.ready {
+            background: var(--amber);
+            box-shadow: 0 0 10px rgba(255, 209, 77, 0.4);
+        }
+
+        .client-dot.standby,
+        .client-dot.inferred {
+            background: var(--blue);
+            box-shadow: 0 0 10px rgba(61, 161, 255, 0.35);
+        }
+
+        .client-dot.offline {
+            background: rgba(158, 166, 188, 0.55);
+        }
+
+        .layout {
+            flex: 1;
+            min-height: 0;
             display: grid;
+            grid-template-columns: 320px minmax(0, 1fr) 410px;
             gap: 1rem;
+            padding: 1rem 1rem 1.15rem;
         }
 
-        .hero {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1rem;
-        }
-
-        .stat {
+        .panel {
             background: var(--panel);
             border: 1px solid var(--line);
-            border-radius: var(--radius);
-            padding: 1rem 1.1rem;
-            min-height: 8rem;
+            border-radius: var(--radius-panel);
+            box-shadow: var(--shadow);
+            overflow: hidden;
             display: flex;
             flex-direction: column;
+            min-height: 0;
+        }
+
+        .panel-header {
+            display: flex;
+            align-items: center;
             justify-content: space-between;
+            gap: 0.8rem;
+            padding: 1rem 1.2rem;
+            border-bottom: 1px solid var(--line);
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01));
         }
 
-        .stat label {
-            color: var(--muted);
-            font-size: 0.8rem;
+        .panel-header h2,
+        .panel-header h3 {
+            margin: 0;
+            font-size: 0.82rem;
+            letter-spacing: 0.14em;
             text-transform: uppercase;
-            letter-spacing: 0.08em;
+            color: var(--muted);
         }
 
-        .stat strong {
-            font-size: 2rem;
-            letter-spacing: -0.05em;
+        .panel-body {
+            flex: 1;
+            min-height: 0;
+            overflow: auto;
+            padding: 1rem;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(188, 204, 255, 0.22) transparent;
         }
 
-        .stat code,
-        .chip,
-        pre,
-        .meta {
-            font-family: var(--font-mono);
+        .panel-body.compact {
+            padding: 0.9rem;
         }
 
-        .grid {
+        .rail {
             display: grid;
-            grid-template-columns: 1.6fr 1fr;
             gap: 1rem;
+            min-height: 0;
+        }
+
+        .rail.left {
+            grid-template-rows: auto auto auto auto;
+        }
+
+        .rail.right {
+            grid-template-rows: 1fr auto;
         }
 
         .stack {
             display: grid;
-            gap: 1rem;
-        }
-
-        section {
-            background: var(--panel);
-            border: 1px solid var(--line);
-            border-radius: var(--radius);
-            padding: 1rem;
-            min-height: 12rem;
-        }
-
-        section h2 {
-            margin: 0 0 0.9rem;
-            font-size: 1rem;
-            text-transform: uppercase;
-            letter-spacing: 0.09em;
-            color: var(--muted);
-        }
-
-        .list {
-            display: grid;
-            gap: 0.75rem;
+            gap: 0.9rem;
         }
 
         .card {
-            background: var(--panel-strong);
             border: 1px solid var(--line);
-            border-radius: 18px;
+            background: var(--panel-soft);
+            border-radius: var(--radius-card);
             padding: 0.9rem;
         }
 
-        .card-header {
+        .card.interactive {
+            cursor: pointer;
+            transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+        }
+
+        .card.interactive:hover,
+        .card.interactive.active {
+            transform: translateY(-2px);
+            border-color: var(--line-strong);
+            background: rgba(34, 41, 61, 0.84);
+        }
+
+        .card-title {
             display: flex;
             justify-content: space-between;
-            align-items: flex-start;
             gap: 0.75rem;
-            margin-bottom: 0.45rem;
+            align-items: flex-start;
+            margin-bottom: 0.5rem;
         }
 
-        .card h3 {
-            margin: 0;
+        .card-title strong {
             font-size: 1rem;
+            font-weight: 600;
         }
 
-        .card p {
-            margin: 0;
-            color: var(--muted);
-            line-height: 1.45;
-        }
-
-        .chips {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.45rem;
-            margin-top: 0.7rem;
-        }
-
-        .chip {
-            padding: 0.28rem 0.55rem;
-            border-radius: 999px;
-            font-size: 0.74rem;
-            border: 1px solid var(--line);
-            background: rgba(255, 255, 255, 0.03);
-        }
-
-        .state {
-            padding: 0.25rem 0.55rem;
-            border-radius: 999px;
-            font-size: 0.75rem;
-            font-family: var(--font-mono);
-            text-transform: uppercase;
-        }
-
-        .state.good {
-            color: var(--good);
-            background: rgba(100, 210, 163, 0.12);
-        }
-
-        .state.warn {
-            color: var(--warn);
-            background: rgba(246, 185, 77, 0.12);
-        }
-
-        .state.bad {
-            color: var(--bad);
-            background: rgba(255, 125, 102, 0.12);
+        .meta,
+        .mono,
+        code,
+        pre,
+        .chip,
+        .state-chip,
+        .badge {
+            font-family: var(--mono);
         }
 
         .meta {
             color: var(--muted);
-            font-size: 0.8rem;
+            font-size: 0.78rem;
+            line-height: 1.5;
         }
 
-        .empty {
-            color: var(--muted);
-            border: 1px dashed var(--line);
-            border-radius: 18px;
+        .hero-metric {
             padding: 1rem;
+            border-radius: var(--radius-card);
+            border: 1px solid var(--line);
+            background: linear-gradient(160deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01));
         }
 
-        .event-feed {
-            max-height: 26rem;
-            overflow: auto;
+        .hero-metric label {
+            display: block;
+            font-size: 0.74rem;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            margin-bottom: 0.5rem;
+        }
+
+        .hero-metric strong {
+            display: block;
+            font-size: 2rem;
+            letter-spacing: -0.05em;
+            margin-bottom: 0.2rem;
+        }
+
+        .metrics-grid {
             display: grid;
-            gap: 0.55rem;
+            gap: 0.75rem;
+            grid-template-columns: 1fr 1fr;
         }
 
-        .event {
-            border-left: 3px solid var(--accent);
-            padding: 0.6rem 0.75rem;
+        .ecosystem-list,
+        .entity-list,
+        .event-list {
+            display: grid;
+            gap: 0.7rem;
+        }
+
+        .client-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+            padding: 0.8rem 0.9rem;
+            border-radius: 16px;
+            border: 1px solid var(--line);
             background: rgba(255, 255, 255, 0.03);
         }
 
-        .event strong {
-            display: block;
-            margin-bottom: 0.25rem;
+        .client-info {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            min-width: 0;
         }
 
-        @media (max-width: 1000px) {
-            .grid {
+        .client-name {
+            font-weight: 600;
+        }
+
+        .state-chip,
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 999px;
+            padding: 0.23rem 0.55rem;
+            font-size: 0.72rem;
+            border: 1px solid var(--line);
+            background: rgba(255, 255, 255, 0.05);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .state-chip.good {
+            color: var(--accent);
+            background: rgba(84, 255, 135, 0.1);
+        }
+
+        .state-chip.warn {
+            color: var(--amber);
+            background: rgba(255, 209, 77, 0.1);
+        }
+
+        .state-chip.info {
+            color: var(--blue);
+            background: rgba(61, 161, 255, 0.1);
+        }
+
+        .state-chip.bad {
+            color: var(--red);
+            background: rgba(255, 109, 99, 0.1);
+        }
+
+        .token-dial-wrap {
+            display: grid;
+            place-items: center;
+            padding: 0.6rem 0 0.2rem;
+        }
+
+        .token-dial {
+            position: relative;
+            width: 168px;
+            height: 168px;
+        }
+
+        .token-dial svg {
+            width: 168px;
+            height: 168px;
+            transform: rotate(-90deg);
+        }
+
+        .dial-bg {
+            fill: none;
+            stroke: rgba(255, 255, 255, 0.09);
+            stroke-width: 12;
+        }
+
+        .dial-fg {
+            fill: none;
+            stroke: var(--accent);
+            stroke-width: 12;
+            stroke-linecap: round;
+            stroke-dasharray: 440;
+            stroke-dashoffset: 440;
+            filter: drop-shadow(0 0 10px rgba(84, 255, 135, 0.32));
+            transition: stroke-dashoffset 300ms ease;
+        }
+
+        .dial-center {
+            position: absolute;
+            inset: 0;
+            display: grid;
+            place-items: center;
+            text-align: center;
+        }
+
+        .dial-value {
+            font-size: 2rem;
+            font-weight: 700;
+            letter-spacing: -0.06em;
+        }
+
+        .dial-caption {
+            font-size: 0.72rem;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+        }
+
+        .graph-panel {
+            min-height: 0;
+        }
+
+        .graph-toolbar {
+            display: flex;
+            gap: 0.55rem;
+            flex-wrap: wrap;
+        }
+
+        .segmented {
+            display: inline-flex;
+            gap: 0.35rem;
+            padding: 0.24rem;
+            border-radius: 999px;
+            border: 1px solid var(--line);
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .segmented button,
+        .filter-bar button,
+        .action-bar button,
+        .ghost-button,
+        .primary-button {
+            border: 0;
+            border-radius: 999px;
+            padding: 0.5rem 0.8rem;
+            background: transparent;
+            color: var(--muted);
+            transition: background 160ms ease, color 160ms ease, transform 160ms ease;
+        }
+
+        .segmented button.active,
+        .filter-bar button.active {
+            background: rgba(84, 255, 135, 0.1);
+            color: var(--text);
+        }
+
+        .ghost-button {
+            border: 1px solid var(--line);
+        }
+
+        .ghost-button:hover,
+        .primary-button:hover,
+        .segmented button:hover,
+        .filter-bar button:hover {
+            transform: translateY(-1px);
+            color: var(--text);
+        }
+
+        .primary-button {
+            background: linear-gradient(135deg, rgba(84, 255, 135, 0.22), rgba(61, 161, 255, 0.16));
+            border: 1px solid rgba(84, 255, 135, 0.2);
+            color: var(--text);
+        }
+
+        #graph-stage {
+            position: relative;
+            min-height: 0;
+            height: 100%;
+            border-radius: 22px;
+            border: 1px solid var(--line);
+            background:
+                radial-gradient(circle at 50% 50%, rgba(84, 255, 135, 0.05), transparent 28rem),
+                linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01));
+            overflow: hidden;
+        }
+
+        #graph-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .graph-empty {
+            position: absolute;
+            inset: 0;
+            display: grid;
+            place-items: center;
+            color: var(--muted);
+            text-align: center;
+            padding: 1rem;
+        }
+
+        .node-label {
+            font-family: var(--mono);
+            font-size: 11px;
+            fill: rgba(246, 247, 251, 0.86);
+            pointer-events: none;
+        }
+
+        .graph-link {
+            stroke: rgba(188, 204, 255, 0.22);
+            stroke-width: 1.2;
+        }
+
+        .graph-node {
+            cursor: pointer;
+        }
+
+        .graph-node circle {
+            stroke: rgba(255, 255, 255, 0.1);
+            stroke-width: 1.5;
+            transition: transform 160ms ease, stroke 160ms ease;
+        }
+
+        .graph-node:hover circle,
+        .graph-node.active circle {
+            stroke: rgba(255, 255, 255, 0.32);
+        }
+
+        .graph-node .halo {
+            fill: transparent;
+            stroke: rgba(84, 255, 135, 0.24);
+            stroke-width: 10;
+            opacity: 0;
+        }
+
+        .graph-node.active .halo {
+            opacity: 1;
+        }
+
+        .graph-note {
+            color: var(--muted);
+            font-size: 0.8rem;
+        }
+
+        .graph-footer {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 0.9rem;
+            align-items: center;
+            margin-top: 0.9rem;
+        }
+
+        .graph-stats {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.45rem;
+        }
+
+        .chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.28rem 0.55rem;
+            border-radius: 999px;
+            border: 1px solid var(--line);
+            background: rgba(255, 255, 255, 0.05);
+            font-size: 0.74rem;
+        }
+
+        .entity-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+            margin-bottom: 0.8rem;
+        }
+
+        .entity-header h3 {
+            margin: 0;
+            font-size: 0.9rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--muted);
+        }
+
+        .filter-bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.35rem;
+        }
+
+        .event-card {
+            border-radius: 18px;
+            border: 1px solid var(--line);
+            background: rgba(255, 255, 255, 0.03);
+            padding: 0.9rem;
+            border-left: 3px solid var(--muted);
+        }
+
+        .event-card.good { border-left-color: var(--accent); }
+        .event-card.warn { border-left-color: var(--amber); }
+        .event-card.bad { border-left-color: var(--red); }
+        .event-card.info { border-left-color: var(--blue); }
+
+        .event-head {
+            display: flex;
+            justify-content: space-between;
+            gap: 0.75rem;
+            margin-bottom: 0.45rem;
+        }
+
+        .event-head strong {
+            display: block;
+            font-size: 0.96rem;
+        }
+
+        .event-head .meta {
+            margin-top: 0.1rem;
+        }
+
+        details.raw {
+            margin-top: 0.6rem;
+        }
+
+        details.raw summary {
+            cursor: pointer;
+            color: var(--muted);
+            font-size: 0.74rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        pre {
+            overflow: auto;
+            padding: 0.8rem;
+            border-radius: 14px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--line);
+            font-size: 0.75rem;
+            line-height: 1.5;
+            margin: 0.55rem 0 0;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .control-grid {
+            display: grid;
+            gap: 0.75rem;
+        }
+
+        .field {
+            display: grid;
+            gap: 0.35rem;
+        }
+
+        .field label {
+            font-size: 0.74rem;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .field input,
+        .field select,
+        .field textarea {
+            width: 100%;
+            padding: 0.7rem 0.78rem;
+            border-radius: 14px;
+            border: 1px solid var(--line);
+            background: rgba(255, 255, 255, 0.03);
+            outline: none;
+        }
+
+        .field textarea {
+            min-height: 5.4rem;
+            resize: vertical;
+        }
+
+        .inline-fields {
+            display: grid;
+            gap: 0.7rem;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .action-bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.55rem;
+            margin-top: 0.4rem;
+        }
+
+        .drawer {
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: min(420px, 92vw);
+            height: 100vh;
+            padding: 1rem;
+            background: rgba(4, 6, 11, 0.88);
+            backdrop-filter: blur(28px);
+            border-left: 1px solid var(--line);
+            transform: translateX(100%);
+            transition: transform 220ms ease;
+            z-index: 20;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .drawer.open {
+            transform: translateX(0);
+        }
+
+        .drawer-header {
+            display: flex;
+            justify-content: space-between;
+            gap: 0.75rem;
+            align-items: flex-start;
+        }
+
+        .drawer-body {
+            min-height: 0;
+            overflow: auto;
+            display: grid;
+            gap: 0.8rem;
+        }
+
+        .drawer-section {
+            border: 1px solid var(--line);
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 18px;
+            padding: 0.9rem;
+        }
+
+        .drawer-section h4 {
+            margin: 0 0 0.55rem;
+            font-size: 0.82rem;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .empty {
+            padding: 1rem;
+            border-radius: 18px;
+            border: 1px dashed var(--line);
+            color: var(--muted);
+            text-align: center;
+        }
+
+        .list-inline {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.45rem;
+        }
+
+        .library-grid {
+            display: grid;
+            gap: 0.7rem;
+            max-height: 15rem;
+            overflow: auto;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        @media (max-width: 1440px) {
+            .layout {
+                grid-template-columns: 290px minmax(0, 1fr) 360px;
+            }
+        }
+
+        @media (max-width: 1180px) {
+            body {
+                overflow: auto;
+            }
+
+            .layout {
+                grid-template-columns: 1fr;
+                height: auto;
+            }
+
+            .rail.left,
+            .rail.right {
+                grid-template-rows: none;
+            }
+
+            .graph-panel {
+                min-height: 34rem;
+            }
+        }
+
+        @media (max-width: 720px) {
+            header {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            .inline-fields,
+            .metrics-grid {
                 grid-template-columns: 1fr;
             }
         }
@@ -268,85 +818,254 @@
 </head>
 <body>
     <header>
-        <div>
-            <h1>Nexus Prime Runtime Console</h1>
-            <div class="subtitle">Live runs, backends, skills, workflows, verifier evidence, and release health.</div>
+        <div class="brand">
+            <div class="brand-mark" aria-hidden="true"></div>
+            <div>
+                <h1>Nexus Prime</h1>
+                <div class="subtitle">Topology-first runtime console for memory, pod network, skills, workflows, and live execution.</div>
+            </div>
         </div>
-        <div id="stream-pill" class="stream-pill">Event stream waiting</div>
+        <div class="header-actions">
+            <div id="sync-pill" class="status-pill">
+                <span class="dot"></span>
+                <span id="sync-label">Connecting stream</span>
+            </div>
+            <div class="mini-pill">
+                <span class="mono" id="header-version">v?</span>
+            </div>
+        </div>
     </header>
 
-    <main>
-        <section class="hero" aria-label="runtime stats">
-            <div class="stat">
-                <label>Tracked Runs</label>
-                <strong id="runs-count">0</strong>
-                <div class="meta" id="latest-run-state">No execution yet</div>
+    <main class="layout">
+        <aside class="rail left">
+            <section class="panel">
+                <div class="panel-header">
+                    <h2>Connected Ecosystem</h2>
+                    <span class="badge" id="clients-summary">0 visible</span>
+                </div>
+                <div class="panel-body compact">
+                    <div id="clients-list" class="ecosystem-list">
+                        <div class="empty">Client telemetry loading.</div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="panel">
+                <div class="panel-header">
+                    <h2>Token Supremacy</h2>
+                    <span class="badge" id="token-summary">0 events</span>
+                </div>
+                <div class="panel-body">
+                    <div class="token-dial-wrap">
+                        <div class="token-dial">
+                            <svg viewBox="0 0 168 168" aria-hidden="true">
+                                <circle class="dial-bg" cx="84" cy="84" r="70"></circle>
+                                <circle id="dial-progress" class="dial-fg" cx="84" cy="84" r="70"></circle>
+                            </svg>
+                            <div class="dial-center">
+                                <div id="dial-value" class="dial-value">0%</div>
+                                <div class="dial-caption">Avg compression</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="metrics-grid">
+                        <div class="hero-metric">
+                            <label>Gross Tokens</label>
+                            <strong id="gross-tokens">0</strong>
+                            <div class="meta">Observed from token and CAS events</div>
+                        </div>
+                        <div class="hero-metric">
+                            <label>Tokens Saved</label>
+                            <strong id="saved-tokens">0</strong>
+                            <div class="meta">Optimizer and CAS compression savings</div>
+                        </div>
+                        <div class="hero-metric">
+                            <label>Net Forwarded</label>
+                            <strong id="net-tokens">0</strong>
+                            <div class="meta">Estimated after compression</div>
+                        </div>
+                        <div class="hero-metric">
+                            <label>Memory Nodes</label>
+                            <strong id="memory-count">0</strong>
+                            <div class="meta">Snapshots available to inspect</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="panel">
+                <div class="panel-header">
+                    <h2>System Signals</h2>
+                    <span class="badge" id="memory-tier-summary">0 cortex</span>
+                </div>
+                <div class="panel-body">
+                    <div class="stack">
+                        <div class="hero-metric">
+                            <label>Tracked Runs</label>
+                            <strong id="runs-count">0</strong>
+                            <div class="meta" id="latest-run-state">No runs yet</div>
+                        </div>
+                        <div class="hero-metric">
+                            <label>Skills / Workflows</label>
+                            <strong id="artifact-count">0 / 0</strong>
+                            <div class="meta" id="artifact-summary">Runtime library loading</div>
+                        </div>
+                        <div class="hero-metric">
+                            <label>Release Health</label>
+                            <strong id="docs-health">Unknown</strong>
+                            <div class="meta" id="ci-health">Pages and CI not loaded yet</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="panel">
+                <div class="panel-header">
+                    <h2>POD Network</h2>
+                    <span class="badge" id="pod-summary">0 workers</span>
+                </div>
+                <div class="panel-body compact">
+                    <div id="pod-highlights" class="stack">
+                        <div class="empty">Waiting for POD traffic.</div>
+                    </div>
+                </div>
+            </section>
+        </aside>
+
+        <section class="panel graph-panel">
+            <div class="panel-header">
+                <div>
+                    <h2 id="graph-title">Memory Topology Graph</h2>
+                    <div class="meta" id="graph-subtitle">Touch a memory to open the inspector and timeline.</div>
+                </div>
+                <div class="graph-toolbar">
+                    <div id="graph-modes" class="segmented" aria-label="graph modes">
+                        <button data-graph-mode="memory" class="active">Memory</button>
+                        <button data-graph-mode="runs">Runs</button>
+                        <button data-graph-mode="pod">POD</button>
+                    </div>
+                </div>
             </div>
-            <div class="stat">
-                <label>Bundled Skills</label>
-                <strong id="skills-count">0</strong>
-                <div class="meta">Live, session, and base skills</div>
-            </div>
-            <div class="stat">
-                <label>Workflow Library</label>
-                <strong id="workflows-count">0</strong>
-                <div class="meta">Bundled, local, and derived workflows</div>
-            </div>
-            <div class="stat">
-                <label>Package Version</label>
-                <strong id="release-version">unknown</strong>
-                <div class="meta" id="pages-health">Pages status unknown</div>
+            <div class="panel-body">
+                <div id="graph-stage">
+                    <svg id="graph-canvas" viewBox="0 0 980 620" preserveAspectRatio="xMidYMid meet"></svg>
+                    <div id="graph-empty" class="graph-empty hidden">No topology data yet.</div>
+                </div>
+                <div class="graph-footer">
+                    <div id="graph-stats" class="graph-stats"></div>
+                    <div class="graph-note" id="graph-note">Memory graph combines semantic, lineage, and artifact-derived links.</div>
+                </div>
+                <div class="panel" style="margin-top: 1rem; min-height: 16rem;">
+                    <div class="panel-header">
+                        <div class="entity-header" style="margin:0;">
+                            <h3 id="library-title">Memory Snapshots</h3>
+                            <div id="library-tabs" class="segmented">
+                                <button data-library-mode="memories" class="active">Memories</button>
+                                <button data-library-mode="skills">Skills</button>
+                                <button data-library-mode="workflows">Workflows</button>
+                                <button data-library-mode="pod">POD</button>
+                                <button data-library-mode="clients">Clients</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="panel-body compact">
+                        <div id="library-list" class="library-grid">
+                            <div class="empty">Loading library view.</div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </section>
 
-        <div class="grid">
-            <div class="stack">
-                <section>
-                    <h2>Runs</h2>
-                    <div id="runs-list" class="list">
-                        <div class="empty">No runs yet.</div>
+        <aside class="rail right">
+            <section class="panel">
+                <div class="panel-header">
+                    <div>
+                        <h2>Neural Stream HUD</h2>
+                        <div class="meta" id="events-summary">0 signals</div>
                     </div>
-                </section>
-
-                <section>
-                    <h2>Skills</h2>
-                    <div id="skills-list" class="list">
-                        <div class="empty">No skills loaded.</div>
+                    <div id="event-filters" class="filter-bar">
+                        <button data-event-filter="all" class="active">All</button>
+                        <button data-event-filter="memory">Memory</button>
+                        <button data-event-filter="tokens">Tokens</button>
+                        <button data-event-filter="runtime">Runtime</button>
+                        <button data-event-filter="pod">POD</button>
+                        <button data-event-filter="skills">Skills</button>
+                        <button data-event-filter="workflows">Flows</button>
+                        <button data-event-filter="clients">Clients</button>
                     </div>
-                </section>
-
-                <section>
-                    <h2>Workflows</h2>
-                    <div id="workflows-list" class="list">
-                        <div class="empty">No workflows loaded.</div>
-                    </div>
-                </section>
-            </div>
-
-            <div class="stack">
-                <section>
-                    <h2>Backends</h2>
-                    <div id="backends-list" class="list">
-                        <div class="empty">Backend catalog unavailable.</div>
-                    </div>
-                </section>
-
-                <section>
-                    <h2>Health</h2>
-                    <div id="health-panel" class="list">
-                        <div class="empty">Health status unavailable.</div>
-                    </div>
-                </section>
-
-                <section>
-                    <h2>Live Events</h2>
-                    <div id="event-feed" class="event-feed">
+                </div>
+                <div class="panel-body compact">
+                    <div id="event-list" class="event-list">
                         <div class="empty">Waiting for runtime activity.</div>
                     </div>
-                </section>
-            </div>
-        </div>
+                </div>
+            </section>
+
+            <section class="panel">
+                <div class="panel-header">
+                    <h2>Local Control Plane</h2>
+                    <span class="badge">Guarded</span>
+                </div>
+                <div class="panel-body">
+                    <form id="execute-form" class="control-grid">
+                        <div class="field">
+                            <label for="goal-input">Goal</label>
+                            <textarea id="goal-input" placeholder="Run a bounded local task through the runtime."></textarea>
+                        </div>
+                        <div class="field">
+                            <label for="files-input">Files</label>
+                            <input id="files-input" type="text" placeholder="src/a.ts, src/b.ts">
+                        </div>
+                        <div class="field">
+                            <label for="skills-input">Skills</label>
+                            <input id="skills-input" type="text" placeholder="backend-playbook, orchestration-playbook">
+                        </div>
+                        <div class="field">
+                            <label for="workflows-input">Workflows</label>
+                            <input id="workflows-input" type="text" placeholder="backend-execution-loop">
+                        </div>
+                        <div class="inline-fields">
+                            <div class="field">
+                                <label for="workers-input">Workers</label>
+                                <input id="workers-input" type="number" min="1" max="7" value="2">
+                            </div>
+                            <div class="field">
+                                <label for="memory-backend">Memory Backend</label>
+                                <select id="memory-backend"></select>
+                            </div>
+                            <div class="field">
+                                <label for="compression-backend">Compression Backend</label>
+                                <select id="compression-backend"></select>
+                            </div>
+                            <div class="field">
+                                <label for="dsl-backend">DSL Compiler</label>
+                                <select id="dsl-backend"></select>
+                            </div>
+                        </div>
+                        <div class="action-bar">
+                            <button type="submit" class="primary-button">Execute Run</button>
+                            <button id="refresh-button" type="button" class="ghost-button">Refresh All</button>
+                        </div>
+                        <div id="control-status" class="meta">Dashboard actions stay local and route through the runtime.</div>
+                    </form>
+                </div>
+            </section>
+        </aside>
     </main>
+
+    <aside id="drawer" class="drawer" aria-live="polite">
+        <div class="drawer-header">
+            <div>
+                <h2 id="drawer-title" style="margin:0;">Inspector</h2>
+                <div id="drawer-subtitle" class="meta">Select a node or card.</div>
+            </div>
+            <button id="drawer-close" class="ghost-button" type="button">Close</button>
+        </div>
+        <div id="drawer-body" class="drawer-body">
+            <div class="empty">Touch a memory, run, workflow, skill, POD worker, or client to inspect it.</div>
+        </div>
+    </aside>
 
     <script>
         const state = {
@@ -355,256 +1074,1039 @@
             workflows: [],
             backends: {},
             health: {},
+            memories: [],
+            memoryDetail: null,
+            memoryNetwork: { nodes: [], links: [], focusId: null },
+            pod: { messages: [], activeWorkers: [], tagClusters: [], confidenceBands: { high: 0, medium: 0, low: 0 } },
+            clients: [],
             events: [],
+            graphMode: 'memory',
+            libraryMode: 'memories',
+            eventFilter: 'all',
+            selected: null,
+            streamConnected: false,
+            lastRefreshAt: 0,
         };
 
-        function render() {
-            renderStats();
-            renderRuns();
-            renderSkills();
-            renderWorkflows();
-            renderBackends();
-            renderHealth();
-            renderEvents();
-        }
+        const graphModes = {
+            memory: { title: 'Memory Topology Graph', subtitle: 'Touch a memory to open the inspector and timeline.' },
+            runs: { title: 'Run Execution Graph', subtitle: 'Run, worker, workflow, and backend topology from recent executions.' },
+            pod: { title: 'POD Network Graph', subtitle: 'Worker/tag clusters and confidence across the live pod mesh.' },
+        };
 
-        function stateClass(value) {
-            if (['merged', 'healthy', 'connected', true].includes(value)) return 'good';
-            if (['rolled_back', 'idle'].includes(value)) return 'warn';
-            return 'bad';
-        }
-
-        function createChip(text) {
-            return `<span class="chip">${escapeHtml(text)}</span>`;
+        function $(id) {
+            return document.getElementById(id);
         }
 
         function escapeHtml(value) {
-            return String(value)
+            return String(value ?? '')
                 .replaceAll('&', '&amp;')
                 .replaceAll('<', '&lt;')
                 .replaceAll('>', '&gt;');
         }
 
-        function renderStats() {
-            document.getElementById('runs-count').textContent = String(state.runs.length);
-            document.getElementById('skills-count').textContent = String(state.skills.length);
-            document.getElementById('workflows-count').textContent = String(state.workflows.length);
-            document.getElementById('release-version').textContent = state.health.release?.packageVersion || 'unknown';
-
-            const latestRun = state.runs[0];
-            document.getElementById('latest-run-state').textContent = latestRun
-                ? `${latestRun.state} · ${latestRun.selectedBackends?.memoryBackend || 'unknown'}`
-                : 'No execution yet';
-            document.getElementById('pages-health').textContent = state.health.docs?.pagesWorkflowValid
-                ? 'Pages workflow healthy'
-                : 'Pages workflow needs attention';
+        function formatNumber(value) {
+            return new Intl.NumberFormat().format(Number(value || 0));
         }
 
-        function renderRuns() {
-            const container = document.getElementById('runs-list');
-            if (!state.runs.length) {
-                container.innerHTML = '<div class="empty">No runs yet.</div>';
-                return;
+        function formatDate(value) {
+            if (!value) return 'n/a';
+            try {
+                return new Date(value).toLocaleString();
+            } catch {
+                return 'n/a';
             }
-
-            container.innerHTML = state.runs.map((run) => `
-                <article class="card">
-                    <div class="card-header">
-                        <div>
-                            <h3>${escapeHtml(run.goal)}</h3>
-                            <div class="meta">${escapeHtml(run.runId)} · ${escapeHtml(run.artifactsPath || '')}</div>
-                        </div>
-                        <span class="state ${stateClass(run.state)}">${escapeHtml(run.state)}</span>
-                    </div>
-                    <p>${escapeHtml(run.result || 'Run recorded.')}</p>
-                    <div class="chips">
-                        ${createChip(`workers:${run.workerResults?.length || 0}`)}
-                        ${createChip(`verified:${(run.workerResults || []).filter((item) => item.verified).length}`)}
-                        ${createChip(`memory:${run.selectedBackends?.memoryBackend || 'n/a'}`)}
-                        ${createChip(`compression:${run.selectedBackends?.compressionBackend || 'n/a'}`)}
-                    </div>
-                </article>
-            `).join('');
         }
 
-        function renderSkills() {
-            const container = document.getElementById('skills-list');
-            if (!state.skills.length) {
-                container.innerHTML = '<div class="empty">No skills loaded.</div>';
-                return;
+        function formatAgo(value) {
+            if (!value) return 'n/a';
+            const diff = Date.now() - value;
+            const mins = Math.round(diff / 60000);
+            if (mins < 1) return 'just now';
+            if (mins < 60) return `${mins}m ago`;
+            const hours = Math.round(mins / 60);
+            if (hours < 24) return `${hours}h ago`;
+            return `${Math.round(hours / 24)}d ago`;
+        }
+
+        function chip(text) {
+            return `<span class="chip">${escapeHtml(text)}</span>`;
+        }
+
+        function stateClass(status) {
+            if (['merged', 'healthy', 'active', 'promoted', 'hot', 'connected', 'validated'].includes(status)) return 'good';
+            if (['ready', 'standby', 'rolled_back', 'inferred', 'staged', 'idle'].includes(status)) return 'warn';
+            if (['revoked', 'failed', 'rejected', 'offline'].includes(status)) return 'bad';
+            return 'info';
+        }
+
+        function parseList(value) {
+            return String(value || '')
+                .split(',')
+                .map((item) => item.trim())
+                .filter(Boolean);
+        }
+
+        async function fetchJson(url, options) {
+            const res = await fetch(url, options);
+            if (!res.ok) {
+                throw new Error(`${res.status} ${res.statusText}`);
             }
-
-            container.innerHTML = state.skills.slice(0, 12).map((skill) => `
-                <article class="card">
-                    <div class="card-header">
-                        <div>
-                            <h3>${escapeHtml(skill.name)}</h3>
-                            <div class="meta">${escapeHtml(skill.provenance || '')}</div>
-                        </div>
-                        <span class="state ${stateClass(skill.rolloutStatus === 'revoked' ? 'failed' : skill.rolloutStatus === 'promoted' ? 'merged' : 'idle')}">${escapeHtml(skill.rolloutStatus)}</span>
-                    </div>
-                    <p>${escapeHtml((skill.instructions || '').split('\n')[0] || 'Skill artifact')}</p>
-                    <div class="chips">
-                        ${createChip(`risk:${skill.riskClass}`)}
-                        ${createChip(`scope:${skill.scope}`)}
-                        ${skill.domain ? createChip(`domain:${skill.domain}`) : ''}
-                    </div>
-                </article>
-            `).join('');
-        }
-
-        function renderWorkflows() {
-            const container = document.getElementById('workflows-list');
-            if (!state.workflows.length) {
-                container.innerHTML = '<div class="empty">No workflows loaded.</div>';
-                return;
-            }
-
-            container.innerHTML = state.workflows.slice(0, 12).map((workflow) => `
-                <article class="card">
-                    <div class="card-header">
-                        <div>
-                            <h3>${escapeHtml(workflow.name)}</h3>
-                            <div class="meta">${escapeHtml(workflow.provenance || '')}</div>
-                        </div>
-                        <span class="state ${stateClass(workflow.rolloutStatus === 'revoked' ? 'failed' : workflow.rolloutStatus === 'promoted' ? 'merged' : 'idle')}">${escapeHtml(workflow.rolloutStatus)}</span>
-                    </div>
-                    <p>${escapeHtml(workflow.description || 'Workflow artifact')}</p>
-                    <div class="chips">
-                        ${createChip(`domain:${workflow.domain}`)}
-                        ${createChip(`steps:${(workflow.steps || []).length}`)}
-                        ${createChip(`scope:${workflow.scope}`)}
-                    </div>
-                </article>
-            `).join('');
-        }
-
-        function renderBackends() {
-            const container = document.getElementById('backends-list');
-            const groups = Object.entries(state.backends || {});
-            if (!groups.length) {
-                container.innerHTML = '<div class="empty">Backend catalog unavailable.</div>';
-                return;
-            }
-
-            container.innerHTML = groups.map(([group, entries]) => `
-                <article class="card">
-                    <div class="card-header">
-                        <h3>${escapeHtml(group)}</h3>
-                    </div>
-                    <div class="chips">
-                        ${(entries || []).map((entry) => createChip(`${entry.kind}:${entry.mode}`)).join('')}
-                    </div>
-                </article>
-            `).join('');
-        }
-
-        function renderHealth() {
-            const container = document.getElementById('health-panel');
-            const health = state.health || {};
-            if (!Object.keys(health).length) {
-                container.innerHTML = '<div class="empty">Health status unavailable.</div>';
-                return;
-            }
-
-            container.innerHTML = `
-                <article class="card">
-                    <div class="card-header">
-                        <h3>Runtime</h3>
-                        <span class="state ${stateClass(health.runtime?.runtime || 'failed')}">${escapeHtml(health.runtime?.runtime || 'unknown')}</span>
-                    </div>
-                    <div class="chips">
-                        ${createChip(`runs:${health.runtime?.runsTracked || 0}`)}
-                        ${createChip(`skills:${health.runtime?.skills || 0}`)}
-                        ${createChip(`workflows:${health.runtime?.workflows || 0}`)}
-                    </div>
-                </article>
-                <article class="card">
-                    <div class="card-header">
-                        <h3>Docs / Release</h3>
-                    </div>
-                    <div class="chips">
-                        ${createChip(`version:${health.release?.packageVersion || 'unknown'}`)}
-                        ${createChip(`docs:${health.docs?.present ? 'present' : 'missing'}`)}
-                        ${createChip(`pages:${health.docs?.pagesWorkflowValid ? 'valid' : 'broken'}`)}
-                        ${createChip(`stream:${health.connection?.stream || 'unknown'}`)}
-                    </div>
-                </article>
-            `;
-        }
-
-        function renderEvents() {
-            const container = document.getElementById('event-feed');
-            if (!state.events.length) {
-                container.innerHTML = '<div class="empty">Waiting for runtime activity.</div>';
-                return;
-            }
-
-            container.innerHTML = state.events.slice(0, 20).map((event) => `
-                <div class="event">
-                    <strong>${escapeHtml(event.type)}</strong>
-                    <div class="meta">${new Date(event.timestamp).toLocaleTimeString()}</div>
-                    <pre>${escapeHtml(JSON.stringify(event.data, null, 2))}</pre>
-                </div>
-            `).join('');
-        }
-
-        async function loadJson(url) {
-            const response = await fetch(url);
-            if (!response.ok) throw new Error(`${url} failed`);
-            return response.json();
+            return res.json();
         }
 
         async function refreshAll() {
-            const [runs, skills, workflows, backends, health] = await Promise.all([
-                loadJson('/api/runs'),
-                loadJson('/api/skills'),
-                loadJson('/api/workflows'),
-                loadJson('/api/backends'),
-                loadJson('/api/health'),
+            const [runs, skills, workflows, backends, health, memories, pod, clients, events] = await Promise.all([
+                fetchJson('/api/runs?limit=20'),
+                fetchJson('/api/skills'),
+                fetchJson('/api/workflows'),
+                fetchJson('/api/backends'),
+                fetchJson('/api/health'),
+                fetchJson('/api/memory?limit=40'),
+                fetchJson('/api/pod?limit=30'),
+                fetchJson('/api/clients'),
+                fetchJson('/api/events?limit=80'),
             ]);
+
             state.runs = Array.isArray(runs) ? runs : [];
             state.skills = Array.isArray(skills) ? skills : [];
             state.workflows = Array.isArray(workflows) ? workflows : [];
             state.backends = backends || {};
             state.health = health || {};
+            state.memories = Array.isArray(memories) ? memories : [];
+            state.pod = pod || state.pod;
+            state.clients = Array.isArray(clients) ? clients : [];
+            state.events = Array.isArray(events) ? events : [];
+            state.lastRefreshAt = Date.now();
+
+            const focusMemoryId = state.selected?.kind === 'memory'
+                ? state.selected.id
+                : state.memories[0]?.id;
+            if (focusMemoryId) {
+                await refreshMemorySelection(focusMemoryId, false);
+            } else {
+                state.memoryDetail = null;
+                state.memoryNetwork = { nodes: [], links: [], focusId: null };
+            }
+
+            populateBackendSelects();
             render();
         }
 
-        async function boot() {
-            try {
-                await refreshAll();
-            } catch (error) {
-                console.error(error);
+        async function refreshMemorySelection(memoryId, openDrawer = true) {
+            const [detail, network] = await Promise.all([
+                fetchJson(`/api/memory/${encodeURIComponent(memoryId)}`),
+                fetchJson(`/api/memory/${encodeURIComponent(memoryId)}/network?depth=2&limit=18`),
+            ]);
+            state.memoryDetail = detail;
+            state.memoryNetwork = network;
+            if (openDrawer) {
+                state.selected = { kind: 'memory', id: memoryId, data: detail };
+            }
+        }
+
+        function populateBackendSelects() {
+            const mapping = [
+                ['memory-backend', state.backends.memory || [], 'sqlite-memory'],
+                ['compression-backend', state.backends.compression || [], 'deterministic-reading-plan'],
+                ['dsl-backend', state.backends.dsl || [], 'deterministic-nxl-compiler'],
+            ];
+
+            for (const [id, entries, defaultKind] of mapping) {
+                const select = $(id);
+                if (!select) continue;
+                const current = select.value;
+                const options = [{ kind: '', mode: 'default', label: 'Default' }, ...entries];
+                select.innerHTML = options.map((entry) => {
+                    const value = entry.kind || '';
+                    const label = entry.label || (entry.kind ? `${entry.kind} (${entry.mode})` : 'Default');
+                    return `<option value="${escapeHtml(value)}">${escapeHtml(label)}</option>`;
+                }).join('');
+                select.value = current || defaultKind || '';
+            }
+        }
+
+        function computeTokenMetrics() {
+            const tokenEvents = state.events.filter((event) => event.category === 'tokens');
+            let gross = 0;
+            let saved = 0;
+            let forwarded = 0;
+            const ratios = [];
+
+            for (const event of tokenEvents) {
+                const payload = event.payload || {};
+                if (typeof payload.inputTokens === 'number') gross += payload.inputTokens;
+                if (typeof payload.outputTokens === 'number') forwarded += payload.outputTokens;
+                if (typeof payload.savings === 'number') saved += payload.savings;
+                if (typeof payload.compressionRatio === 'number' && payload.compressionRatio > 0) {
+                    ratios.push(Math.min(99, Math.max(1, Math.round((1 - (1 / payload.compressionRatio)) * 100))));
+                }
+                if (typeof payload.pct === 'number') ratios.push(payload.pct);
             }
 
-            const eventSource = new EventSource('/stream');
-            eventSource.addEventListener('open', () => {
-                const pill = document.getElementById('stream-pill');
-                pill.classList.add('live');
-                pill.textContent = 'Event stream live';
+            return {
+                gross,
+                saved,
+                forwarded,
+                ratio: ratios.length ? Math.round(ratios.reduce((sum, value) => sum + value, 0) / ratios.length) : 0,
+                events: tokenEvents.length,
+            };
+        }
+
+        function render() {
+            renderHeader();
+            renderLeftRail();
+            renderGraph();
+            renderLibrary();
+            renderEvents();
+            renderDrawer();
+        }
+
+        function renderHeader() {
+            $('header-version').textContent = `v${state.health.release?.packageVersion || '?'}`;
+            const pill = $('sync-pill');
+            pill.classList.toggle('live', state.streamConnected);
+            pill.classList.toggle('warn', !state.streamConnected);
+            $('sync-label').textContent = state.streamConnected
+                ? `Synchronized · ${formatAgo(state.lastRefreshAt)}`
+                : 'Stream reconnecting';
+        }
+
+        function renderLeftRail() {
+            $('clients-summary').textContent = `${state.clients.length} visible`;
+            $('clients-list').innerHTML = state.clients.length
+                ? state.clients.map((client) => `
+                    <div class="client-row card interactive ${state.selected?.kind === 'client' && state.selected.id === client.clientId ? 'active' : ''}" data-kind="client" data-id="${escapeHtml(client.clientId)}">
+                        <div class="client-info">
+                            <span class="client-dot ${escapeHtml(client.state)}"></span>
+                            <div>
+                                <div class="client-name">${escapeHtml(client.displayName)}</div>
+                                <div class="meta">${escapeHtml(client.source)} · ${escapeHtml(client.evidence?.[0] || 'no extra evidence')}</div>
+                            </div>
+                        </div>
+                        <span class="state-chip ${stateClass(client.state)}">${escapeHtml(client.state)}</span>
+                    </div>
+                `).join('')
+                : '<div class="empty">No clients detected.</div>';
+
+            const tokenMetrics = computeTokenMetrics();
+            $('token-summary').textContent = `${tokenMetrics.events} events`;
+            $('gross-tokens').textContent = formatNumber(tokenMetrics.gross);
+            $('saved-tokens').textContent = formatNumber(tokenMetrics.saved);
+            $('net-tokens').textContent = formatNumber(tokenMetrics.forwarded);
+            $('memory-count').textContent = formatNumber(state.memories.length);
+            $('dial-value').textContent = `${tokenMetrics.ratio}%`;
+            const circumference = 2 * Math.PI * 70;
+            const offset = circumference - (circumference * tokenMetrics.ratio / 100);
+            $('dial-progress').style.strokeDashoffset = `${offset}`;
+
+            $('runs-count').textContent = formatNumber(state.runs.length);
+            const latestRun = state.runs[0];
+            $('latest-run-state').textContent = latestRun
+                ? `${latestRun.state} · ${latestRun.selectedBackends?.memoryBackend || 'memory n/a'}`
+                : 'No runs yet';
+            $('artifact-count').textContent = `${state.skills.length} / ${state.workflows.length}`;
+            $('artifact-summary').textContent = `${state.skills.filter((item) => item.rolloutStatus === 'promoted').length} promoted skills · ${state.workflows.filter((item) => item.rolloutStatus === 'promoted').length} promoted workflows`;
+            $('docs-health').textContent = state.health.docs?.pagesWorkflowValid ? 'Healthy' : 'Needs attention';
+            $('ci-health').textContent = state.health.docs?.pagesWorkflowValid
+                ? `Pages valid · ${state.health.ci?.eventHistory || 0} events`
+                : 'Pages syntax or docs deployment needs attention';
+
+            const memory = state.health.memory || {};
+            $('memory-tier-summary').textContent = `${memory.cortex || 0} cortex`;
+
+            const pod = state.pod || {};
+            $('pod-summary').textContent = `${(pod.activeWorkers || []).length} workers`;
+            $('pod-highlights').innerHTML = pod.activeWorkers?.length
+                ? pod.activeWorkers.slice(0, 4).map((worker) => `
+                    <div class="card interactive ${state.selected?.kind === 'pod-worker' && state.selected.id === worker.workerId ? 'active' : ''}" data-kind="pod-worker" data-id="${escapeHtml(worker.workerId)}">
+                        <div class="card-title">
+                            <strong>${escapeHtml(worker.workerId)}</strong>
+                            <span class="state-chip ${stateClass(worker.state)}">${escapeHtml(worker.state)}</span>
+                        </div>
+                        <div class="meta">${formatAgo(worker.lastMessageTimestamp)} · avg confidence ${Number(worker.avgConfidence || 0).toFixed(2)}</div>
+                        <div class="list-inline">${(worker.tags || []).slice(0, 4).map((tag) => chip(tag)).join('')}</div>
+                    </div>
+                `).join('')
+                : '<div class="empty">Waiting for POD traffic.</div>';
+        }
+
+        function buildGraphModel() {
+            if (state.graphMode === 'runs') {
+                const nodes = [];
+                const links = [];
+                state.runs.slice(0, 4).forEach((run, runIndex) => {
+                    const runId = `run:${run.runId}`;
+                    nodes.push({ id: runId, label: run.goal, entityType: 'run', run, state: run.state, index: runIndex });
+                    (run.workerManifests || []).forEach((worker, workerIndex) => {
+                        const workerId = `worker:${worker.workerId}`;
+                        nodes.push({ id: workerId, label: `${worker.role}:${worker.strategy}`, entityType: 'worker', worker, runId, index: workerIndex });
+                        links.push({ source: runId, target: workerId, type: 'worker' });
+                    });
+                    (run.activeWorkflows || []).slice(0, 2).forEach((workflow) => {
+                        const id = `workflow:${workflow.workflowId}`;
+                        nodes.push({ id, label: workflow.name, entityType: 'workflow', workflow, runId });
+                        links.push({ source: runId, target: id, type: 'workflow' });
+                    });
+                    (run.activeSkills || []).slice(0, 2).forEach((skill) => {
+                        const id = `skill:${skill.skillId}`;
+                        nodes.push({ id, label: skill.name, entityType: 'skill', skill, runId });
+                        links.push({ source: runId, target: id, type: 'skill' });
+                    });
+                });
+                return { nodes, links };
+            }
+
+            if (state.graphMode === 'pod') {
+                const nodes = [];
+                const links = [];
+                (state.pod.activeWorkers || []).forEach((worker) => {
+                    const workerId = `pod:${worker.workerId}`;
+                    nodes.push({ id: workerId, label: worker.workerId, entityType: 'pod-worker', worker });
+                    (worker.tags || []).slice(0, 5).forEach((tag) => {
+                        const tagId = `tag:${tag}`;
+                        if (!nodes.find((node) => node.id === tagId)) {
+                            nodes.push({ id: tagId, label: tag, entityType: 'tag' });
+                        }
+                        links.push({ source: workerId, target: tagId, type: 'tag' });
+                    });
+                });
+                return { nodes, links };
+            }
+
+            const nodes = (state.memoryNetwork.nodes || []).map((node) => ({ ...node }));
+            const links = (state.memoryNetwork.links || []).map((link) => ({ ...link }));
+            return { nodes, links };
+        }
+
+        function renderGraph() {
+            const config = graphModes[state.graphMode];
+            $('graph-title').textContent = config.title;
+            $('graph-subtitle').textContent = config.subtitle;
+            document.querySelectorAll('#graph-modes button').forEach((button) => {
+                button.classList.toggle('active', button.dataset.graphMode === state.graphMode);
             });
-            eventSource.addEventListener('error', () => {
-                const pill = document.getElementById('stream-pill');
-                pill.classList.remove('live');
-                pill.textContent = 'Event stream reconnecting';
+
+            const model = buildGraphModel();
+            const svg = $('graph-canvas');
+            const empty = $('graph-empty');
+
+            if (!model.nodes.length) {
+                svg.innerHTML = '';
+                empty.classList.remove('hidden');
+                $('graph-stats').innerHTML = '';
+                return;
+            }
+
+            empty.classList.add('hidden');
+            const width = 980;
+            const height = 620;
+            const positions = state.graphMode === 'runs'
+                ? layoutRunGraph(model.nodes, width, height)
+                : state.graphMode === 'pod'
+                    ? layoutPodGraph(model.nodes, width, height)
+                    : layoutMemoryGraph(model.nodes, width, height, state.memoryNetwork.focusId);
+
+            const colorFor = (node) => {
+                const type = node.entityType;
+                if (type === 'memory') {
+                    if (node.tier === 'cortex') return '#b05cff';
+                    if (node.tier === 'hippocampus') return '#49f0ff';
+                    return '#54ff87';
+                }
+                if (type === 'run' || type === 'worker') return '#3da1ff';
+                if (type === 'workflow') return '#ffd14d';
+                if (type === 'skill') return '#54ff87';
+                if (type === 'pod-worker') return '#49f0ff';
+                if (type === 'tag') return '#ff9f5f';
+                return '#9ea6bc';
+            };
+
+            const sizeFor = (node) => {
+                if (node.entityType === 'memory' && node.id === state.memoryNetwork.focusId) return 28;
+                if (node.entityType === 'run') return 24;
+                if (node.entityType === 'worker' || node.entityType === 'pod-worker') return 18;
+                if (node.entityType === 'workflow' || node.entityType === 'skill') return 16;
+                if (node.entityType === 'tag') return 12;
+                return 14;
+            };
+
+            svg.innerHTML = `
+                <g>
+                    ${(model.links || []).map((link) => {
+                        const source = positions[link.source];
+                        const target = positions[link.target];
+                        if (!source || !target) return '';
+                        return `<line class="graph-link" x1="${source.x}" y1="${source.y}" x2="${target.x}" y2="${target.y}" opacity="${link.type === 'artifact-derived' ? 0.45 : 0.8}"></line>`;
+                    }).join('')}
+                    ${(model.nodes || []).map((node) => {
+                        const pos = positions[node.id];
+                        if (!pos) return '';
+                        const active = isNodeActive(node);
+                        const radius = sizeFor(node);
+                        return `
+                            <g class="graph-node ${active ? 'active' : ''}" data-node-id="${escapeHtml(node.id)}" transform="translate(${pos.x}, ${pos.y})">
+                                <circle class="halo" r="${radius + 6}"></circle>
+                                <circle r="${radius}" fill="${colorFor(node)}" opacity="0.9"></circle>
+                                <text class="node-label" x="${radius + 10}" y="4">${escapeHtml(shortLabel(node.label))}</text>
+                            </g>
+                        `;
+                    }).join('')}
+                </g>
+            `;
+
+            svg.querySelectorAll('.graph-node').forEach((nodeElement) => {
+                nodeElement.addEventListener('click', async () => {
+                    const nodeId = nodeElement.getAttribute('data-node-id');
+                    await openNode(nodeId, model.nodes.find((node) => node.id === nodeId));
+                });
             });
-            eventSource.onmessage = async (event) => {
-                const parsed = JSON.parse(event.data);
-                state.events.unshift(parsed);
-                state.events = state.events.slice(0, 40);
-                renderEvents();
-                if (parsed.type.startsWith('phantom.') || parsed.type.startsWith('skill.') || parsed.type.startsWith('guardrail') || parsed.type.startsWith('memory.')) {
-                    try {
-                        await refreshAll();
-                    } catch (error) {
-                        console.error(error);
+
+            $('graph-stats').innerHTML = [
+                chip(`${model.nodes.length} nodes`),
+                chip(`${model.links.length} links`),
+                state.graphMode === 'memory' ? chip(`${state.memories.length} memory snapshots`) : '',
+                state.graphMode === 'runs' ? chip(`${state.runs.length} recent runs`) : '',
+                state.graphMode === 'pod' ? chip(`${(state.pod.activeWorkers || []).length} pod workers`) : '',
+            ].filter(Boolean).join('');
+        }
+
+        function renderLibrary() {
+            document.querySelectorAll('#library-tabs button').forEach((button) => {
+                button.classList.toggle('active', button.dataset.libraryMode === state.libraryMode);
+            });
+            const titles = {
+                memories: 'Memory Snapshots',
+                skills: 'Skills',
+                workflows: 'Workflows',
+                pod: 'POD Signals',
+                clients: 'Connected Ecosystem',
+            };
+            $('library-title').textContent = titles[state.libraryMode];
+            const container = $('library-list');
+
+            if (state.libraryMode === 'memories') {
+                container.innerHTML = state.memories.length
+                    ? state.memories.map((memory) => `
+                        <div class="card interactive ${state.selected?.kind === 'memory' && state.selected.id === memory.id ? 'active' : ''}" data-kind="memory" data-id="${escapeHtml(memory.id)}">
+                            <div class="card-title">
+                                <strong>${escapeHtml(memory.excerpt)}</strong>
+                                <span class="state-chip ${stateClass(memory.tier)}">${escapeHtml(memory.tier)}</span>
+                            </div>
+                            <div class="meta">${formatDate(memory.timestamp)} · priority ${Number(memory.priority || 0).toFixed(2)} · ${memory.linkCount} links</div>
+                            <div class="list-inline">${(memory.tags || []).slice(0, 5).map((tag) => chip(tag)).join('')}</div>
+                        </div>
+                    `).join('')
+                    : '<div class="empty">No memories yet.</div>';
+            } else if (state.libraryMode === 'skills') {
+                container.innerHTML = state.skills.length
+                    ? state.skills.map((skill) => `
+                        <div class="card interactive ${state.selected?.kind === 'skill' && state.selected.id === skill.skillId ? 'active' : ''}" data-kind="skill" data-id="${escapeHtml(skill.skillId)}">
+                            <div class="card-title">
+                                <strong>${escapeHtml(skill.name)}</strong>
+                                <span class="state-chip ${stateClass(skill.rolloutStatus)}">${escapeHtml(skill.rolloutStatus)}</span>
+                            </div>
+                            <div class="meta">${escapeHtml(skill.provenance)} · scope ${escapeHtml(skill.scope)} · risk ${escapeHtml(skill.riskClass)}</div>
+                            <div class="list-inline">
+                                ${skill.domain ? chip(`domain:${skill.domain}`) : ''}
+                                ${chip(`success:${skill.effectiveness?.successes || 0}`)}
+                                ${chip(`verify:${skill.effectiveness?.verificationPasses || 0}`)}
+                            </div>
+                        </div>
+                    `).join('')
+                    : '<div class="empty">No skills loaded.</div>';
+            } else if (state.libraryMode === 'workflows') {
+                container.innerHTML = state.workflows.length
+                    ? state.workflows.map((workflow) => `
+                        <div class="card interactive ${state.selected?.kind === 'workflow' && state.selected.id === workflow.workflowId ? 'active' : ''}" data-kind="workflow" data-id="${escapeHtml(workflow.workflowId)}">
+                            <div class="card-title">
+                                <strong>${escapeHtml(workflow.name)}</strong>
+                                <span class="state-chip ${stateClass(workflow.rolloutStatus)}">${escapeHtml(workflow.rolloutStatus)}</span>
+                            </div>
+                            <div class="meta">${escapeHtml(workflow.description)} · ${workflow.steps?.length || 0} steps · ${escapeHtml(workflow.scope)}</div>
+                            <div class="list-inline">${chip(`domain:${workflow.domain}`)}${chip(`verify:${workflow.effectiveness?.verificationPasses || 0}`)}</div>
+                        </div>
+                    `).join('')
+                    : '<div class="empty">No workflows loaded.</div>';
+            } else if (state.libraryMode === 'pod') {
+                container.innerHTML = state.pod.messages?.length
+                    ? state.pod.messages.map((message) => `
+                        <div class="card interactive ${state.selected?.kind === 'pod-worker' && state.selected.id === message.workerId ? 'active' : ''}" data-kind="pod-worker" data-id="${escapeHtml(message.workerId)}">
+                            <div class="card-title">
+                                <strong>${escapeHtml(message.workerId)}</strong>
+                                <span class="state-chip ${stateClass(message.type === 'instruction' ? 'warn' : 'active')}">${escapeHtml(message.type)}</span>
+                            </div>
+                            <div class="meta">${formatDate(message.timestamp)} · confidence ${Number(message.confidence || 0).toFixed(2)}</div>
+                            <div class="meta">${escapeHtml(message.content)}</div>
+                            <div class="list-inline">${(message.tags || []).map((tag) => chip(tag)).join('')}</div>
+                        </div>
+                    `).join('')
+                    : '<div class="empty">No POD signals captured.</div>';
+            } else {
+                container.innerHTML = state.clients.length
+                    ? state.clients.map((client) => `
+                        <div class="card interactive ${state.selected?.kind === 'client' && state.selected.id === client.clientId ? 'active' : ''}" data-kind="client" data-id="${escapeHtml(client.clientId)}">
+                            <div class="card-title">
+                                <strong>${escapeHtml(client.displayName)}</strong>
+                                <span class="state-chip ${stateClass(client.state)}">${escapeHtml(client.state)}</span>
+                            </div>
+                            <div class="meta">${escapeHtml(client.source)} · last seen ${escapeHtml(formatAgo(client.lastSeen || client.lastHeartbeat))}</div>
+                            <div class="list-inline">${(client.evidence || []).map((evidence) => chip(evidence)).join('')}</div>
+                        </div>
+                    `).join('')
+                    : '<div class="empty">No clients detected.</div>';
+            }
+
+            container.querySelectorAll('.card.interactive').forEach((card) => {
+                card.addEventListener('click', () => {
+                    const kind = card.getAttribute('data-kind');
+                    const id = card.getAttribute('data-id');
+                    void openEntity(kind, id);
+                });
+            });
+        }
+
+        function renderEvents() {
+            $('events-summary').textContent = `${state.events.length} signals`;
+            document.querySelectorAll('#event-filters button').forEach((button) => {
+                button.classList.toggle('active', button.dataset.eventFilter === state.eventFilter);
+            });
+
+            const visible = state.events
+                .filter((event) => state.eventFilter === 'all' || event.category === state.eventFilter)
+                .slice(0, 60);
+
+            $('event-list').innerHTML = visible.length
+                ? visible.map((event) => `
+                    <article class="event-card ${escapeHtml(event.severity)}">
+                        <div class="event-head">
+                            <div>
+                                <strong>${escapeHtml(event.title)}</strong>
+                                <div class="meta">${escapeHtml(event.source)} · ${formatDate(event.time)}</div>
+                            </div>
+                            <span class="state-chip ${stateClass(event.severity === 'bad' ? 'failed' : event.severity === 'warn' ? 'inferred' : 'active')}">${escapeHtml(event.category)}</span>
+                        </div>
+                        <div class="meta">${escapeHtml(event.summary)}</div>
+                        <details class="raw">
+                            <summary>Payload</summary>
+                            <pre>${escapeHtml(JSON.stringify(event.payload, null, 2))}</pre>
+                        </details>
+                    </article>
+                `).join('')
+                : '<div class="empty">No events for this filter.</div>';
+        }
+
+        function renderDrawer() {
+            const drawer = $('drawer');
+            if (!state.selected || !state.selected.data) {
+                drawer.classList.remove('open');
+                $('drawer-title').textContent = 'Inspector';
+                $('drawer-subtitle').textContent = 'Select a node or card.';
+                $('drawer-body').innerHTML = '<div class="empty">Touch a memory, run, workflow, skill, POD worker, or client to inspect it.</div>';
+                return;
+            }
+
+            drawer.classList.add('open');
+            const { kind, data } = state.selected;
+            $('drawer-title').textContent = formatDrawerTitle(kind, data);
+            $('drawer-subtitle').textContent = formatDrawerSubtitle(kind, data);
+            $('drawer-body').innerHTML = renderDrawerSections(kind, data);
+            bindDrawerActions();
+        }
+
+        function formatDrawerTitle(kind, data) {
+            if (kind === 'memory') return data.excerpt || 'Memory';
+            if (kind === 'run') return data.goal || 'Run';
+            if (kind === 'skill') return data.name || 'Skill';
+            if (kind === 'workflow') return data.name || 'Workflow';
+            if (kind === 'pod-worker') return data.workerId || 'POD Worker';
+            if (kind === 'client') return data.displayName || 'Client';
+            return 'Inspector';
+        }
+
+        function formatDrawerSubtitle(kind, data) {
+            if (kind === 'memory') return `${data.id} · ${data.tier} · ${formatDate(data.timestamp)}`;
+            if (kind === 'run') return `${data.runId} · ${data.state}`;
+            if (kind === 'skill') return `${data.skillId} · ${data.rolloutStatus}`;
+            if (kind === 'workflow') return `${data.workflowId} · ${data.rolloutStatus}`;
+            if (kind === 'pod-worker') return `${data.messageCount || data.messages?.length || 0} messages`;
+            if (kind === 'client') return `${data.clientId} · ${data.state}`;
+            return '';
+        }
+
+        function renderDrawerSections(kind, data) {
+            if (kind === 'memory') {
+                return `
+                    <section class="drawer-section">
+                        <h4>Snapshot</h4>
+                        <div class="list-inline">
+                            ${chip(`tier:${data.tier}`)}
+                            ${chip(`priority:${Number(data.priority || 0).toFixed(2)}`)}
+                            ${chip(`links:${data.linkCount || 0}`)}
+                            ${chip(`access:${data.accessCount || 0}`)}
+                        </div>
+                        <pre>${escapeHtml(data.content || data.excerpt || '')}</pre>
+                    </section>
+                    <section class="drawer-section">
+                        <h4>Lineage</h4>
+                        ${renderSmallList(data.lineage?.map((item) => ({
+                            label: item.excerpt,
+                            meta: `${item.tier} · ${formatDate(item.timestamp)}`,
+                            action: `memory:${item.id}`,
+                        })) || [])}
+                    </section>
+                    <section class="drawer-section">
+                        <h4>Linked Memories</h4>
+                        ${renderSmallList(data.linkedMemories?.map((item) => ({
+                            label: item.excerpt,
+                            meta: `${item.linkCount} links · ${formatAgo(item.timestamp)}`,
+                            action: `memory:${item.id}`,
+                        })) || [])}
+                    </section>
+                    <section class="drawer-section">
+                        <h4>Timeline</h4>
+                        ${renderSmallList(data.timeline?.map((item) => ({
+                            label: item.excerpt,
+                            meta: `${formatDate(item.timestamp)} · ${item.tier}`,
+                            action: `memory:${item.id}`,
+                        })) || [])}
+                    </section>
+                    <section class="drawer-section">
+                        <h4>Related Runtime Objects</h4>
+                        <div class="list-inline">${(data.related || []).map((item) => chip(`${item.type}:${item.id}`)).join('') || '<span class="meta">No derived runtime links</span>'}</div>
+                    </section>
+                `;
+            }
+
+            if (kind === 'run') {
+                return `
+                    <section class="drawer-section">
+                        <h4>Run Summary</h4>
+                        <div class="list-inline">
+                            ${chip(`state:${data.state}`)}
+                            ${chip(`workers:${data.workerResults?.length || 0}`)}
+                            ${chip(`verified:${data.verificationResults?.filter((item) => item.passed).length || 0}`)}
+                        </div>
+                        <pre>${escapeHtml(data.result || '')}</pre>
+                    </section>
+                    <section class="drawer-section">
+                        <h4>Backends</h4>
+                        <div class="list-inline">
+                            ${chip(`memory:${data.selectedBackends?.memoryBackend || 'n/a'}`)}
+                            ${chip(`compression:${data.selectedBackends?.compressionBackend || 'n/a'}`)}
+                            ${chip(`dsl:${data.selectedBackends?.dslCompiler || 'n/a'}`)}
+                        </div>
+                    </section>
+                    <section class="drawer-section">
+                        <h4>Worker Results</h4>
+                        ${renderSmallList((data.workerResults || []).map((worker) => ({
+                            label: `${worker.workerId} · ${worker.role}`,
+                            meta: `${worker.verified ? 'verified' : 'unverified'} · ${worker.modifiedFiles?.length || 0} files`,
+                        })))}
+                    </section>
+                `;
+            }
+
+            if (kind === 'skill') {
+                return `
+                    <section class="drawer-section">
+                        <h4>Skill</h4>
+                        <div class="list-inline">
+                            ${chip(`scope:${data.scope}`)}
+                            ${chip(`risk:${data.riskClass}`)}
+                            ${chip(`status:${data.rolloutStatus}`)}
+                        </div>
+                        <pre>${escapeHtml(data.instructions || '')}</pre>
+                    </section>
+                    <section class="drawer-section">
+                        <h4>Effectiveness</h4>
+                        <div class="list-inline">
+                            ${chip(`success:${data.effectiveness?.successes || 0}`)}
+                            ${chip(`fail:${data.effectiveness?.failures || 0}`)}
+                            ${chip(`verify:${data.effectiveness?.verificationPasses || 0}`)}
+                            ${chip(`tokenDelta:${data.effectiveness?.tokenDelta || 0}`)}
+                        </div>
+                    </section>
+                    <section class="drawer-section">
+                        <h4>Actions</h4>
+                        <div class="action-bar">
+                            <button class="primary-button" data-drawer-action="deploy-skill" data-id="${escapeHtml(data.skillId)}">Deploy</button>
+                            <button class="ghost-button" data-drawer-action="revoke-skill" data-id="${escapeHtml(data.skillId)}">Revoke</button>
+                        </div>
+                    </section>
+                `;
+            }
+
+            if (kind === 'workflow') {
+                return `
+                    <section class="drawer-section">
+                        <h4>Workflow</h4>
+                        <div class="list-inline">
+                            ${chip(`scope:${data.scope}`)}
+                            ${chip(`steps:${data.steps?.length || 0}`)}
+                            ${chip(`status:${data.rolloutStatus}`)}
+                        </div>
+                        <pre>${escapeHtml(data.description || '')}</pre>
+                    </section>
+                    <section class="drawer-section">
+                        <h4>Verifier Hooks</h4>
+                        ${renderSmallList((data.verifierHooks || []).map((hook) => ({ label: hook, meta: data.domain })))}
+                    </section>
+                    <section class="drawer-section">
+                        <h4>Actions</h4>
+                        <div class="action-bar">
+                            <button class="primary-button" data-drawer-action="deploy-workflow" data-id="${escapeHtml(data.workflowId)}">Deploy</button>
+                            <button class="ghost-button" data-drawer-action="run-workflow" data-id="${escapeHtml(data.workflowId)}">Run</button>
+                        </div>
+                    </section>
+                `;
+            }
+
+            if (kind === 'pod-worker') {
+                return `
+                    <section class="drawer-section">
+                        <h4>Worker Snapshot</h4>
+                        <div class="list-inline">
+                            ${chip(`state:${data.state}`)}
+                            ${chip(`messages:${data.messageCount || data.messages?.length || 0}`)}
+                            ${chip(`avg:${Number(data.avgConfidence || 0).toFixed(2)}`)}
+                        </div>
+                        <div class="list-inline">${(data.tags || []).map((tag) => chip(tag)).join('')}</div>
+                    </section>
+                    <section class="drawer-section">
+                        <h4>Recent Signals</h4>
+                        ${renderSmallList((data.messages || []).map((message) => ({
+                            label: message.content,
+                            meta: `${message.type} · ${formatDate(message.timestamp)}`,
+                        })))}
+                    </section>
+                `;
+            }
+
+            if (kind === 'client') {
+                return `
+                    <section class="drawer-section">
+                        <h4>Client Status</h4>
+                        <div class="list-inline">
+                            ${chip(`state:${data.state}`)}
+                            ${chip(`source:${data.source}`)}
+                            ${chip(`confidence:${Number(data.confidence || 0).toFixed(2)}`)}
+                        </div>
+                        <div class="meta">Last heartbeat: ${formatDate(data.lastHeartbeat)} · last seen: ${formatDate(data.lastSeen)}</div>
+                    </section>
+                    <section class="drawer-section">
+                        <h4>Evidence</h4>
+                        ${renderSmallList((data.evidence || []).map((entry) => ({ label: entry, meta: data.source })))}
+                    </section>
+                    <section class="drawer-section">
+                        <h4>Actions</h4>
+                        <div class="action-bar">
+                            <button class="primary-button" data-drawer-action="reconnect-client" data-id="${escapeHtml(data.clientId)}">Reconnect</button>
+                            <button class="ghost-button" data-drawer-action="clear-client" data-id="${escapeHtml(data.clientId)}">Clear Stale</button>
+                        </div>
+                    </section>
+                `;
+            }
+
+            return '<div class="empty">No details available.</div>';
+        }
+
+        function renderSmallList(items) {
+            if (!items.length) {
+                return '<div class="empty">No linked items.</div>';
+            }
+            return items.map((item) => `
+                <div class="card interactive small-list-item" ${item.action ? `data-entity-action="${escapeHtml(item.action)}"` : ''}>
+                    <div class="card-title">
+                        <strong>${escapeHtml(item.label)}</strong>
+                    </div>
+                    <div class="meta">${escapeHtml(item.meta || '')}</div>
+                </div>
+            `).join('');
+        }
+
+        function bindDrawerActions() {
+            $('drawer-body').querySelectorAll('[data-drawer-action]').forEach((button) => {
+                button.addEventListener('click', async () => {
+                    const action = button.getAttribute('data-drawer-action');
+                    const id = button.getAttribute('data-id');
+                    await handleDrawerAction(action, id);
+                });
+            });
+
+            $('drawer-body').querySelectorAll('[data-entity-action]').forEach((card) => {
+                card.addEventListener('click', () => {
+                    const action = card.getAttribute('data-entity-action');
+                    const [kind, id] = action.split(':');
+                    void openEntity(kind, id);
+                });
+            });
+        }
+
+        async function handleDrawerAction(action, id) {
+            try {
+                if (action === 'deploy-skill') {
+                    await fetchJson('/api/skills/deploy', postJson({ skillId: id }));
+                } else if (action === 'revoke-skill') {
+                    await fetchJson('/api/skills/revoke', postJson({ skillId: id }));
+                } else if (action === 'deploy-workflow') {
+                    await fetchJson('/api/workflows/deploy', postJson({ workflowId: id }));
+                } else if (action === 'run-workflow') {
+                    await fetchJson('/api/workflows/run', postJson({ workflowId: id }));
+                } else if (action === 'reconnect-client') {
+                    await fetchJson(`/api/clients/${encodeURIComponent(id)}/reconnect`, postJson({}));
+                } else if (action === 'clear-client') {
+                    await fetchJson(`/api/clients/${encodeURIComponent(id)}/clear`, postJson({}));
+                }
+                $('control-status').textContent = `Action ${action} completed.`;
+                await refreshAll();
+            } catch (error) {
+                $('control-status').textContent = `Action ${action} failed: ${error.message}`;
+            }
+        }
+
+        function postJson(body) {
+            return {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body),
+            };
+        }
+
+        async function openNode(nodeId, node) {
+            if (!nodeId || !node) return;
+            if (node.entityType === 'memory') {
+                await openEntity('memory', node.id);
+                return;
+            }
+            if (node.entityType === 'run') {
+                const runId = node.id.replace('run:', '');
+                const run = state.runs.find((item) => item.runId === runId);
+                if (run) state.selected = { kind: 'run', id: runId, data: run };
+            } else if (node.entityType === 'workflow') {
+                const workflowId = node.id.replace('workflow:', '');
+                const workflow = state.workflows.find((item) => item.workflowId === workflowId);
+                if (workflow) state.selected = { kind: 'workflow', id: workflowId, data: workflow };
+            } else if (node.entityType === 'skill') {
+                const skillId = node.id.replace('skill:', '');
+                const skill = state.skills.find((item) => item.skillId === skillId);
+                if (skill) state.selected = { kind: 'skill', id: skillId, data: skill };
+            } else if (node.entityType === 'pod-worker') {
+                await openEntity('pod-worker', node.id.replace('pod:', ''));
+                return;
+            }
+            render();
+        }
+
+        async function openEntity(kind, id) {
+            if (!kind || !id) return;
+            if (kind === 'memory') {
+                await refreshMemorySelection(id, true);
+            } else if (kind === 'run') {
+                const run = state.runs.find((item) => item.runId === id) || await fetchJson(`/api/runs/${encodeURIComponent(id)}`);
+                if (run?.error) return;
+                state.selected = { kind: 'run', id, data: run };
+            } else if (kind === 'skill') {
+                const skill = state.skills.find((item) => item.skillId === id);
+                if (!skill) return;
+                state.selected = { kind: 'skill', id, data: skill };
+            } else if (kind === 'workflow') {
+                const workflow = state.workflows.find((item) => item.workflowId === id);
+                if (!workflow) return;
+                state.selected = { kind: 'workflow', id, data: workflow };
+            } else if (kind === 'pod-worker') {
+                const worker = await fetchJson(`/api/pod/${encodeURIComponent(id)}`);
+                state.selected = { kind: 'pod-worker', id, data: worker };
+            } else if (kind === 'client') {
+                const client = state.clients.find((item) => item.clientId === id);
+                if (!client) return;
+                state.selected = { kind: 'client', id, data: client };
+            }
+            render();
+        }
+
+        function shortLabel(label) {
+            const text = String(label || '');
+            return text.length > 26 ? `${text.slice(0, 23)}...` : text;
+        }
+
+        function isNodeActive(node) {
+            if (!state.selected) return false;
+            if (state.selected.kind === 'memory') return node.id === state.selected.id;
+            if (state.selected.kind === 'run') return node.id === `run:${state.selected.id}`;
+            if (state.selected.kind === 'skill') return node.id === `skill:${state.selected.id}`;
+            if (state.selected.kind === 'workflow') return node.id === `workflow:${state.selected.id}`;
+            if (state.selected.kind === 'pod-worker') return node.id === `pod:${state.selected.id}`;
+            return false;
+        }
+
+        function layoutMemoryGraph(nodes, width, height, focusId) {
+            const positions = {};
+            const center = { x: width / 2, y: height / 2 };
+            const focusNode = nodes.find((node) => node.id === focusId);
+            if (focusNode) {
+                positions[focusNode.id] = center;
+            }
+            const memoryNodes = nodes.filter((node) => node.entityType === 'memory' && node.id !== focusId);
+            const outerNodes = nodes.filter((node) => node.entityType !== 'memory');
+            placeRing(memoryNodes, positions, center, 180, -Math.PI / 2);
+            placeRing(outerNodes, positions, center, 280, -Math.PI / 3);
+            if (!focusNode && nodes[0]) {
+                positions[nodes[0].id] = center;
+            }
+            return positions;
+        }
+
+        function layoutRunGraph(nodes, width, height) {
+            const positions = {};
+            const runs = nodes.filter((node) => node.entityType === 'run');
+            const workers = nodes.filter((node) => node.entityType === 'worker');
+            const other = nodes.filter((node) => !['run', 'worker'].includes(node.entityType));
+            const gap = width / Math.max(runs.length + 1, 2);
+            runs.forEach((run, index) => {
+                positions[run.id] = { x: gap * (index + 1), y: height * 0.38 };
+            });
+            workers.forEach((worker, index) => {
+                const parent = positions[worker.runId];
+                const offset = ((index % 3) - 1) * 90;
+                positions[worker.id] = { x: (parent?.x || width / 2) + offset, y: height * 0.68 + Math.floor(index / 3) * 40 };
+            });
+            placeRing(other, positions, { x: width / 2, y: height * 0.18 }, 220, -Math.PI / 2);
+            return positions;
+        }
+
+        function layoutPodGraph(nodes, width, height) {
+            const positions = {};
+            const workers = nodes.filter((node) => node.entityType === 'pod-worker');
+            const tags = nodes.filter((node) => node.entityType === 'tag');
+            placeRing(workers, positions, { x: width / 2, y: height / 2 }, 170, -Math.PI / 2);
+            placeRing(tags, positions, { x: width / 2, y: height / 2 }, 300, -Math.PI / 2);
+            return positions;
+        }
+
+        function placeRing(nodes, positions, center, radius, startAngle) {
+            const total = nodes.length || 1;
+            nodes.forEach((node, index) => {
+                const angle = startAngle + ((Math.PI * 2) * index / total);
+                positions[node.id] = {
+                    x: center.x + Math.cos(angle) * radius,
+                    y: center.y + Math.sin(angle) * radius,
+                };
+            });
+        }
+
+        function attachStaticHandlers() {
+            $('refresh-button').addEventListener('click', async () => {
+                try {
+                    $('control-status').textContent = 'Refreshing runtime surfaces...';
+                    await refreshAll();
+                    $('control-status').textContent = 'Dashboard refreshed.';
+                } catch (error) {
+                    $('control-status').textContent = `Refresh failed: ${error.message}`;
+                }
+            });
+
+            $('execute-form').addEventListener('submit', async (event) => {
+                event.preventDefault();
+                const goal = $('goal-input').value.trim();
+                if (!goal) {
+                    $('control-status').textContent = 'Goal is required.';
+                    return;
+                }
+
+                const payload = {
+                    goal,
+                    files: parseList($('files-input').value),
+                    workers: Number($('workers-input').value || 2),
+                    skillNames: parseList($('skills-input').value),
+                    workflowSelectors: parseList($('workflows-input').value),
+                    backendSelectors: {
+                        memory: $('memory-backend').value || undefined,
+                        compression: $('compression-backend').value || undefined,
+                        dsl: $('dsl-backend').value || undefined,
+                    },
+                };
+
+                try {
+                    $('control-status').textContent = 'Executing runtime task...';
+                    const run = await fetchJson('/api/runtime/execute', postJson(payload));
+                    $('control-status').textContent = `Run ${run.runId} created with state ${run.state}.`;
+                    state.selected = { kind: 'run', id: run.runId, data: run };
+                    await refreshAll();
+                } catch (error) {
+                    $('control-status').textContent = `Execution failed: ${error.message}`;
+                }
+            });
+
+            $('drawer-close').addEventListener('click', () => {
+                state.selected = null;
+                render();
+            });
+
+            document.querySelectorAll('#graph-modes button').forEach((button) => {
+                button.addEventListener('click', async () => {
+                    state.graphMode = button.dataset.graphMode;
+                    render();
+                });
+            });
+
+            document.querySelectorAll('#library-tabs button').forEach((button) => {
+                button.addEventListener('click', () => {
+                    state.libraryMode = button.dataset.libraryMode;
+                    render();
+                });
+            });
+
+            document.querySelectorAll('#event-filters button').forEach((button) => {
+                button.addEventListener('click', () => {
+                    state.eventFilter = button.dataset.eventFilter;
+                    render();
+                });
+            });
+        }
+
+        function connectStream() {
+            const stream = new EventSource('/stream');
+            stream.onopen = () => {
+                state.streamConnected = true;
+                renderHeader();
+            };
+            stream.onerror = () => {
+                state.streamConnected = false;
+                renderHeader();
+            };
+            stream.onmessage = (event) => {
+                try {
+                    const payload = JSON.parse(event.data);
+                    if (payload?.connected) return;
+                    state.events.unshift(payload);
+                    state.events = state.events.slice(0, 120);
+                    if (['runtime', 'memory', 'pod', 'skills', 'workflows', 'clients'].includes(payload.category)) {
+                        void refreshAll().catch(() => {});
+                    } else {
+                        renderEvents();
+                        renderHeader();
                     }
+                } catch {
+                    // ignore malformed stream chunks
                 }
             };
         }
 
-        boot();
+        async function bootstrap() {
+            attachStaticHandlers();
+            try {
+                await refreshAll();
+            } catch (error) {
+                $('control-status').textContent = `Initial load failed: ${error.message}`;
+            }
+            connectStream();
+            setInterval(() => {
+                void refreshAll().catch(() => {});
+            }, 20000);
+        }
+
+        bootstrap();
     </script>
 </body>
 </html>
