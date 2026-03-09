@@ -321,6 +321,65 @@ export class DashboardServer {
             return;
         }
 
+        if (req.method === 'POST' && url.pathname === '/api/skills/register') {
+            const body = await this.readJsonBody(req);
+            const runtime = this.getRuntime();
+            if (!runtime) {
+                this.respondJson(res, { error: 'runtime-unavailable' }, 503);
+                return;
+            }
+            try {
+                const riskClass = (['read', 'orchestrate', 'mutate'].includes(body.riskClass) ? body.riskClass : 'orchestrate') as 'read' | 'orchestrate' | 'mutate';
+                const scope = (['session', 'worker', 'global'].includes(body.scope) ? body.scope : 'session') as 'session' | 'worker' | 'global';
+                const skill = runtime.generateSkill({
+                    name: String(body.name || 'unnamed-skill'),
+                    instructions: String(body.instructions || ''),
+                    riskClass,
+                    scope,
+                });
+                nexusEventBus.emit('skill.register', {
+                    name: skill.name,
+                    id: skill.skillId,
+                });
+                this.respondJson(res, skill);
+            } catch (err: any) {
+                this.respondJson(res, { error: err.message || 'register-failed' }, 400);
+            }
+            return;
+        }
+
+        if (req.method === 'POST' && url.pathname === '/api/skills/seed') {
+            const runtime = this.getRuntime();
+            if (!runtime) {
+                this.respondJson(res, { error: 'runtime-unavailable' }, 503);
+                return;
+            }
+            const defaultSkills: Array<{ name: string; instructions: string; riskClass: 'read' | 'orchestrate' | 'mutate'; scope: 'session' | 'worker' | 'global' }> = [
+                { name: 'code-review-playbook', instructions: 'Guide structured code review: check for bugs, security issues, performance problems, readability concerns. Produce a checklist with severity ratings.', riskClass: 'read', scope: 'global' },
+                { name: 'token-budget-guardian', instructions: 'Monitor token usage during sessions. Warn when context exceeds 70k tokens. Suggest pruning strategies and memory offloading when approaching limits.', riskClass: 'read', scope: 'global' },
+                { name: 'session-handover', instructions: 'At session end, generate a comprehensive summary: files modified, decisions made, open questions, recommended next steps. Store as session-summary memory.', riskClass: 'orchestrate', scope: 'global' },
+                { name: 'memory-hygiene', instructions: 'Review stored memories for staleness, duplicates, and contradictions. Suggest pruning candidates and consolidation opportunities. Never auto-delete.', riskClass: 'read', scope: 'global' },
+                { name: 'test-first-guard', instructions: 'Before implementing features, ensure test files exist or are planned. Prompt for test strategy if missing. Verify tests pass after implementation.', riskClass: 'orchestrate', scope: 'session' },
+                { name: 'commit-message-crafter', instructions: 'Generate concise, semantic commit messages following conventional commits format. Analyze staged changes to infer the correct type (feat/fix/chore/refactor).', riskClass: 'read', scope: 'global' },
+            ];
+            const results = [];
+            for (const skill of defaultSkills) {
+                try {
+                    const existing = runtime.listSkills().find((s: any) => s.name === skill.name);
+                    if (!existing) {
+                        const registered = runtime.generateSkill(skill);
+                        results.push({ name: skill.name, status: 'created', skillId: registered.skillId });
+                    } else {
+                        results.push({ name: skill.name, status: 'exists', skillId: existing.skillId });
+                    }
+                } catch {
+                    results.push({ name: skill.name, status: 'failed' });
+                }
+            }
+            this.respondJson(res, { seeded: results });
+            return;
+        }
+
         if (req.method === 'POST' && url.pathname === '/api/workflows/deploy') {
             const body = await this.readJsonBody(req);
             const runtime = this.getRuntime();

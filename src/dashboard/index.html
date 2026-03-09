@@ -819,14 +819,31 @@
             overflow: auto;
         }
 
-        .loading-pulse {
-            opacity: 0.5;
-            animation: pulse 1.2s ease-in-out infinite;
+        .refresh-bar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 3px;
+            width: 100%;
+            background: linear-gradient(90deg, var(--accent), var(--blue), var(--violet));
+            transform: scaleX(0);
+            transform-origin: left;
+            transition: transform 400ms ease;
+            z-index: 5;
+            pointer-events: none;
+            opacity: 0;
         }
 
-        @keyframes pulse {
-            0%, 100% { opacity: 0.5; }
-            50% { opacity: 0.3; }
+        .refresh-bar.active {
+            opacity: 1;
+            transform: scaleX(1);
+            transition: transform 1.8s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .refresh-bar.done {
+            transform: scaleX(1);
+            opacity: 0;
+            transition: transform 200ms ease, opacity 400ms ease 200ms;
         }
 
         .hidden {
@@ -836,6 +853,20 @@
         @media (max-width: 1440px) {
             .layout {
                 grid-template-columns: 290px minmax(0, 1fr) 360px;
+            }
+
+            .token-dial {
+                width: 140px;
+                height: 140px;
+            }
+
+            .token-dial svg {
+                width: 140px;
+                height: 140px;
+            }
+
+            .metrics-grid {
+                grid-template-columns: 1fr;
             }
         }
 
@@ -894,7 +925,8 @@
 
     <div id="status-banner" class="banner hidden" role="status" aria-live="polite"></div>
 
-    <main class="layout">
+    <main class="layout" style="position:relative;">
+        <div id="refresh-bar" class="refresh-bar"></div>
         <aside class="rail left">
             <section class="panel">
                 <div class="panel-header">
@@ -1021,6 +1053,7 @@
                                 <button data-library-mode="memories" class="active">Memories</button>
                                 <button data-library-mode="skills">Skills</button>
                                 <button data-library-mode="workflows">Workflows</button>
+                                <button data-library-mode="spend">Spend</button>
                                 <button data-library-mode="pod">POD</button>
                                 <button data-library-mode="clients">Clients</button>
                             </div>
@@ -1435,7 +1468,9 @@
         }
 
         async function refreshAll() {
-            document.querySelector('.layout')?.classList.add('loading-pulse');
+            const bar = $('refresh-bar');
+            bar.classList.remove('done');
+            bar.classList.add('active');
             const resources = [
                 ['runs', '/api/runs?limit=20', (value) => { state.runs = Array.isArray(value) ? value : state.runs; }],
                 ['skills', '/api/skills', (value) => { state.skills = Array.isArray(value) ? value : state.skills; }],
@@ -1475,6 +1510,9 @@
                 state.lastRefreshAt = Date.now();
             }
 
+            reconcileBanner();
+            populateBackendSelects();
+
             const focusMemoryId = state.selected?.kind === 'memory'
                 ? state.selected.id
                 : state.memories[0]?.id;
@@ -1488,9 +1526,9 @@
                 setResourceStatus('memoryNetwork', 'idle');
             }
 
-            document.querySelector('.layout')?.classList.remove('loading-pulse');
-            reconcileBanner();
-            populateBackendSelects();
+            bar.classList.remove('active');
+            bar.classList.add('done');
+            setTimeout(() => bar.classList.remove('done'), 600);
             render();
         }
 
@@ -1593,6 +1631,77 @@
                 ratio: ratios.length ? Math.round(ratios.reduce((sum, value) => sum + value, 0) / ratios.length) : 0,
                 events: tokenEvents.length,
             };
+        }
+
+        function computeSpendData() {
+            const tokenEvents = state.events.filter((e) => e.category === 'tokens');
+            let totalTokens = 0;
+            const categoryMap = {};
+            const sessions = new Set();
+
+            for (const event of tokenEvents) {
+                const p = event.payload || {};
+                const tokens = (p.inputTokens || 0) + (p.outputTokens || 0) + (p.savings || 0);
+                totalTokens += tokens;
+                const cat = event.type || 'unknown';
+                categoryMap[cat] = (categoryMap[cat] || 0) + tokens;
+                if (p.sessionId) sessions.add(p.sessionId);
+            }
+
+            const byCategory = Object.entries(categoryMap)
+                .map(([category, tokens]) => ({ category, tokens, pct: totalTokens ? Math.round((tokens / totalTokens) * 100) : 0 }))
+                .sort((a, b) => b.tokens - a.tokens)
+                .slice(0, 8);
+
+            const recentEvents = tokenEvents.slice(0, 10).map((e) => ({
+                title: e.title,
+                tokens: (e.payload?.inputTokens || 0) + (e.payload?.outputTokens || 0),
+                time: e.time,
+            }));
+
+            // Rough cost estimate: ~$3 per 1M input, ~$15 per 1M output (blended ~$8/1M)
+            const estimatedCost = (totalTokens / 1000000 * 8).toFixed(4);
+
+            return { totalTokens, estimatedCost, sessionCount: sessions.size || 1, byCategory, recentEvents };
+        }
+
+        function bindSkillFormHandlers() {
+            const form = $('skill-create-form');
+            if (!form) return;
+
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const name = $('skill-name-input').value.trim();
+                const instructions = $('skill-instructions-input').value.trim();
+                const riskClass = $('skill-risk-input').value;
+                const scope = $('skill-scope-input').value;
+                if (!name || !instructions) return;
+
+                try {
+                    $('skill-create-status').textContent = 'Registering skill...';
+                    await fetchJson('/api/skills/register', postJson({ name, instructions, riskClass, scope }));
+                    $('skill-create-status').textContent = `Skill "${name}" registered.`;
+                    $('skill-name-input').value = '';
+                    $('skill-instructions-input').value = '';
+                    await refreshAll();
+                } catch (err) {
+                    $('skill-create-status').textContent = `Failed: ${err.message}`;
+                }
+            });
+
+            const seedBtn = $('seed-skills-btn');
+            if (seedBtn) {
+                seedBtn.addEventListener('click', async () => {
+                    try {
+                        $('skill-create-status').textContent = 'Seeding default skills...';
+                        await fetchJson('/api/skills/seed', postJson({}));
+                        $('skill-create-status').textContent = 'Default skills installed.';
+                        await refreshAll();
+                    } catch (err) {
+                        $('skill-create-status').textContent = `Seed failed: ${err.message}`;
+                    }
+                });
+            }
         }
 
         function render() {
@@ -1885,6 +1994,7 @@
                 memories: 'Memory Snapshots',
                 skills: 'Skills',
                 workflows: 'Workflows',
+                spend: 'Tool Spend Tracker',
                 pod: 'POD Signals',
                 clients: 'Connected Ecosystem',
             };
@@ -1907,7 +2017,45 @@
                     `).join('')
                     : emptyState('No memory stored yet.');
             } else if (state.libraryMode === 'skills') {
-                container.innerHTML = resourceFailed('skills') && !state.skills.length
+                const skillForm = `
+                    <details class="card" style="border-color: rgba(84,255,135,0.2); background: rgba(84,255,135,0.04);">
+                        <summary style="cursor:pointer; font-size:0.82rem; font-weight:600; color:var(--accent);">+ Create Skill</summary>
+                        <form id="skill-create-form" class="control-grid" style="margin-top:0.6rem;">
+                            <div class="field">
+                                <label for="skill-name-input">Name</label>
+                                <input id="skill-name-input" type="text" placeholder="my-custom-skill" required>
+                            </div>
+                            <div class="field">
+                                <label for="skill-instructions-input">Instructions</label>
+                                <textarea id="skill-instructions-input" placeholder="What this skill does and when to trigger it..." required></textarea>
+                            </div>
+                            <div class="inline-fields">
+                                <div class="field">
+                                    <label for="skill-risk-input">Risk Class</label>
+                                    <select id="skill-risk-input">
+                                        <option value="read">Read</option>
+                                        <option value="orchestrate" selected>Orchestrate</option>
+                                        <option value="mutate">Mutate</option>
+                                    </select>
+                                </div>
+                                <div class="field">
+                                    <label for="skill-scope-input">Scope</label>
+                                    <select id="skill-scope-input">
+                                        <option value="session" selected>Session</option>
+                                        <option value="worker">Worker</option>
+                                        <option value="global">Global</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="action-bar">
+                                <button type="submit" class="primary-button">Register Skill</button>
+                                <button type="button" id="seed-skills-btn" class="ghost-button">Seed Defaults</button>
+                            </div>
+                            <div id="skill-create-status" class="meta"></div>
+                        </form>
+                    </details>
+                `;
+                const skillList = resourceFailed('skills') && !state.skills.length
                     ? emptyState('Skills endpoint unavailable.')
                     : state.skills.length
                     ? state.skills.map((skill) => `
@@ -1924,7 +2072,9 @@
                             </div>
                         </div>
                     `).join('')
-                    : emptyState('No skills loaded.');
+                    : emptyState('No skills loaded. Click "Seed Defaults" to install starter skills.');
+                container.innerHTML = skillForm + skillList;
+                bindSkillFormHandlers();
             } else if (state.libraryMode === 'workflows') {
                 container.innerHTML = resourceFailed('workflows') && !state.workflows.length
                     ? emptyState('Workflows endpoint unavailable.')
@@ -1956,7 +2106,45 @@
                         </div>
                     `).join('')
                     : emptyState('No POD signals captured.');
-            } else {
+            } else if (state.libraryMode === 'spend') {
+                const spendData = computeSpendData();
+                container.innerHTML = `
+                    <div class="metrics-grid">
+                        <div class="hero-metric">
+                            <label>Total Tokens</label>
+                            <strong>${formatNumber(spendData.totalTokens)}</strong>
+                            <div class="meta">Across ${spendData.sessionCount} sessions</div>
+                        </div>
+                        <div class="hero-metric">
+                            <label>Estimated Cost</label>
+                            <strong>$${spendData.estimatedCost}</strong>
+                            <div class="meta">Based on avg token pricing</div>
+                        </div>
+                    </div>
+                    <div style="margin-top:0.75rem;">
+                        <div class="entity-header"><h3>By Category</h3></div>
+                        ${spendData.byCategory.length ? spendData.byCategory.map((cat) => `
+                            <div class="card" style="margin-bottom:0.5rem;">
+                                <div class="card-title">
+                                    <strong>${escapeHtml(cat.category)}</strong>
+                                    <span class="mono" style="font-size:0.78rem;">${formatNumber(cat.tokens)} tokens</span>
+                                </div>
+                                <div style="height:4px; border-radius:2px; background:rgba(255,255,255,0.08); overflow:hidden;">
+                                    <div style="height:100%; width:${cat.pct}%; background:var(--accent); border-radius:2px;"></div>
+                                </div>
+                            </div>
+                        `).join('') : emptyState('No token events recorded yet.')}
+                    </div>
+                    <div style="margin-top:0.75rem;">
+                        <div class="entity-header"><h3>Recent Activity</h3></div>
+                        ${spendData.recentEvents.length ? spendData.recentEvents.map((ev) => `
+                            <div class="card" style="margin-bottom:0.4rem;">
+                                <div class="meta">${escapeHtml(ev.title)} · ${formatNumber(ev.tokens)} tokens · ${formatAgo(ev.time)}</div>
+                            </div>
+                        `).join('') : emptyState('No recent token activity.')}
+                    </div>
+                `;
+            } else if (state.libraryMode === 'clients') {
                 container.innerHTML = resourceFailed('clients') && !state.clients.length
                     ? emptyState('Clients endpoint unavailable.')
                     : state.clients.length

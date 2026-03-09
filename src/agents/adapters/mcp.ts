@@ -9,6 +9,7 @@ import {
 import { statSync, readdirSync } from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
+import { execSync } from 'child_process';
 import { Adapter, NetworkMessage } from '../core/types.js';
 import { NexusPrime } from '../../index.js';
 import {
@@ -181,7 +182,7 @@ class SessionTelemetry {
 }
 
 export class MCPAdapter implements Adapter {
-    name = 'mcp';
+    name: string;
     type = 'mcp' as const;
     connected = false;
     agents: string[] = [];
@@ -202,12 +203,47 @@ export class MCPAdapter implements Adapter {
     }
 
     constructor() {
+        this.name = this.detectCallerName();
         this.server = new Server(
             { name: 'nexus-prime-mcp', version: '0.4.0' },
             { capabilities: { tools: {} } }
         );
         this.sessionDNA = new SessionDNAManager(crypto.randomUUID?.() ?? `session-${Date.now()}`);
         this.setupToolHandlers();
+    }
+
+    private detectCallerName(): string {
+        // Check well-known environment variables set by MCP clients
+        if (process.env.CLAUDE_CODE || process.env.CLAUDE_SESSION_ID || process.env.CLAUDE_PROJECT_DIR) return 'claude-code';
+        if (process.env.CODEX_HOME || process.env.CODEX_SESSION) return 'codex';
+        if (process.env.OPENCODE_HOME) return 'opencode';
+        if (process.env.MCP_CLIENT_NAME) return process.env.MCP_CLIENT_NAME.toLowerCase();
+
+        // Check parent process name as fallback
+        try {
+            const ppid = process.ppid;
+            if (ppid) {
+                const ps = execSync(`ps -p ${ppid} -o comm=`, { encoding: 'utf8', timeout: 400 }).trim().toLowerCase();
+                if (ps.includes('claude')) return 'claude-code';
+                if (ps.includes('codex')) return 'codex';
+                if (ps.includes('opencode')) return 'opencode';
+                if (ps.includes('antigravity') || ps.includes('openclaw')) return 'openclaw';
+            }
+        } catch {
+            // ignore — ps may not be available
+        }
+
+        // Check if ~/.claude exists (strong signal for Claude Code)
+        try {
+            const claudeDir = path.join(process.env.HOME || process.env.USERPROFILE || '', '.claude');
+            statSync(claudeDir);
+            // If we got here via MCP and .claude exists, very likely Claude Code
+            return 'claude-code';
+        } catch {
+            // no .claude dir
+        }
+
+        return 'mcp';
     }
 
     setNexusRef(nexus: NexusPrime) {

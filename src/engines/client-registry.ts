@@ -283,6 +283,17 @@ export class ClientRegistry {
         const evidence: string[] = [];
         let lastSeen = 0;
 
+        // Check environment variables for direct signals
+        if (descriptor.clientId === 'claude-code' && (process.env.CLAUDE_CODE || process.env.CLAUDE_SESSION_ID || process.env.CLAUDE_PROJECT_DIR)) {
+            evidence.push('env:CLAUDE detected');
+        }
+        if (descriptor.clientId === 'codex' && (process.env.CODEX_HOME || process.env.CODEX_SESSION)) {
+            evidence.push('env:CODEX detected');
+        }
+        if (descriptor.clientId === 'opencode' && process.env.OPENCODE_HOME) {
+            evidence.push('env:OPENCODE detected');
+        }
+
         const processOutput = this.readProcessSnapshot();
         if (descriptor.aliases.some((alias) => processOutput.includes(alias))) {
             evidence.push('process marker detected');
@@ -306,9 +317,10 @@ export class ClientRegistry {
             return { state: 'offline', confidence: 0, evidence: [] };
         }
 
+        const hasEnvSignal = evidence.some((e) => e.startsWith('env:'));
         return {
             state: 'inferred',
-            confidence: evidence.includes('process marker detected') ? 0.76 : 0.52,
+            confidence: hasEnvSignal ? 0.88 : evidence.includes('process marker detected') ? 0.76 : 0.52,
             evidence,
             lastSeen: lastSeen || undefined,
         };
