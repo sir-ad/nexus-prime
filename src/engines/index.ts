@@ -50,4 +50,34 @@ export { KVBridge, createKVBridge } from './kv-bridge.js';
 export type { KVBridgeConfig, MergeDecision, BridgeMetrics } from './kv-bridge.js';
 // Phase 10: Nexus Layer & NXL
 export { NXLInterpreter, nxl } from './nxl-interpreter.js';
-export type { AgentArchetype, SwarmConfig } from './nxl-interpreter.js';
+export type { AgentArchetype, SwarmConfig, NXLExecutionSpec } from './nxl-interpreter.js';
+
+export {
+  createSQLiteMemoryBackend,
+  createDeterministicCompressionBackend,
+  createDeterministicDSLCompilerBackend,
+  buildRunId
+} from './runtime-backends.js';
+export type {
+  BackendDescriptor,
+  BackendMode,
+  MemoryBackend,
+  CompressionBackend,
+  CompressionShadow,
+  DSLExecutionSpec,
+  DSLCompilationResult,
+  DSLCompilerBackend
+} from './runtime-backends.js';
+
+export { SkillRuntime, createSkillRuntime } from './skill-runtime.js';
+export type {
+  SkillArtifact,
+  SkillBinding,
+  SkillBindingType,
+  SkillCheckpoint,
+  SkillDeploymentRecord,
+  SkillRiskClass,
+  SkillRuntimeMetrics,
+  SkillScope,
+  SkillValidationResult
+} from './skill-runtime.js';

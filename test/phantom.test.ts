@@ -17,7 +17,22 @@ import * as os from 'os';
 
 // ---- helpers ----------------------------------------------------------------
 
-const REPO_ROOT = path.resolve(process.cwd());
+function setupFixtureRepo(): string {
+    const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nexus-prime-phantom-'));
+    fs.mkdirSync(path.join(repoRoot, 'src', 'phantom'), { recursive: true });
+    fs.mkdirSync(path.join(repoRoot, 'src', 'engines'), { recursive: true });
+    fs.writeFileSync(path.join(repoRoot, 'src', 'phantom', 'index.ts'), 'export const phantom = true;\n', 'utf8');
+    fs.writeFileSync(path.join(repoRoot, 'src', 'engines', 'memory.ts'), 'export const memory = true;\n', 'utf8');
+    fs.writeFileSync(path.join(repoRoot, 'README.md'), '# Phantom Fixture\n', 'utf8');
+
+    execSync('git init -b main', { cwd: repoRoot, stdio: 'ignore' });
+    execSync('git config user.name "Nexus Prime Phantom Test"', { cwd: repoRoot, stdio: 'ignore' });
+    execSync('git config user.email "nexus-prime-phantom@test.local"', { cwd: repoRoot, stdio: 'ignore' });
+    execSync('git add .', { cwd: repoRoot, stdio: 'ignore' });
+    execSync('git commit -m "fixture"', { cwd: repoRoot, stdio: 'ignore' });
+
+    return repoRoot;
+}
 
 /** Check git is available and repo exists */
 function isGitRepo(dir: string): boolean {
@@ -77,6 +92,8 @@ class MockMemoryEngine {
 
 async function runTests() {
     console.log('\n🧪 Phantom Workers — End-to-End Integration Tests\n');
+    const REPO_ROOT = setupFixtureRepo();
+    process.env.NEXUS_POD_PATH = path.join(REPO_ROOT, '.nexus-prime-pod.json');
     let passed = 0;
     let failed = 0;
     const errors: string[] = [];
@@ -110,7 +127,7 @@ async function runTests() {
     console.log('\n📦 Imports');
     let GhostPass: any, PhantomWorker: any, MergeOracle: any;
     try {
-        const phantom = await import('../src/phantom/index.js');
+        const phantom = await import('../dist/phantom/index.js');
         GhostPass = phantom.GhostPass;
         PhantomWorker = phantom.PhantomWorker;
         MergeOracle = phantom.MergeOracle;

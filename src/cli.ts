@@ -11,6 +11,7 @@ import {
   TokenSupremacyEngine,
   formatReadingPlan
 } from './engines/token-supremacy.js';
+import { summarizeExecution, type ExecutionRun } from './phantom/index.js';
 import { statSync, writeFileSync, mkdirSync, existsSync, readFileSync } from 'fs';
 import { homedir } from 'os';
 import { join, dirname } from 'path';
@@ -27,6 +28,17 @@ let nexus: NexusPrime | null = null;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const packageJson = JSON.parse(readFileSync(join(__dirname, '..', 'package.json'), 'utf8'));
+
+function printExecutionSummary(execution: ExecutionRun): void {
+  const verifiedWorkers = execution.workerResults.filter(result => result.verified).length;
+  const modifiedFiles = execution.workerResults.reduce((sum, result) => sum + result.modifiedFiles.length, 0);
+  console.log(`🧠 Runtime: ${summarizeExecution(execution)}`);
+  console.log(`📁 Artifacts: ${execution.artifactsPath}`);
+  console.log(`🧪 Verified Workers: ${verifiedWorkers}/${execution.workerResults.length}`);
+  console.log(`📝 Modified Files: ${modifiedFiles}`);
+  console.log(`⚖️  Decision: ${execution.finalDecision?.action ?? 'none'}`);
+  console.log(`🛠️  Backends: memory=${execution.selectedBackends.memoryBackend}, compression=${execution.selectedBackends.compressionBackend}, consensus=${execution.selectedBackends.consensusPolicy}, dsl=${execution.selectedBackends.dslCompiler}`);
+}
 
 program
   .name('nexus-prime')
@@ -208,6 +220,7 @@ program
         if (options.task) {
           const result = await nexus.execute(agent.id, options.task);
           console.log(`📝 Result: ${result.result}`);
+          printExecutionSummary(result.execution);
         }
       })
   );
@@ -217,14 +230,49 @@ program
   .description('Execute a task with an agent')
   .argument('<agentId>', 'Agent ID')
   .argument('<task>', 'Task description')
-  .action(async (agentId: string, task: string) => {
+  .option('-f, --files <files...>', 'Files relevant to the execution')
+  .option('-w, --workers <number>', 'Number of coder workers')
+  .option('--verify <commands...>', 'Verification commands')
+  .option('--actions-file <path>', 'JSON file containing runtime action bindings')
+  .option('--nxl-file <path>', 'NXL/YAML file to compile and execute')
+  .action(async (
+    agentId: string,
+    task: string,
+    options: {
+      files?: string[];
+      workers?: string;
+      verify?: string[];
+      actionsFile?: string;
+      nxlFile?: string;
+    }
+  ) => {
     if (!nexus) {
       nexus = createNexusPrime();
       await nexus.start();
     }
-    const result = await nexus.execute(agentId, task);
+
+    const parsedWorkers = options.workers ? parseInt(options.workers, 10) : undefined;
+    const actions = options.actionsFile
+      ? JSON.parse(readFileSync(options.actionsFile, 'utf8'))
+      : undefined;
+
+    if (options.nxlFile) {
+      const rawScript = readFileSync(options.nxlFile, 'utf8');
+      const execution = await nexus.getRuntime().runNXL(task, rawScript, 'CLI');
+      console.log(`📝 Result: ${execution.result}`);
+      printExecutionSummary(execution);
+      return;
+    }
+
+    const result = await nexus.execute(agentId, task, {
+      files: options.files,
+      workers: parsedWorkers,
+      verifyCommands: options.verify,
+      actions,
+    });
     console.log(`📝 Result: ${result.result}`);
     console.log(`📊 Value: ${result.experience.value.toFixed(2)}`);
+    printExecutionSummary(result.execution);
   });
 
 program

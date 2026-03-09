@@ -166,7 +166,7 @@ Formulates file-reading as a **Greedy Knapsack Problem**, solving for maximum in
 ### 3. Phantom Worker Swarms
 <details>
 <summary><b>View Details</b></summary>
-Parallelize complex tasks using isolated Git Worktrees. Ghost Pass performs read-only risk analysis, while the Merge Oracle evaluates AST diffs using **Byzantine Fault Tolerance consensus**.
+Parallelize complex tasks using isolated Git Worktrees. Ghost Pass performs read-only risk analysis, coder workers execute real file mutations in detached worktrees, verifier workers run build/test commands independently, and the Merge Oracle selects the final patch with an auditable artifact trail.
 </details>
 
 ### 4. Quantum-Inspired Entanglement (Phase 9A)
@@ -186,10 +186,24 @@ Nexus Prime exposes 20 native MCP tools that any agent can invoke. Below are key
 | `nexus_store_memory` | Store finding/insight | Core |
 | `nexus_recall_memory` | Semantically recall context | Core |
 | `nexus_optimize_tokens` | Mathematical context reduction | Optimization |
-| `nexus_spawn_workers` | Dispatch parallel swarm | Autonomy |
+| `nexus_spawn_workers` | Execute parallel worktree swarm with verification and artifacts | Autonomy |
 | `nexus_mindkit_check` | Guardrail validation | Safety |
 | `nexus_ghost_pass` | Pre-flight risk analysis | Analysis |
 | `nexus_entangle` | Measure entangled agent state | Quantum |
+
+### Real Runtime Execution
+```bash
+# Execute a real runtime task with explicit actions
+nexus-prime execute <agent-id> "apply runtime patch" \
+  --files README.md package.json \
+  --verify "npm run build" \
+  --actions-file ./actions.json
+
+# Execute an NXL graph directly
+nexus-prime execute <agent-id> "ship release workflow" --nxl-file ./plan.nxl.yaml
+```
+
+Each run returns a real execution state plus an artifact directory containing manifests, worker diffs, verifier output, and the final merge decision.
 
 ---
 

@@ -23,6 +23,23 @@ export interface SwarmConfig {
     knowledgeSharing: boolean;
 }
 
+export interface NXLExecutionSpec {
+    goal: string;
+    files: string[];
+    workers: number;
+    roles: string[];
+    strategies: string[];
+    verify: string[];
+    skills: string[];
+    guardrails: boolean;
+    consensus: 'local' | 'run' | 'global';
+    memoryBackend: string;
+    compressionBackend: string;
+    skillPolicy: 'guarded-hot' | 'session-only' | 'manual';
+    actions?: Array<Record<string, unknown>>;
+    metadata?: Record<string, unknown>;
+}
+
 export class NXLInterpreter {
     private archetypes: Map<string, AgentArchetype> = new Map();
 
@@ -69,7 +86,7 @@ export class NXLInterpreter {
      */
     public parse(content: string): any {
         try {
-            const data = yaml.load(content);
+            const data = yaml.load(content) ?? {};
             nexusEventBus.emit('nexusnet.sync', { newItemsCount: 1 }); // Mocking event for now
             return data;
         } catch (error) {
@@ -103,6 +120,66 @@ export class NXLInterpreter {
     public getArchetype(name: string): AgentArchetype | undefined {
         return this.archetypes.get(name);
     }
+
+    public compileExecution(
+        goal: string,
+        parsedInput: Record<string, unknown> = {},
+        useCase?: string
+    ): NXLExecutionSpec {
+        const induced = this.induceArmy(useCase || goal);
+        const roles = normalizeStringArray(parsedInput.roles) ?? induced.map(agent => agent.name.toLowerCase().replace(/\s+/g, '-'));
+        const strategies = normalizeStringArray(parsedInput.strategies) ?? ['minimal', 'standard', 'thorough'];
+        const verify = normalizeStringArray(parsedInput.verify) ?? [];
+        const skills = normalizeStringArray(parsedInput.skills) ?? [];
+        const files = normalizeStringArray(parsedInput.files) ?? [];
+        const workers = normalizeNumber(parsedInput.workers) ?? Math.max(1, roles.filter(role => role.includes('coder')).length || roles.length || 1);
+        const skillPolicy = normalizeSkillPolicy(parsedInput.skillPolicy);
+        const consensus = normalizeConsensus(parsedInput.consensus);
+        const guardrails = typeof parsedInput.guardrails === 'boolean' ? parsedInput.guardrails : true;
+
+        return {
+            goal: String(parsedInput.goal ?? goal),
+            files,
+            workers,
+            roles,
+            strategies,
+            verify,
+            skills,
+            guardrails,
+            consensus,
+            memoryBackend: String(parsedInput.memoryBackend ?? 'sqlite-memory'),
+            compressionBackend: String(parsedInput.compressionBackend ?? 'deterministic-token-supremacy'),
+            skillPolicy,
+            actions: Array.isArray(parsedInput.actions)
+                ? parsedInput.actions.filter((value): value is Record<string, unknown> => !!value && typeof value === 'object')
+                : [],
+            metadata: {
+                useCase: useCase ?? null,
+                inducedArchetypes: induced.map(agent => agent.name),
+                mode: String(parsedInput.mode ?? 'parallel'),
+            },
+        };
+    }
 }
 
 export const nxl = new NXLInterpreter();
+
+function normalizeStringArray(value: unknown): string[] | null {
+    if (!Array.isArray(value)) return null;
+    return value.map(String).filter(Boolean);
+}
+
+function normalizeNumber(value: unknown): number | null {
+    const numeric = Number(value);
+    return Number.isFinite(numeric) && numeric > 0 ? numeric : null;
+}
+
+function normalizeSkillPolicy(value: unknown): 'guarded-hot' | 'session-only' | 'manual' {
+    if (value === 'session-only' || value === 'manual') return value;
+    return 'guarded-hot';
+}
+
+function normalizeConsensus(value: unknown): 'local' | 'run' | 'global' {
+    if (value === 'run' || value === 'global') return value;
+    return 'local';
+}

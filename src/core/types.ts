@@ -161,6 +161,7 @@ export interface MemoryConfig {
     enabled: boolean;
     storage: 'sqlite' | 'postgresql';
     vector: 'hnsw' | 'flat';
+    path?: string;
   };
   hippocampus: {
     window: string;

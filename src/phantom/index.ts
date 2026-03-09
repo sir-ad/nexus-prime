@@ -40,6 +40,7 @@ export interface WorkerTask {
     files: FileRef[];
     approach: string;
     tokenBudget: number;
+    entangledPeers?: string[];
     context?: string;       // From Nexus memory (prior recall)
     readingPlan?: ReadingPlan;
 }
@@ -164,13 +165,11 @@ export class PhantomWorker {
     private workerId: string;
     private repoRoot: string;
     private worktreeDir: string;
-    private branch: string;
 
     constructor(repoRoot?: string) {
         this.workerId = `phantom-${randomUUID().slice(0, 8)}`;
         this.repoRoot = repoRoot ?? process.cwd();
         this.worktreeDir = path.join(os.tmpdir(), 'nexus-phantom', this.workerId);
-        this.branch = `phantom/${this.workerId}`;
     }
 
     get id(): string { return this.workerId; }
@@ -196,10 +195,10 @@ export class PhantomWorker {
         const startTime = Date.now();
 
         try {
-            // [Phase 9A] Pre-fork entangled state setup
-            entanglementEngine.entangle([this.workerId]);
-            // Initial entanglement measurement (collapse) for this worker
-            entanglementEngine.measure(task.id, this.workerId);
+            if ((task.entangledPeers?.length ?? 0) > 0) {
+                const state = entanglementEngine.entangle([this.workerId, ...task.entangledPeers!]);
+                entanglementEngine.measure(state.id, this.workerId);
+            }
 
             // Create isolated worktree
             await this.createWorktree();
@@ -240,17 +239,18 @@ export class PhantomWorker {
     private async createWorktree(): Promise<void> {
         fs.mkdirSync(path.dirname(this.worktreeDir), { recursive: true });
 
-        // Create a new branch and worktree from current HEAD
+        // Detached worktrees avoid ref-lock conflicts and are sufficient for diff-only execution.
         await exec(
-            `git worktree add -b "${this.branch}" "${this.worktreeDir}"`,
+            `git worktree add --detach "${this.worktreeDir}"`,
             { cwd: this.repoRoot }
         );
     }
 
     private async captureDiff(): Promise<string> {
         try {
+            await exec('git add -A', { cwd: this.worktreeDir });
             const { stdout } = await exec(
-                `git diff HEAD`,
+                `git diff --binary --cached HEAD`,
                 { cwd: this.worktreeDir }
             );
             return stdout;
@@ -263,10 +263,6 @@ export class PhantomWorker {
         try {
             await exec(
                 `git worktree remove "${this.worktreeDir}" --force`,
-                { cwd: this.repoRoot }
-            );
-            await exec(
-                `git branch -D "${this.branch}"`,
                 { cwd: this.repoRoot }
             );
         } catch {
@@ -433,3 +429,24 @@ export class LiveNexus {
 }
 
 // All classes exported inline above via `export class`.
+export {
+    SubAgentRuntime,
+    createSubAgentRuntime,
+    summarizeExecution,
+    executionStats,
+} from './runtime.js';
+export type {
+    BackendSelection,
+    CommandRecord,
+    ExecutionMode,
+    ExecutionRun,
+    ExecutionShadowMetrics,
+    ExecutionState,
+    ExecutionTask,
+    RuntimeWorkerResult,
+    SkillPolicy,
+    WorkerManifest,
+    WorkerRole,
+    WorkerSkillOverlay,
+    WorkerVerification,
+} from './runtime.js';

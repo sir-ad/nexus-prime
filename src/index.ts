@@ -14,9 +14,21 @@ import { Adapter, createAdapter, AdapterType } from './agents/adapters.js';
 import { AgentLearner } from './agents/learner.js';
 
 // Import engines
-import { createTokenOptimizer, createContextEngine, createMemoryEngine, createOrchestrator } from './engines/index.js';
+import {
+  createTokenOptimizer,
+  createContextEngine,
+  createMemoryEngine,
+  createOrchestrator
+} from './engines/index.js';
 import { DashboardServer } from './dashboard/server.js';
 import { nexusEventBus } from './engines/event-bus.js';
+import {
+  createSubAgentRuntime,
+  summarizeExecution,
+  type ExecutionRun,
+  type ExecutionTask,
+  type SubAgentRuntime
+} from './phantom/index.js';
 
 export class NexusPrime {
   private config: NexusConfig;
@@ -29,6 +41,7 @@ export class NexusPrime {
   private contextEngine: any;
   private memoryEngine: any;
   private orchestrator: any;
+  private runtime: SubAgentRuntime;
   private learner: AgentLearner;
 
   private coordinator: AgentCoordinator;
@@ -40,6 +53,7 @@ export class NexusPrime {
   private dashboardServer: DashboardServer;
 
   constructor(config?: Partial<NexusConfig>) {
+    const memoryDbPath = config?.memory?.cortex?.path ?? process.env.NEXUS_MEMORY_DB_PATH;
     this.config = {
       network: {
         port: config?.network?.port ?? 3000,
@@ -50,7 +64,8 @@ export class NexusPrime {
         cortex: {
           enabled: config?.memory?.cortex?.enabled ?? true,
           storage: config?.memory?.cortex?.storage ?? 'sqlite',
-          vector: config?.memory?.cortex?.vector ?? 'hnsw'
+          vector: config?.memory?.cortex?.vector ?? 'hnsw',
+          path: memoryDbPath
         },
         hippocampus: {
           window: config?.memory?.hippocampus?.window ?? '48h',
@@ -78,8 +93,12 @@ export class NexusPrime {
     // Initialize NEW engines
     this.tokenOptimizer = createTokenOptimizer(this.config.memory.cortex.enabled ? 128000 : 64000);
     this.contextEngine = createContextEngine();
-    this.memoryEngine = createMemoryEngine();
-    this.orchestrator = createOrchestrator();
+    this.memoryEngine = createMemoryEngine(memoryDbPath);
+    this.runtime = createSubAgentRuntime({
+      repoRoot: process.cwd(),
+      memory: this.memoryEngine,
+    });
+    this.orchestrator = createOrchestrator(this.memoryEngine, this.runtime);
     this.learner = new AgentLearner(this.memoryEngine);
     this.dashboardServer = new DashboardServer();
   }
@@ -260,8 +279,8 @@ export class NexusPrime {
   /**
    * Execute via orchestrator
    */
-  async orchestrate(task: string): Promise<any> {
-    return this.orchestrator.execute(task);
+  async orchestrate(task: string, options?: Partial<ExecutionTask>): Promise<ExecutionRun> {
+    return this.orchestrator.executeSwarm(task, options);
   }
 
 
@@ -269,8 +288,9 @@ export class NexusPrime {
 
   async execute(
     agentId: string,
-    task: string
-  ): Promise<{ result: string; experience: Experience }> {
+    task: string,
+    options?: Partial<ExecutionTask>
+  ): Promise<{ result: string; experience: Experience; execution: ExecutionRun }> {
     const agent = this.agents.get(agentId);
     if (!agent) {
       throw new Error(`Agent not found: ${agentId}`);
@@ -283,9 +303,18 @@ export class NexusPrime {
     agent.state.current = 'working';
     agent.state.history.push(task);
 
-    // Simulate execution
-    const result = `Executed: ${task}`;
-    const value = Math.random();
+    const execution = await this.runtime.run({
+      goal: task,
+      ...options,
+    });
+    const result = execution.result || summarizeExecution(execution);
+    const value = execution.state === 'merged'
+      ? 1
+      : execution.state === 'rolled_back'
+        ? 0.25
+        : execution.state === 'failed'
+          ? 0.1
+          : 0.6;
 
     const experience: Experience = {
       agentId,
@@ -305,7 +334,7 @@ export class NexusPrime {
     this.storeMemory(
       `Agent ${agentId} executed: ${task} → ${result}`,
       value,
-      [agent.type, 'execution']
+      [agent.type, 'execution', execution.state]
     );
 
     // Check for fission
@@ -332,7 +361,11 @@ export class NexusPrime {
 
     agent.state.current = 'idle';
 
-    return { result, experience };
+    return { result, experience, execution };
+  }
+
+  getRuntime(): SubAgentRuntime {
+    return this.runtime;
   }
 
   evolve(): void {

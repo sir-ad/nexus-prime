@@ -1,50 +1,107 @@
 /**
- * Basic test for Nexus Prime
+ * Basic runtime test for Nexus Prime
  */
 
-import { createNexusPrime } from '../src/index.js';
+import assert from 'assert';
+import * as fs from 'fs';
+import * as os from 'os';
+import * as path from 'path';
+import { execSync } from 'child_process';
 
-// Use random port for dashboard so it doesn't conflict with main daemon
 process.env.NEXUS_DASHBOARD_PORT = '0';
 
-async function test() {
-  console.log('🧪 Testing Nexus Prime...\n');
+function setupFixtureRepo(): string {
+  const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nexus-prime-basic-'));
+  fs.writeFileSync(path.join(repoRoot, 'README.md'), '# Fixture Repo\n', 'utf8');
+  fs.writeFileSync(
+    path.join(repoRoot, 'package.json'),
+    JSON.stringify({
+      name: 'nexus-prime-runtime-fixture',
+      version: '1.0.0',
+      private: true,
+      scripts: {
+        build: 'node -e "process.exit(0)"'
+      }
+    }, null, 2),
+    'utf8'
+  );
 
-  // Create Nexus
-  const nexus = createNexusPrime({
-    adapters: []
-  });
+  execSync('git init -b main', { cwd: repoRoot, stdio: 'ignore' });
+  execSync('git config user.name "Nexus Prime Test"', { cwd: repoRoot, stdio: 'ignore' });
+  execSync('git config user.email "nexus-prime@test.local"', { cwd: repoRoot, stdio: 'ignore' });
+  execSync('git add README.md package.json', { cwd: repoRoot, stdio: 'ignore' });
+  execSync('git commit -m "fixture"', { cwd: repoRoot, stdio: 'ignore' });
 
-  // Start
-  await nexus.start();
-  console.log('✅ Started\n');
-
-  // Create agents
-  const researcher = await nexus.createAgent('researcher');
-  const coder = await nexus.createAgent('coder');
-  console.log(`✅ Created agents: ${researcher.id}, ${coder.id}\n`);
-
-  // Execute tasks
-  console.log('📝 Executing tasks...');
-
-  const result1 = await nexus.execute(researcher.id, 'Research quantum computing breakthroughs');
-  console.log(`  Researcher: ${result1.result} (value: ${result1.experience.value.toFixed(2)})`);
-
-  const result2 = await nexus.execute(coder.id, 'Write authentication module');
-  console.log(`  Coder: ${result2.result} (value: ${result2.experience.value.toFixed(2)})`);
-
-  console.log('');
-
-  // Evolve
-  console.log('🧬 Evolving...');
-  nexus.evolve();
-  console.log('  Evolution step triggered\n');
-
-  // Stop
-  await nexus.stop();
-  console.log('✅ Stopped\n');
-
-  console.log('🎉 All tests passed!');
+  return repoRoot;
 }
 
-test().catch(console.error);
+async function test() {
+  console.log('🧪 Testing Nexus Prime runtime execution...\n');
+
+  const originalCwd = process.cwd();
+  const repoRoot = setupFixtureRepo();
+  process.env.NEXUS_DASHBOARD_DISABLED = '1';
+  process.env.NEXUS_MEMORY_DB_PATH = path.join(repoRoot, '.nexus-prime-test.db');
+  process.env.NEXUS_POD_PATH = path.join(repoRoot, '.nexus-prime-pod.json');
+
+  process.chdir(repoRoot);
+
+  try {
+    const { createNexusPrime } = await import('../dist/index.js');
+    const nexus = createNexusPrime({ adapters: [] });
+    await nexus.start();
+    console.log('✅ Started\n');
+
+    const coder = await nexus.createAgent('coder');
+    console.log(`✅ Created agent: ${coder.id}\n`);
+
+    const result = await nexus.execute(coder.id, 'Apply a real runtime patch to the fixture repo', {
+      files: ['README.md', 'package.json'],
+      workers: 2,
+      verifyCommands: ['npm run build'],
+      actions: [
+        {
+          type: 'append_file',
+          path: 'README.md',
+          content: '\nRuntime execution succeeded.\n'
+        },
+        {
+          type: 'write_file',
+          path: 'runtime-output.txt',
+          content: 'runtime ok\n'
+        }
+      ]
+    });
+
+    console.log(`📝 Result: ${result.result}`);
+    console.log(`📊 Value: ${result.experience.value.toFixed(2)}`);
+    console.log(`🧠 State: ${result.execution.state}`);
+    console.log(`📁 Artifacts: ${result.execution.artifactsPath}\n`);
+
+    assert.strictEqual(result.execution.state, 'merged', 'execution should merge a verified patch');
+    assert.ok(fs.existsSync(path.join(repoRoot, 'runtime-output.txt')), 'runtime output file should exist');
+    assert.ok(
+      fs.readFileSync(path.join(repoRoot, 'README.md'), 'utf8').includes('Runtime execution succeeded.'),
+      'README should contain runtime marker'
+    );
+    assert.ok(fs.existsSync(result.execution.artifactsPath), 'artifacts path should exist');
+    assert.ok(
+      result.execution.workerResults.some(worker => worker.verified),
+      'at least one worker should pass verification'
+    );
+
+    await nexus.stop();
+    console.log('✅ Stopped\n');
+    console.log('🎉 Runtime execution test passed!');
+  } finally {
+    delete process.env.NEXUS_DASHBOARD_DISABLED;
+    delete process.env.NEXUS_MEMORY_DB_PATH;
+    delete process.env.NEXUS_POD_PATH;
+    process.chdir(originalCwd);
+  }
+}
+
+test().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});

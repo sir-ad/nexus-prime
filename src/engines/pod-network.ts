@@ -23,10 +23,7 @@ export class PODNetwork {
 
     constructor() {
         PODNetwork.instance = this;
-        this.podPath = path.join(os.homedir(), '.nexus-prime', 'pod.json');
-        if (!fs.existsSync(path.dirname(this.podPath))) {
-            fs.mkdirSync(path.dirname(this.podPath), { recursive: true });
-        }
+        this.podPath = resolvePodPath();
         this.loadMessages();
 
         // Basic poll for changes from other workers (cross-process)
@@ -141,3 +138,23 @@ export class PODNetwork {
 }
 
 export const podNetwork = new PODNetwork();
+
+function resolvePodPath(): string {
+    const configured = process.env.NEXUS_POD_PATH;
+    if (configured) {
+        fs.mkdirSync(path.dirname(configured), { recursive: true });
+        return configured;
+    }
+
+    const preferredRoot = process.env.NEXUS_STATE_DIR
+        ? path.resolve(process.env.NEXUS_STATE_DIR)
+        : path.join(os.homedir(), '.nexus-prime');
+    try {
+        fs.mkdirSync(preferredRoot, { recursive: true });
+        return path.join(preferredRoot, 'pod.json');
+    } catch {
+        const fallbackRoot = path.join(os.tmpdir(), 'nexus-prime-state');
+        fs.mkdirSync(fallbackRoot, { recursive: true });
+        return path.join(fallbackRoot, 'pod.json');
+    }
+}

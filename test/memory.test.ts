@@ -37,9 +37,9 @@ async function runTests() {
     console.log('📦 Imports');
     let MemoryEngine: any, Embedder: any;
     try {
-        const memMod = await import('../src/engines/memory.js');
+        const memMod = await import('../dist/engines/memory.js');
         MemoryEngine = memMod.MemoryEngine;
-        const embMod = await import('../src/engines/embedder.js');
+        const embMod = await import('../dist/engines/embedder.js');
         Embedder = embMod.Embedder;
         assert(true, 'memory.ts and embedder.ts import cleanly');
     } catch (e: any) {

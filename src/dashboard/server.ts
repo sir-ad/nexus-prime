@@ -30,6 +30,11 @@ export class DashboardServer {
 
     /** Start the dashboard server */
     start(): void {
+        if (process.env.NEXUS_DASHBOARD_DISABLED === '1') {
+            console.error('[Dashboard] Disabled by NEXUS_DASHBOARD_DISABLED=1');
+            return;
+        }
+
         this.server.listen(PORT, HOST, () => {
             console.error(`[Dashboard] Matrix live at http://${HOST}:${PORT}`);
         });

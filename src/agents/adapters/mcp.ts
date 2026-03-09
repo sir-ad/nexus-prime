@@ -6,7 +6,7 @@ import {
     ListToolsRequestSchema,
     McpError,
 } from '@modelcontextprotocol/sdk/types.js';
-import { statSync, readdirSync, readFileSync } from 'fs';
+import { statSync, readdirSync } from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 import { Adapter, NetworkMessage } from '../core/types.js';
@@ -16,8 +16,13 @@ import {
     formatReadingPlan,
     type FileRef
 } from '../../engines/token-supremacy.js';
-import { GhostPass, PhantomWorker } from '../../phantom/index.js';
-import { MergeOracle } from '../../phantom/merge-oracle.js';
+import {
+    GhostPass,
+    createSubAgentRuntime,
+    summarizeExecution,
+    type ExecutionRun,
+    type SubAgentRuntime,
+} from '../../phantom/index.js';
 import { GuardrailEngine } from '../../engines/guardrails-bridge.js';
 import { SessionDNAManager } from '../../engines/session-dna.js';
 import { ContextAssembler } from '../../engines/context-assembler.js';
@@ -47,6 +52,7 @@ const casEngine = new ContinuousAttentionStream();
 const kvBridge = createKVBridge({ agents: 3 });
 const orchestrator = new OrchestratorEngine();
 const federation = new FederationEngine();
+const fallbackRuntime = createSubAgentRuntime({ repoRoot: process.cwd() });
 
 // Lazy-initialized Graph Engine (separate DB from core memory)
 let _graphEngine: GraphMemoryEngine | null = null;
@@ -186,6 +192,7 @@ export class MCPAdapter implements Adapter {
     private nexusRef?: NexusPrime;
     private telemetry: SessionTelemetry = new SessionTelemetry();
     private sessionDNA: SessionDNAManager;
+    private runtime?: SubAgentRuntime;
 
     private box(title: string, content: string[], color: string = '34'): void {
         const width = 68;
@@ -207,6 +214,18 @@ export class MCPAdapter implements Adapter {
 
     setNexusRef(nexus: NexusPrime) {
         this.nexusRef = nexus;
+    }
+
+    private getRuntime(): SubAgentRuntime {
+        if (this.nexusRef && typeof this.nexusRef.getRuntime === 'function') {
+            return this.nexusRef.getRuntime();
+        }
+
+        if (!this.runtime) {
+            this.runtime = fallbackRuntime;
+        }
+
+        return this.runtime;
     }
 
     private setupToolHandlers() {
@@ -299,13 +318,16 @@ export class MCPAdapter implements Adapter {
                 },
                 {
                     name: 'nexus_spawn_workers',
-                    description: 'Spawn parallel Phantom Workers when modifying 3+ interrelated files OR when Ghost Pass recommends parallel exploration. Each worker gets an isolated git worktree to independently analyze the goal. Workers sync via POD Network. Returns a synthesized merge decision with confidence score and recommended approach.',
+                    description: 'Spawn parallel Phantom Workers when modifying 3+ interrelated files OR when Ghost Pass recommends parallel exploration. Each worker gets an isolated git worktree to execute actions, run verification, and return artifacts. The runtime applies merge consensus and reports the final decision truthfully.',
                     inputSchema: {
                         type: 'object',
                         properties: {
                             goal: { type: 'string', description: 'The overall goal for the swarm' },
                             files: { type: 'array', items: { type: 'string' }, description: 'Files relevant to the task' },
-                            workers: { type: 'number', description: 'Number of phantom workers to spawn (max 7)', default: 3 }
+                            workers: { type: 'number', description: 'Number of phantom workers to spawn (max 7)', default: 3 },
+                            verify: { type: 'array', items: { type: 'string' }, description: 'Verification commands to run in verifier worktrees' },
+                            strategies: { type: 'array', items: { type: 'string' }, description: 'Optional worker strategies such as minimal, standard, thorough' },
+                            actions: { type: 'array', items: { type: 'object' }, description: 'Optional runtime actions or skill bindings to execute in worker worktrees' }
                         },
                         required: ['goal', 'files'],
                     },
@@ -511,7 +533,7 @@ export class MCPAdapter implements Adapter {
                 // ── Nexus Layer (v1.5) ──────────────────────────────────────────
                 {
                     name: 'nexus_execute_nxl',
-                    description: 'Execute a declarative Nexus Language (NXL) script or induce an army of specialized agents for a goal.',
+                    description: 'Execute a declarative Nexus Language (NXL) script as a real runtime graph across worktree-backed sub-agents, verification workers, and merge consensus.',
                     inputSchema: {
                         type: 'object',
                         properties: {
@@ -819,96 +841,82 @@ export class MCPAdapter implements Adapter {
                 const rawFiles = Array.isArray(request.params.arguments?.files)
                     ? (request.params.arguments.files as unknown[]).map(String)
                     : [];
+                const verifyCommands = Array.isArray(request.params.arguments?.verify)
+                    ? (request.params.arguments.verify as unknown[]).map(String)
+                    : undefined;
+                const strategies = Array.isArray(request.params.arguments?.strategies)
+                    ? (request.params.arguments.strategies as unknown[]).map(String)
+                    : undefined;
+                const actions = Array.isArray(request.params.arguments?.actions)
+                    ? (request.params.arguments.actions as any[])
+                    : [];
 
-                const files: FileRef[] = rawFiles.map(p => {
-                    try {
-                        const stat = statSync(p);
-                        return { path: p, sizeBytes: stat.size, lastModified: stat.mtimeMs };
-                    } catch {
-                        return { path: p, sizeBytes: 0 };
+                const execution = await this.getRuntime().run({
+                    goal,
+                    files: rawFiles,
+                    workers: workersCount,
+                    roles: ['planner', 'coder', 'verifier'],
+                    verifyCommands,
+                    strategies,
+                    actions,
+                });
+
+                const verifiedWorkers = execution.workerResults.filter(result => result.verified).length;
+                const modifiedFiles = execution.workerResults.reduce((sum, result) => sum + result.modifiedFiles.length, 0);
+
+                execution.activeSkills.forEach(skill => {
+                    this.sessionDNA.recordSkill(skill.name);
+                    if (skill.scope === 'global' || skill.rolloutStatus === 'promoted') {
+                        this.sessionDNA.recordSkillLearned(skill.name);
                     }
                 });
-
-                const ghost = new GhostPass(process.cwd());
-                const report = await ghost.analyze(goal, files, workersCount);
-
-                // Multi-process dispatch with worktree-isolated execution
-                const workerPromises = report.workerAssignments.map(async (assign) => {
-                    const worker = new PhantomWorker(process.cwd());
-                    return worker.spawn(assign, async (worktreeDir, task, w) => {
-                        const learnings: string[] = [];
-
-                        // Read relevant files in the worktree to build context
-                        for (const file of task.files.slice(0, 5)) {
-                            try {
-                                const fullPath = path.join(worktreeDir, file.path);
-                                const content = readFileSync(fullPath, 'utf-8').slice(0, 500);
-                                learnings.push(`[${task.approach}] Read ${file.path}: ${content.length} chars`);
-                            } catch {
-                                learnings.push(`[${task.approach}] Could not read ${file.path}`);
-                            }
-                        }
-
-                        // Broadcast discovery to POD network for cross-worker learning
-                        w.broadcast(
-                            `Worker ${w.id} (${task.approach}): analyzed ${task.files.length} files`,
-                            0.7,
-                            ['#phantom-swarm', `#approach-${task.approach}`]
-                        );
-
-                        nexusEventBus.emit('phantom.worker.start', { workerId: `W-${w.id}`, approach: task.approach, goal });
-
-                        // Check what other workers found
-                        const peerFindings = w.receive(['#phantom-swarm']);
-                        if (peerFindings.length > 0) {
-                            learnings.push(`Received ${peerFindings.length} findings from peer workers`);
-                        }
-
-                        const confidence = learnings.length > 0 ? 0.75 : 0.5;
-                        nexusEventBus.emit('phantom.worker.complete', { workerId: `W-${w.id}`, confidence });
-
-                        return {
-                            learnings,
-                            confidence,
-                        };
-                    });
+                execution.workerResults.forEach(result => {
+                    result.modifiedFiles.forEach(file => this.sessionDNA.recordFileModified(file));
                 });
-
-                const results = await Promise.all(workerPromises);
-
-                // Synthesis
-                const oracle = new MergeOracle(this.nexusRef!.memory);
-                const decision = await oracle.merge(results);
-
-                this.nexusRef.storeMemory(
-                    `Phantom Swarm executed: ${results.length} workers, action=${decision.action}, confidence=${decision.confidence.toFixed(2)}`,
-                    0.8, ['#phantom-swarm', '#decision']
+                this.sessionDNA.recordDecision(
+                    'Runtime swarm execution completed',
+                    execution.result || summarizeExecution(execution),
+                    execution.state === 'merged' ? 0.94 : execution.state === 'rolled_back' ? 0.45 : 0.3
                 );
 
-                nexusEventBus.emit('phantom.merge', { action: decision.action, winner: decision.recommendedStrategy });
+                this.nexusRef.storeMemory(
+                    `Runtime swarm: state=${execution.state}, workers=${execution.workerResults.length}, verified=${verifiedWorkers}, decision=${execution.finalDecision?.action ?? 'none'}`,
+                    execution.state === 'merged' ? 0.92 : 0.72,
+                    ['#phantom', '#decision', execution.state]
+                );
 
-                // NEW: Agent Learning Loop
-                await this.nexusRef.analyzeLearning(goal, decision);
+                if (execution.finalDecision) {
+                    nexusEventBus.emit('phantom.merge', {
+                        action: execution.finalDecision.action,
+                        winner: execution.finalDecision.recommendedStrategy,
+                    });
+                    await this.nexusRef.analyzeLearning(goal, execution.finalDecision);
+                }
 
-                // Console ASCII UI
-                this.box('🐝 PHANTOM SWARM MERGED', [
-                    `Workers: ${results.length.toString().padEnd(5, ' ')} Confidence: ${decision.confidence.toFixed(2).padEnd(36)}`,
-                    `Action: ${decision.action.padEnd(57, ' ')}`
-                ], '32');
+                this.box('🐝 PHANTOM RUNTIME', [
+                    `Run: ${execution.runId.padEnd(28, ' ')} State: ${execution.state.padEnd(18, ' ')}`,
+                    `Workers: ${execution.workerResults.length.toString().padEnd(5, ' ')} Verified: ${verifiedWorkers.toString().padEnd(10, ' ')} Files: ${String(modifiedFiles).padEnd(12, ' ')}`,
+                    `Decision: ${(execution.finalDecision?.action ?? 'none').padEnd(52, ' ')}`
+                ], execution.state === 'merged' ? '32' : execution.state === 'rolled_back' ? '33' : '31');
 
                 return {
                     content: [{
                         type: 'text',
                         text: [
-                            `🐝 Phantom Swarm Complete — ${results.length} workers synchronized.`,
+                            `🐝 Phantom Runtime — ${summarizeExecution(execution)}`,
                             '',
-                            `🎯 Goal: ${goal}`,
+                            `Run ID: ${execution.runId}`,
+                            `State: ${execution.state}`,
+                            `Artifacts: ${execution.artifactsPath}`,
+                            `Workers: ${execution.workerResults.length}`,
+                            `Verified Workers: ${verifiedWorkers}`,
+                            `Modified Files: ${modifiedFiles}`,
+                            `Decision: ${execution.finalDecision?.action ?? 'none'}`,
+                            `Recommended Strategy: ${execution.finalDecision?.recommendedStrategy ?? 'n/a'}`,
+                            `Backends: memory=${execution.selectedBackends.memoryBackend}, compression=${execution.selectedBackends.compressionBackend}, consensus=${execution.selectedBackends.consensusPolicy}, dsl=${execution.selectedBackends.dslCompiler}`,
+                            `Active Skills: ${execution.activeSkills.length > 0 ? execution.activeSkills.map(skill => `${skill.name}(${skill.riskClass})`).join(', ') : 'none'}`,
                             '',
-                            `🧩 Synthesized Decision:`,
-                            decision.synthesized || 'No changes made.',
-                            '',
-                            `📝 Conflicts: ${decision.conflicts.length > 0 ? decision.conflicts.join(', ') : 'None'}`,
-                            `📈 Strategy: ${decision.recommendedStrategy}`
+                            `Result: ${execution.result}`
                         ].join('\n')
                     }]
                 };
@@ -1357,26 +1365,58 @@ export class MCPAdapter implements Adapter {
                         return { content: [{ type: 'text', text: `❌ NXL Parse Error: ${e.message}` }] };
                     }
                 }
+                try {
+                    const execution = await this.getRuntime().runNXL(goal, nxlScript || undefined, useCase);
+                    const verifiedWorkers = execution.workerResults.filter(result => result.verified).length;
 
-                const swarm = await orchestrator.executeSwarm(goal);
+                    execution.activeSkills.forEach(skill => this.sessionDNA.recordSkill(skill.name));
+                    execution.workerResults.forEach(result => {
+                        result.modifiedFiles.forEach(file => this.sessionDNA.recordFileModified(file));
+                    });
+                    this.sessionDNA.recordDecision(
+                        'NXL execution graph completed',
+                        execution.result || summarizeExecution(execution),
+                        execution.state === 'merged' ? 0.95 : execution.state === 'rolled_back' ? 0.5 : 0.28
+                    );
 
-                const lines = [
-                    `Goal: ${goal.substring(0, 60)}...`,
-                    '─'.repeat(66)
-                ];
-                swarm.agents.forEach((agent, idx) => {
-                    const prefix = idx === swarm.agents.length - 1 ? '└──' : '├──';
-                    lines.push(`${prefix} [${agent.archetype?.name}] as ${agent.type.substring(0, 42)}`);
-                });
+                    this.nexusRef.storeMemory(
+                        `NXL runtime: state=${execution.state}, workers=${execution.workerResults.length}, verified=${verifiedWorkers}, useCase=${useCase}`,
+                        execution.state === 'merged' ? 0.94 : 0.74,
+                        ['#nxl', '#decision', execution.state]
+                    );
 
-                this.box('🚀 NEXUS SWARM INDUCTED', lines, '34');
+                    if (execution.finalDecision) {
+                        await this.nexusRef.analyzeLearning(goal, execution.finalDecision);
+                    }
 
-                return {
-                    content: [{
-                        type: 'text',
-                        text: `🚀 Nexus Swarm Activated: ${swarm.agents.length} specialized sub-agents induced for: ${goal}\nCheck CLI for worker mapping.`
-                    }]
-                };
+                    this.box('🚀 NXL RUNTIME GRAPH', [
+                        `Goal: ${goal.substring(0, 60).padEnd(60, ' ')}`,
+                        `Run: ${execution.runId.padEnd(28, ' ')} State: ${execution.state.padEnd(18, ' ')}`,
+                        `Workers: ${execution.workerResults.length.toString().padEnd(5, ' ')} Verified: ${verifiedWorkers.toString().padEnd(10, ' ')}`
+                    ], execution.state === 'merged' ? '32' : execution.state === 'rolled_back' ? '33' : '31');
+
+                    return {
+                        content: [{
+                            type: 'text',
+                            text: [
+                                `🚀 NXL Runtime — ${summarizeExecution(execution)}`,
+                                '',
+                                `Run ID: ${execution.runId}`,
+                                `Use Case: ${useCase}`,
+                                `Artifacts: ${execution.artifactsPath}`,
+                                `Workers: ${execution.workerResults.length}`,
+                                `Verified Workers: ${verifiedWorkers}`,
+                                `Decision: ${execution.finalDecision?.action ?? 'none'}`,
+                                `Backends: memory=${execution.selectedBackends.memoryBackend}, compression=${execution.selectedBackends.compressionBackend}, consensus=${execution.selectedBackends.consensusPolicy}, dsl=${execution.selectedBackends.dslCompiler}`,
+                                `Active Skills: ${execution.activeSkills.length > 0 ? execution.activeSkills.map(skill => skill.name).join(', ') : 'none'}`,
+                                '',
+                                `Result: ${execution.result}`
+                            ].join('\n')
+                        }]
+                    };
+                } catch (e: any) {
+                    return { content: [{ type: 'text', text: `❌ NXL Runtime Error: ${e.message}` }] };
+                }
             }
 
             case 'nexus_publish_trace': {

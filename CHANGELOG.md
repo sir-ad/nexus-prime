@@ -2,6 +2,28 @@
 
 All notable changes to Nexus Prime will be documented in this file.
 
+## [3.1.0] - 2026-03-09
+
+### Added
+- **Real Sub-Agent Runtime**: Added a shared worktree-backed execution kernel that powers single-agent execution, swarms, MCP runtime calls, and NXL runs with artifact trails, verifier workers, rollback, and merge decisions.
+- **Runtime Skill Fabric**: Added live runtime skill artifacts, guarded hot deployment, deployment tracking, and promotion/revocation hooks for read/orchestrate/mutate skill classes.
+- **Backend Contracts**: Added explicit memory, compression, consensus, and DSL compiler backend interfaces so research-track implementations can run in shadow or experimental mode behind the same runtime.
+- **CLI Execution Inputs**: `nexus-prime execute` now supports `--actions-file`, `--verify`, `--workers`, and `--nxl-file` for real runtime execution instead of demo-only task strings.
+- **Release Draft Artifact**: Added a release-notes draft for this version under `releases/v3.1.0.md`.
+
+### Changed
+- **Truthful MCP Runtime Surfaces**: `nexus_spawn_workers` and `nexus_execute_nxl` now execute real worktree runs and return execution state, artifacts, verified worker counts, and backend selections.
+- **Truthful Public API**: `execute()` and `executeSwarm()` now route through the shared runtime and return real execution objects instead of simulated success text.
+- **Headless/Test Harness**: The test runner now builds first and runs with native Node against `dist/` modules instead of relying on missing `tsx`.
+- **README Runtime Docs**: Updated README examples and swarm language to describe actual verified execution flow.
+
+### Fixed
+- **Untracked File Diffs**: Worker patch capture now stages untracked files before diffing so newly created files are included in verifier and final merge patches.
+- **Runtime Skill Patch Contamination**: Excluded `.agent` runtime skill overlays from repo patches so verifier worktrees do not fail on duplicate skill files.
+- **Worktree Ref Conflicts**: Switched worker worktrees to detached HEAD mode to avoid branch ref lock failures during repeated or parallel execution.
+- **Configurable State Paths**: Memory DB and POD message storage can now be redirected for sandboxed/headless environments, with tmp fallbacks where needed.
+- **Headless Dashboard Startup**: Dashboard startup can now be disabled explicitly for CI and runtime tests.
+
 ## [1.4.0] - 2026-03-06
 ### Added
 - **Multi-Tool MCP Integration**: Support for Cursor, Claude Code, Opencode, Kilocode, and Codex.
