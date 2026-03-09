@@ -74,6 +74,7 @@ interface DashboardHealthResponse {
 
 export class DashboardServer {
     private server: http.Server;
+    private cachedDashboardHtml: string | null = null;
     private clients: Set<http.ServerResponse> = new Set();
     private unsubscribeBus: (() => void) | null = null;
     private runtimeProvider?: () => SubAgentRuntime | undefined;
@@ -177,6 +178,7 @@ export class DashboardServer {
     }
 
     private async requestHandler(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
+      try {
         const url = new URL(req.url || '/', this.dashboardUrl ?? this.buildUrl(this.activePort ?? DEFAULT_PORT));
 
         if (req.method === 'OPTIONS') {
@@ -412,9 +414,40 @@ export class DashboardServer {
 
         res.writeHead(404);
         res.end('Not found');
+      } catch (error) {
+        if (!res.headersSent) {
+            if (error instanceof Error && error.message === 'Request body too large') {
+                res.writeHead(413, { 'Content-Type': 'text/plain' });
+                res.end('Request body too large');
+            } else {
+                res.writeHead(500, { 'Content-Type': 'text/plain' });
+                res.end('Internal server error');
+            }
+        }
+      }
     }
 
     private serveDashboard(res: http.ServerResponse): void {
+        const securityHeaders = {
+            'Content-Type': 'text/html',
+            'Content-Security-Policy': [
+                "default-src 'self'",
+                "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+                "font-src 'self' https://fonts.gstatic.com",
+                "script-src 'unsafe-inline'",
+                "connect-src 'self'",
+                "img-src 'self' data:",
+            ].join('; '),
+            'X-Content-Type-Options': 'nosniff',
+            'X-Frame-Options': 'DENY',
+        };
+
+        if (this.cachedDashboardHtml) {
+            res.writeHead(200, securityHeaders);
+            res.end(this.cachedDashboardHtml);
+            return;
+        }
+
         const htmlPath = path.join(__dirname, 'index.html');
         fs.readFile(htmlPath, 'utf8', (err, data) => {
             if (err) {
@@ -422,7 +455,8 @@ export class DashboardServer {
                 res.end('Error loading dashboard HTML');
                 return;
             }
-            res.writeHead(200, { 'Content-Type': 'text/html' });
+            this.cachedDashboardHtml = data;
+            res.writeHead(200, securityHeaders);
             res.end(data);
         });
     }
@@ -432,7 +466,7 @@ export class DashboardServer {
             'Content-Type': 'text/event-stream',
             'Cache-Control': 'no-cache',
             Connection: 'keep-alive',
-            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Origin': this.getCorsOrigin(),
         });
 
         res.write('retry: 3000\n\n');
@@ -464,9 +498,13 @@ export class DashboardServer {
         }
     }
 
+    private getCorsOrigin(): string {
+        return this.dashboardUrl || `http://${HOST}:${this.activePort || DEFAULT_PORT}`;
+    }
+
     private respondOptions(res: http.ServerResponse): void {
         res.writeHead(204, {
-            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Origin': this.getCorsOrigin(),
             'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
             'Access-Control-Allow-Headers': 'Content-Type',
         });
@@ -477,15 +515,22 @@ export class DashboardServer {
         res.writeHead(statusCode, {
             'Content-Type': 'application/json',
             'Cache-Control': 'no-cache',
-            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Origin': this.getCorsOrigin(),
         });
         res.end(JSON.stringify(data, null, 2));
     }
 
     private async readJsonBody(req: http.IncomingMessage): Promise<Record<string, any>> {
+        const MAX_BODY = 1024 * 1024; // 1MB
         const chunks: Buffer[] = [];
+        let totalLength = 0;
         for await (const chunk of req) {
-            chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+            const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+            totalLength += buf.length;
+            if (totalLength > MAX_BODY) {
+                throw new Error('Request body too large');
+            }
+            chunks.push(buf);
         }
         if (!chunks.length) return {};
         try {

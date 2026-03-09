@@ -245,6 +245,9 @@
 
         .rail.left {
             grid-template-rows: auto auto auto auto;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(188, 204, 255, 0.22) transparent;
         }
 
         .rail.right {
@@ -426,8 +429,8 @@
             stroke: var(--accent);
             stroke-width: 12;
             stroke-linecap: round;
-            stroke-dasharray: 440;
-            stroke-dashoffset: 440;
+            stroke-dasharray: 439.82;
+            stroke-dashoffset: 439.82;
             filter: drop-shadow(0 0 10px rgba(84, 255, 135, 0.32));
             transition: stroke-dashoffset 300ms ease;
         }
@@ -512,7 +515,7 @@
 
         #graph-stage {
             position: relative;
-            min-height: 0;
+            min-height: 300px;
             height: 100%;
             border-radius: 22px;
             border: 1px solid var(--line);
@@ -751,6 +754,21 @@
             transform: translateX(0);
         }
 
+        .drawer-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.4);
+            z-index: 19;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 220ms ease;
+        }
+
+        .drawer-backdrop.open {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
         .drawer-header {
             display: flex;
             justify-content: space-between;
@@ -797,8 +815,18 @@
         .library-grid {
             display: grid;
             gap: 0.7rem;
-            max-height: 15rem;
+            max-height: 28rem;
             overflow: auto;
+        }
+
+        .loading-pulse {
+            opacity: 0.5;
+            animation: pulse 1.2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 0.3; }
         }
 
         .hidden {
@@ -827,7 +855,7 @@
             }
 
             .graph-panel {
-                min-height: 34rem;
+                min-height: 24rem;
             }
         }
 
@@ -1096,6 +1124,7 @@
             <div class="empty">Touch a memory, run, workflow, skill, POD worker, or client to inspect it.</div>
         </div>
     </aside>
+    <div id="drawer-backdrop" class="drawer-backdrop"></div>
 
     <script>
         const DASHBOARD_API_VERSION = '2';
@@ -1356,7 +1385,7 @@
 
             if (raw.category && raw.title && raw.time) {
                 return {
-                    id: raw.id || `evt-${raw.time}-${Math.random().toString(36).slice(2, 8)}`,
+                    id: raw.id || `evt-${raw.type || raw.category}-${raw.time}-${raw.source || 'nexus-prime'}`,
                     type: raw.type || raw.category,
                     title: String(raw.title),
                     source: String(raw.source || 'nexus-prime'),
@@ -1371,7 +1400,7 @@
             if (raw.type && raw.timestamp) {
                 const payload = raw.data || {};
                 return {
-                    id: raw.id || `evt-${raw.timestamp}-${Math.random().toString(36).slice(2, 8)}`,
+                    id: raw.id || `evt-${raw.type}-${raw.timestamp}-${legacySource(raw.type, payload)}`,
                     type: raw.type,
                     title: legacyTitle(raw.type),
                     source: legacySource(raw.type, payload),
@@ -1384,7 +1413,7 @@
             }
 
             return {
-                id: `evt-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                id: `evt-legacy-${Date.now()}`,
                 type: 'system.legacy',
                 title: 'Legacy event',
                 source: 'nexus-prime',
@@ -1406,6 +1435,7 @@
         }
 
         async function refreshAll() {
+            document.querySelector('.layout')?.classList.add('loading-pulse');
             const resources = [
                 ['runs', '/api/runs?limit=20', (value) => { state.runs = Array.isArray(value) ? value : state.runs; }],
                 ['skills', '/api/skills', (value) => { state.skills = Array.isArray(value) ? value : state.skills; }],
@@ -1416,9 +1446,14 @@
                 ['pod', '/api/pod?limit=30', (value) => { state.pod = value || state.pod; }],
                 ['clients', '/api/clients', (value) => { state.clients = Array.isArray(value) ? value : state.clients; }],
                 ['events', '/api/events?limit=80', (value) => {
-                    state.events = Array.isArray(value)
-                        ? value.map((event) => normalizeEventCard(event)).filter(Boolean)
-                        : state.events;
+                    if (Array.isArray(value)) {
+                        const seen = new Set();
+                        state.events = value.map((event) => normalizeEventCard(event)).filter((e) => {
+                            if (!e || seen.has(e.id)) return false;
+                            seen.add(e.id);
+                            return true;
+                        });
+                    }
                 }],
             ];
 
@@ -1453,9 +1488,27 @@
                 setResourceStatus('memoryNetwork', 'idle');
             }
 
+            document.querySelector('.layout')?.classList.remove('loading-pulse');
             reconcileBanner();
             populateBackendSelects();
             render();
+        }
+
+        let _refreshTimer = null;
+        let _refreshInFlight = false;
+
+        function scheduleRefresh() {
+            if (_refreshTimer) return;
+            _refreshTimer = setTimeout(async () => {
+                _refreshTimer = null;
+                if (_refreshInFlight) {
+                    scheduleRefresh();
+                    return;
+                }
+                _refreshInFlight = true;
+                try { await refreshAll(); } catch {}
+                _refreshInFlight = false;
+            }, 300);
         }
 
         async function refreshMemorySelection(memoryId, openDrawer = true) {
@@ -1598,6 +1651,12 @@
                 `).join('')
                 : emptyState('No clients detected.');
 
+            $('clients-list').querySelectorAll('.card.interactive').forEach((card) => {
+                card.addEventListener('click', () => {
+                    void openEntity(card.getAttribute('data-kind'), card.getAttribute('data-id'));
+                });
+            });
+
             const tokenMetrics = computeTokenMetrics();
             $('token-summary').textContent = resourceFailed('events') ? 'events unavailable' : `${tokenMetrics.events} events`;
             $('gross-tokens').textContent = formatNumber(tokenMetrics.gross);
@@ -1648,6 +1707,12 @@
                     </div>
                 `).join('')
                 : emptyState('Waiting for POD traffic.');
+
+            $('pod-highlights').querySelectorAll('.card.interactive').forEach((card) => {
+                card.addEventListener('click', () => {
+                    void openEntity(card.getAttribute('data-kind'), card.getAttribute('data-id'));
+                });
+            });
         }
 
         function buildGraphModel() {
@@ -1951,8 +2016,10 @@
 
         function renderDrawer() {
             const drawer = $('drawer');
+            const backdrop = $('drawer-backdrop');
             if (!state.selected || !state.selected.data) {
                 drawer.classList.remove('open');
+                backdrop.classList.remove('open');
                 $('drawer-title').textContent = 'Inspector';
                 $('drawer-subtitle').textContent = 'Select a node or card.';
                 $('drawer-body').innerHTML = '<div class="empty">Touch a memory, run, workflow, skill, POD worker, or client to inspect it.</div>';
@@ -1960,6 +2027,7 @@
             }
 
             drawer.classList.add('open');
+            backdrop.classList.add('open');
             const { kind, data } = state.selected;
             $('drawer-title').textContent = formatDrawerTitle(kind, data);
             $('drawer-subtitle').textContent = formatDrawerSubtitle(kind, data);
@@ -2253,29 +2321,33 @@
 
         async function openEntity(kind, id) {
             if (!kind || !id) return;
-            if (kind === 'memory') {
-                await refreshMemorySelection(id, true);
-            } else if (kind === 'run') {
-                const run = state.runs.find((item) => item.runId === id) || await fetchJson(`/api/runs/${encodeURIComponent(id)}`);
-                if (run?.error) return;
-                state.selected = { kind: 'run', id, data: run };
-            } else if (kind === 'skill') {
-                const skill = state.skills.find((item) => item.skillId === id);
-                if (!skill) return;
-                state.selected = { kind: 'skill', id, data: skill };
-            } else if (kind === 'workflow') {
-                const workflow = state.workflows.find((item) => item.workflowId === id);
-                if (!workflow) return;
-                state.selected = { kind: 'workflow', id, data: workflow };
-            } else if (kind === 'pod-worker') {
-                const worker = await fetchJson(`/api/pod/${encodeURIComponent(id)}`);
-                state.selected = { kind: 'pod-worker', id, data: worker };
-            } else if (kind === 'client') {
-                const client = state.clients.find((item) => item.clientId === id);
-                if (!client) return;
-                state.selected = { kind: 'client', id, data: client };
+            try {
+                if (kind === 'memory') {
+                    await refreshMemorySelection(id, true);
+                } else if (kind === 'run') {
+                    const run = state.runs.find((item) => item.runId === id) || await fetchJson(`/api/runs/${encodeURIComponent(id)}`);
+                    if (run?.error) return;
+                    state.selected = { kind: 'run', id, data: run };
+                } else if (kind === 'skill') {
+                    const skill = state.skills.find((item) => item.skillId === id);
+                    if (!skill) return;
+                    state.selected = { kind: 'skill', id, data: skill };
+                } else if (kind === 'workflow') {
+                    const workflow = state.workflows.find((item) => item.workflowId === id);
+                    if (!workflow) return;
+                    state.selected = { kind: 'workflow', id, data: workflow };
+                } else if (kind === 'pod-worker') {
+                    const worker = await fetchJson(`/api/pod/${encodeURIComponent(id)}`);
+                    state.selected = { kind: 'pod-worker', id, data: worker };
+                } else if (kind === 'client') {
+                    const client = state.clients.find((item) => item.clientId === id);
+                    if (!client) return;
+                    state.selected = { kind: 'client', id, data: client };
+                }
+                render();
+            } catch (error) {
+                $('control-status').textContent = `Failed to load ${kind}: ${error.message || 'unknown error'}`;
             }
-            render();
         }
 
         function shortLabel(label) {
@@ -2396,6 +2468,18 @@
                 render();
             });
 
+            $('drawer-backdrop').addEventListener('click', () => {
+                state.selected = null;
+                render();
+            });
+
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && state.selected) {
+                    state.selected = null;
+                    render();
+                }
+            });
+
             document.querySelectorAll('#graph-modes button').forEach((button) => {
                 button.addEventListener('click', async () => {
                     state.graphMode = button.dataset.graphMode;
@@ -2418,27 +2502,40 @@
             });
         }
 
+        let _stream = null;
+        let _reconnectDelay = 1000;
+        let _reconnectTimer = null;
+
         function connectStream() {
-            const stream = new EventSource('/stream');
-            stream.onopen = () => {
+            if (_stream) { _stream.close(); _stream = null; }
+            if (_reconnectTimer) { clearTimeout(_reconnectTimer); _reconnectTimer = null; }
+
+            _stream = new EventSource('/stream');
+            _stream.onopen = () => {
                 state.streamConnected = true;
+                _reconnectDelay = 1000;
                 renderHeader();
             };
-            stream.onerror = () => {
+            _stream.onerror = () => {
                 state.streamConnected = false;
                 renderHeader();
+                if (_stream) { _stream.close(); _stream = null; }
+                _reconnectTimer = setTimeout(connectStream, _reconnectDelay);
+                _reconnectDelay = Math.min(_reconnectDelay * 2, 30000);
             };
-            stream.onmessage = (event) => {
+            _stream.onmessage = (event) => {
                 try {
                     const raw = JSON.parse(event.data);
                     if (raw?.connected) return;
                     const payload = normalizeEventCard(raw);
                     if (!payload) return;
-                    state.events.unshift(payload);
+                    if (!state.events.some((e) => e.id === payload.id)) {
+                        state.events.unshift(payload);
+                    }
                     state.events = state.events.slice(0, 120);
                     setResourceStatus('events', 'ready');
                     if (['runtime', 'memory', 'pod', 'skills', 'workflows', 'clients'].includes(payload.category)) {
-                        void refreshAll().catch(() => {});
+                        scheduleRefresh();
                     } else {
                         renderEvents();
                         renderHeader();
@@ -2457,7 +2554,7 @@
                 : 'Dashboard actions stay local and route through the runtime.';
             connectStream();
             setInterval(() => {
-                void refreshAll().catch(() => {});
+                scheduleRefresh();
             }, 20000);
         }
 
