@@ -378,9 +378,13 @@
       border: 1px solid var(--border);
       border-radius: 16px;
       padding: 40px;
+      display: flex;
+      flex-direction: column;
       transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
       position: relative;
       overflow: hidden;
+      color: inherit;
+      text-decoration: none;
     }
 
     .cap-card::before {
@@ -419,6 +423,11 @@
       color: #fff;
     }
 
+    .cap-card p {
+      color: var(--text-dim);
+      text-decoration: none;
+    }
+
     .cap-tag {
       display: inline-block;
       font-family: 'JetBrains Mono', monospace;
@@ -431,6 +440,7 @@
       margin-top: 16px;
       font-weight: 600;
       letter-spacing: 0.05em;
+      align-self: flex-start;
     }
 
     /* Showcase Graphics */
@@ -727,29 +737,29 @@
     </section>
 
     <article id="documentation">
-      <span class="section-label">Documentation Hub</span>
-      <h2 class="section-title">Everything public is now reachable from the site.</h2>
-      <p class="section-sub">Use the website as the canonical docs gateway for product overview, developer reference,
-        client setup, and runtime architecture schematics.</p>
+      <span class="section-label">Documentation</span>
+      <h2 class="section-title">Explore Nexus Prime without leaving the site.</h2>
+      <p class="section-sub">Start with the core reference, jump into client setup, or review the runtime architecture
+        before integrating Nexus Prime into your stack.</p>
 
       <div class="cap-grid">
         <a class="cap-card" href="knowledge-base.html">
           <span class="cap-icon">📚</span>
           <h3>Knowledge Base</h3>
-          <p>The long-form reference for MCP concepts, agent programming, API surfaces, and guardrails.</p>
-          <span class="cap-tag">Developer Docs</span>
+          <p>Core concepts, APIs, runtime behavior, and guardrails for teams building directly on Nexus Prime.</p>
+          <span class="cap-tag">Open Reference</span>
         </a>
         <a class="cap-card" href="integrations.html">
           <span class="cap-icon">🔌</span>
           <h3>Integrations</h3>
-          <p>Client-specific setup guidance for Cursor, Claude, Opencode, Codex, and related MCP environments.</p>
-          <span class="cap-tag">Client Setup</span>
+          <p>Step-by-step setup for Cursor, Claude Code, Codex, Opencode, and other MCP-compatible clients.</p>
+          <span class="cap-tag">Setup Guide</span>
         </a>
         <a class="cap-card" href="architecture-diagrams.html">
           <span class="cap-icon">🗺️</span>
           <h3>Architecture Diagrams</h3>
-          <p>Visual system diagrams for memory topology, token flow, Phantom swarms, and request lifecycle.</p>
-          <span class="cap-tag">System Schematics</span>
+          <p>Visual diagrams for memory topology, token flow, Phantom swarms, and the end-to-end request lifecycle.</p>
+          <span class="cap-tag">View Diagrams</span>
         </a>
       </div>
     </article>
