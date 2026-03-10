@@ -94,7 +94,9 @@ jobs:
                 return { history: {} };
               }
               try {
-                return JSON.parse(raw);
+                const parsed = JSON.parse(raw);
+                // Handle backwards compatibility for nested internal data
+                return parsed.internal ? parsed.internal : parsed;
               } catch {
                 return { history: {} };
               }
@@ -116,6 +118,7 @@ jobs:
               const count = orderedEntries.reduce((sum, [, value]) => sum + Number(value.count || 0), 0);
               const uniques = orderedEntries.reduce((sum, [, value]) => sum + Number(value.uniques || 0), 0);
 
+              // Return a flattened object containing both shields.io required fields and internal tracking data
               return {
                 schemaVersion: 1,
                 label,
