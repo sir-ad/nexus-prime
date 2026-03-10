@@ -25,8 +25,17 @@ export type NexusEventType =
     | 'skill.register'
     | 'skill.deploy'
     | 'skill.revoke'
+    | 'hook.deploy'
+    | 'hook.revoke'
+    | 'hook.fire'
     | 'workflow.deploy'
     | 'workflow.run'
+    | 'automation.deploy'
+    | 'automation.revoke'
+    | 'automation.run'
+    | 'shield.decision'
+    | 'memory.audit'
+    | 'federation.heartbeat'
     | 'client.heartbeat'
     | 'client.inferred'
     | 'client.status'
@@ -64,8 +73,17 @@ export interface NexusEventPayloads {
     'skill.register': { name: string; id: string };
     'skill.deploy': { skillId: string; scope: string; status: string };
     'skill.revoke': { skillId: string; status: string };
+    'hook.deploy': { hookId: string; scope: string; status: string };
+    'hook.revoke': { hookId: string; status: string };
+    'hook.fire': { hookId: string; name: string; trigger: string; blocked: boolean };
     'workflow.deploy': { workflowId: string; scope: string; status: string };
     'workflow.run': { workflowId: string; runId: string; status: string };
+    'automation.deploy': { automationId: string; scope: string; status: string };
+    'automation.revoke': { automationId: string; status: string };
+    'automation.run': { automationId: string; trigger: string; queued: boolean };
+    'shield.decision': { target: string; stage: string; action: string; blocked: boolean };
+    'memory.audit': { scanned: number; quarantined: number };
+    'federation.heartbeat': { peerId: string; source: string; health: string; capabilities: number };
     'client.heartbeat': { clientId: string; displayName: string; source: string; state: string };
     'client.inferred': { clientId: string; displayName: string; source: string; state: string; evidence: string[] };
     'client.status': { clientId: string; displayName: string; previous: string; next: string; source: string };

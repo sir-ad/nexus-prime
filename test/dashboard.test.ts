@@ -194,24 +194,34 @@ async function test() {
       runsRes,
       skillsRes,
       workflowsRes,
+      hooksRes,
+      automationsRes,
       backendsRes,
       healthRes,
       memoryRes,
+      memoryAuditRes,
+      memoryQuarantineRes,
       memoryNetworkRes,
       podRes,
       clientsRes,
+      federationRes,
       eventsRes,
     ] = await Promise.all([
       fetch(`${primaryAddress}/`),
       fetch(`${primaryAddress}/api/runs`),
       fetch(`${primaryAddress}/api/skills`),
       fetch(`${primaryAddress}/api/workflows`),
+      fetch(`${primaryAddress}/api/hooks`),
+      fetch(`${primaryAddress}/api/automations`),
       fetch(`${primaryAddress}/api/backends`),
       fetch(`${primaryAddress}/api/health`),
       fetch(`${primaryAddress}/api/memory`),
+      fetch(`${primaryAddress}/api/memory/audit`),
+      fetch(`${primaryAddress}/api/memory/quarantine`),
       fetch(`${primaryAddress}/api/memory/${encodeURIComponent(rootMemoryId)}/network`),
       fetch(`${primaryAddress}/api/pod`),
       fetch(`${primaryAddress}/api/clients`),
+      fetch(`${primaryAddress}/api/federation`),
       fetch(`${primaryAddress}/api/events?limit=20`),
     ]);
 
@@ -219,12 +229,17 @@ async function test() {
     const runs = await runsRes.json();
     const skills = await skillsRes.json();
     const workflows = await workflowsRes.json();
+    const hooks = await hooksRes.json();
+    const automations = await automationsRes.json();
     const backends = await backendsRes.json();
     const health = await healthRes.json();
     const memories = await memoryRes.json();
+    const memoryAudit = await memoryAuditRes.json();
+    const memoryQuarantine = await memoryQuarantineRes.json();
     const memoryNetwork = await memoryNetworkRes.json();
     const pod = await podRes.json();
     const clients = await clientsRes.json();
+    const federation = await federationRes.json();
     const events = await eventsRes.json();
     const streamChunk = await fetchStreamChunk(`${primaryAddress}/stream`);
 
@@ -234,13 +249,18 @@ async function test() {
     assert.ok(Array.isArray(runs) && runs.length > 0, 'runs API should return recorded runs');
     assert.ok(Array.isArray(skills) && skills.length > 0, 'skills API should return artifacts');
     assert.ok(Array.isArray(workflows) && workflows.length > 0, 'workflows API should return artifacts');
+    assert.ok(Array.isArray(hooks) && hooks.length > 0, 'hooks API should return artifacts');
+    assert.ok(Array.isArray(automations) && automations.length > 0, 'automations API should return artifacts');
     assert.ok(backends.memory && backends.compression && backends.dsl, 'backends API should return grouped catalogs');
     assertHealthContract(health, primaryAddress);
     assert.strictEqual(health.docs.pagesWorkflowValid, true, 'health API should report fixed Pages workflow syntax');
     assert.ok(Array.isArray(memories) && memories.length >= 2, 'memory API should return snapshots');
+    assert.ok(typeof memoryAudit.scanned === 'number', 'memory audit API should return a scan count');
+    assert.ok(Array.isArray(memoryQuarantine), 'memory quarantine API should return a list');
     assert.ok(Array.isArray(memoryNetwork.nodes) && memoryNetwork.nodes.length > 0, 'memory network API should return graph nodes');
     assert.ok(Array.isArray(pod.messages) && pod.messages.length > 0, 'pod API should return messages');
     assert.ok(Array.isArray(clients) && clients.some((client: any) => client.clientId === 'codex' && client.state === 'active'), 'client API should surface explicit heartbeat clients');
+    assert.ok(Array.isArray(federation.knownPeers), 'federation API should return peer inventory');
     assert.ok(Array.isArray(events) && events.length > 0, 'events API should return normalized event cards');
     assert.ok(events.every((event: any) => event.title && event.category && typeof event.time === 'number'), 'events API should normalize event cards');
     assert.ok(streamChunk.includes('retry: 3000') || streamChunk.includes('event: bootstrap'), 'stream endpoint should emit SSE prelude');
@@ -255,6 +275,16 @@ async function test() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ workflowId: workflows[0].workflowId }),
     });
+    const deployHook = await fetch(`${primaryAddress}/api/hooks/deploy`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ hookId: hooks[0].hookId }),
+    });
+    const deployAutomation = await fetch(`${primaryAddress}/api/automations/deploy`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ automationId: automations[0].automationId }),
+    });
     const executeRun = await fetch(`${primaryAddress}/api/runtime/execute`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -263,8 +293,15 @@ async function test() {
         files: ['README.md'],
         workers: 1,
         verifyCommands: ['npm run build'],
+        hookSelectors: ['run-created-brief'],
+        automationSelectors: ['verified-followup-automation'],
         actions: [{ type: 'append_file', path: 'README.md', content: '\nControl plane run.\n' }]
       }),
+    });
+    const runAutomation = await fetch(`${primaryAddress}/api/automations/run`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ automationId: automations[0].automationId, goal: 'Dashboard automation smoke run' }),
     });
     const reconnectClient = await fetch(`${primaryAddress}/api/clients/codex/reconnect`, {
       method: 'POST',
@@ -274,7 +311,10 @@ async function test() {
 
     assert.strictEqual(deploySkill.status, 200, 'skill deploy route should succeed');
     assert.strictEqual(deployWorkflow.status, 200, 'workflow deploy route should succeed');
+    assert.strictEqual(deployHook.status, 200, 'hook deploy route should succeed');
+    assert.strictEqual(deployAutomation.status, 200, 'automation deploy route should succeed');
     assert.strictEqual(executeRun.status, 201, 'runtime execute route should create a run');
+    assert.strictEqual(runAutomation.status, 201, 'automation run route should create a run');
     assert.strictEqual(reconnectClient.status, 200, 'client reconnect route should succeed');
 
     console.log('✅ Dashboard compatibility, APIs, topology shell, and control plane are healthy\n');

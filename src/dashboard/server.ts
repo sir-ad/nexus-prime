@@ -24,6 +24,9 @@ const REQUIRED_CAPABILITIES = {
     clients: true,
     events: true,
     stream: true,
+    hooks: true,
+    automations: true,
+    federation: true,
 } as const;
 
 const DEFAULT_SKILLS: Array<{ name: string; instructions: string; riskClass: 'read' | 'orchestrate' | 'mutate'; scope: 'session' | 'worker' | 'global' }> = [
@@ -64,7 +67,7 @@ interface DashboardEventCard {
     source: string;
     time: number;
     severity: 'good' | 'info' | 'warn' | 'bad';
-    category: 'memory' | 'tokens' | 'runtime' | 'pod' | 'skills' | 'workflows' | 'clients' | 'system';
+    category: 'memory' | 'tokens' | 'runtime' | 'pod' | 'skills' | 'workflows' | 'clients' | 'system' | 'hooks' | 'automations' | 'shield' | 'federation';
     summary: string;
     payload: unknown;
 }
@@ -243,6 +246,16 @@ export class DashboardServer {
             return;
         }
 
+        if (req.method === 'GET' && url.pathname === '/api/hooks') {
+            this.respondJson(res, this.getRuntime()?.listHooks() ?? []);
+            return;
+        }
+
+        if (req.method === 'GET' && url.pathname === '/api/automations') {
+            this.respondJson(res, this.getRuntime()?.listAutomations() ?? []);
+            return;
+        }
+
         if (req.method === 'GET' && url.pathname === '/api/backends') {
             this.respondJson(res, this.getRuntime()?.getBackendCatalog() ?? {});
             return;
@@ -266,6 +279,18 @@ export class DashboardServer {
                 linkedType: linkedType as 'session' | 'run' | 'skill' | 'workflow' | undefined,
                 recencyMs: recencyMs ? parseInt(recencyMs, 10) : undefined,
             }) ?? []);
+            return;
+        }
+
+        if (req.method === 'GET' && url.pathname === '/api/memory/audit') {
+            const limit = parseInt(url.searchParams.get('limit') || '80', 10);
+            this.respondJson(res, this.getRuntime()?.auditMemory(limit) ?? { scanned: 0, quarantined: [], findings: [] });
+            return;
+        }
+
+        if (req.method === 'GET' && url.pathname === '/api/memory/quarantine') {
+            const limit = parseInt(url.searchParams.get('limit') || '40', 10);
+            this.respondJson(res, this.getRuntime()?.listMemoryQuarantine(limit) ?? []);
             return;
         }
 
@@ -301,6 +326,11 @@ export class DashboardServer {
 
         if (req.method === 'GET' && url.pathname === '/api/clients') {
             this.respondJson(res, this.getClientRegistry()?.listClients(this.getAdapters()) ?? []);
+            return;
+        }
+
+        if (req.method === 'GET' && url.pathname === '/api/federation') {
+            this.respondJson(res, this.getRuntime()?.getNetworkStatus() ?? {});
             return;
         }
 
@@ -424,6 +454,35 @@ export class DashboardServer {
             return;
         }
 
+        if (req.method === 'POST' && url.pathname === '/api/hooks/deploy') {
+            const body = await this.readJsonBody(req);
+            const runtime = this.getRuntime();
+            const deployed = runtime?.deployHook(String(body.hookId), body.scope);
+            if (deployed) {
+                nexusEventBus.emit('hook.deploy', {
+                    hookId: deployed.hookId,
+                    scope: deployed.scope,
+                    status: deployed.rolloutStatus,
+                });
+            }
+            this.respondJson(res, deployed ?? { error: 'hook-not-found' }, deployed ? 200 : 404);
+            return;
+        }
+
+        if (req.method === 'POST' && url.pathname === '/api/hooks/revoke') {
+            const body = await this.readJsonBody(req);
+            const runtime = this.getRuntime();
+            const revoked = runtime?.revokeHook(String(body.hookId));
+            if (revoked) {
+                nexusEventBus.emit('hook.revoke', {
+                    hookId: revoked.hookId,
+                    status: revoked.rolloutStatus,
+                });
+            }
+            this.respondJson(res, revoked ?? { error: 'hook-not-found' }, revoked ? 200 : 404);
+            return;
+        }
+
         if (req.method === 'POST' && url.pathname === '/api/workflows/run') {
             const body = await this.readJsonBody(req);
             const runtime = this.getRuntime();
@@ -461,6 +520,52 @@ export class DashboardServer {
                 action: 'runtime.execute',
                 status: run.state,
                 target: run.runId,
+            });
+            this.respondJson(res, run, 201);
+            return;
+        }
+
+        if (req.method === 'POST' && url.pathname === '/api/automations/deploy') {
+            const body = await this.readJsonBody(req);
+            const runtime = this.getRuntime();
+            const deployed = runtime?.deployAutomation(String(body.automationId), body.scope);
+            if (deployed) {
+                nexusEventBus.emit('automation.deploy', {
+                    automationId: deployed.automationId,
+                    scope: deployed.scope,
+                    status: deployed.rolloutStatus,
+                });
+            }
+            this.respondJson(res, deployed ?? { error: 'automation-not-found' }, deployed ? 200 : 404);
+            return;
+        }
+
+        if (req.method === 'POST' && url.pathname === '/api/automations/revoke') {
+            const body = await this.readJsonBody(req);
+            const runtime = this.getRuntime();
+            const revoked = runtime?.revokeAutomation(String(body.automationId));
+            if (revoked) {
+                nexusEventBus.emit('automation.revoke', {
+                    automationId: revoked.automationId,
+                    status: revoked.rolloutStatus,
+                });
+            }
+            this.respondJson(res, revoked ?? { error: 'automation-not-found' }, revoked ? 200 : 404);
+            return;
+        }
+
+        if (req.method === 'POST' && url.pathname === '/api/automations/run') {
+            const body = await this.readJsonBody(req);
+            const runtime = this.getRuntime();
+            if (!runtime) {
+                this.respondJson(res, { error: 'runtime-unavailable' }, 503);
+                return;
+            }
+            const run = await runtime.runAutomation(String(body.automationId), body.goal ? String(body.goal) : undefined);
+            nexusEventBus.emit('automation.run', {
+                automationId: String(body.automationId),
+                trigger: 'manual',
+                queued: false,
             });
             this.respondJson(res, run, 201);
             return;
@@ -888,7 +993,11 @@ function mapEventCategory(type: NexusEventType): DashboardEventCard['category'] 
     if (type.startsWith('phantom.')) return 'runtime';
     if (type.startsWith('client.')) return 'clients';
     if (type.startsWith('skill.')) return 'skills';
+    if (type.startsWith('hook.')) return 'hooks';
     if (type.startsWith('workflow.')) return 'workflows';
+    if (type.startsWith('automation.')) return 'automations';
+    if (type.startsWith('shield.')) return 'shield';
+    if (type.startsWith('federation.') || type.startsWith('nexusnet.')) return 'federation';
     if (type.startsWith('tokens.') || type.startsWith('cas.') || type.startsWith('kv.')) return 'tokens';
     return 'system';
 }
@@ -903,6 +1012,7 @@ function mapEventSeverity(type: NexusEventType, payload: Record<string, unknown>
     if (type === 'client.inferred') return 'warn';
     if (type === 'dashboard.action' && payload.status === 'failed') return 'bad';
     if (type === 'pod.signal') return 'info';
+    if (type === 'shield.decision') return payload.blocked ? 'bad' : payload.action === 'quarantine' ? 'warn' : 'info';
     return 'info';
 }
 
@@ -925,8 +1035,17 @@ function mapEventTitle(type: NexusEventType): string {
         'skill.register': 'Skill registered',
         'skill.deploy': 'Skill deployed',
         'skill.revoke': 'Skill revoked',
+        'hook.deploy': 'Hook deployed',
+        'hook.revoke': 'Hook revoked',
+        'hook.fire': 'Hook fired',
         'workflow.deploy': 'Workflow deployed',
         'workflow.run': 'Workflow run',
+        'automation.deploy': 'Automation deployed',
+        'automation.revoke': 'Automation revoked',
+        'automation.run': 'Automation run',
+        'shield.decision': 'Shield decision',
+        'memory.audit': 'Memory audit',
+        'federation.heartbeat': 'Federation heartbeat',
         'client.heartbeat': 'Client heartbeat',
         'client.inferred': 'Client inferred',
         'client.status': 'Client status',
@@ -950,7 +1069,11 @@ function mapEventSource(type: NexusEventType, payload: Record<string, unknown>):
     if (type === 'pod.signal') return String(payload.workerId ?? 'pod');
     if (type.startsWith('phantom.')) return String(payload.workerId ?? payload.winner ?? 'runtime');
     if (type.startsWith('skill.')) return String(payload.skillId ?? payload.name ?? 'skill');
+    if (type.startsWith('hook.')) return String(payload.hookId ?? payload.name ?? 'hook');
     if (type.startsWith('workflow.')) return String(payload.workflowId ?? 'workflow');
+    if (type.startsWith('automation.')) return String(payload.automationId ?? 'automation');
+    if (type.startsWith('shield.')) return String(payload.target ?? 'shield');
+    if (type.startsWith('federation.')) return String(payload.peerId ?? 'federation');
     return 'nexus-prime';
 }
 
@@ -974,6 +1097,16 @@ function summarizeEvent(type: NexusEventType, payload: Record<string, unknown>):
         case 'client.inferred':
         case 'client.status':
             return JSON.stringify(payload);
+        case 'hook.fire':
+            return `${payload.name ?? payload.hookId ?? 'hook'} @ ${payload.trigger ?? 'unknown trigger'}`;
+        case 'automation.run':
+            return `${payload.automationId ?? 'automation'} @ ${payload.trigger ?? 'unknown trigger'}${payload.queued ? ' queued' : ''}`;
+        case 'shield.decision':
+            return `${payload.action ?? 'allow'} · ${payload.target ?? 'unknown target'}`;
+        case 'memory.audit':
+            return `Scanned ${payload.scanned ?? 0} memories · quarantined ${payload.quarantined ?? 0}`;
+        case 'federation.heartbeat':
+            return `${payload.peerId ?? 'peer'} · ${payload.health ?? 'unknown'} · ${payload.capabilities ?? 0} capabilities`;
         case 'dashboard.action':
             return `${payload.action ?? 'action'} → ${payload.status ?? 'unknown'}`;
         default:

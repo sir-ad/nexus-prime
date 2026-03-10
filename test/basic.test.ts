@@ -52,6 +52,12 @@ async function test() {
     await nexus.start();
     console.log('✅ Started\n');
 
+    const runtime = nexus.getRuntime();
+    assert.ok(runtime.listSkills().some((skill) => skill.name === 'django-builder'), 'expanded bundled skills should include django-builder');
+    assert.ok(runtime.listWorkflows().some((workflow) => workflow.name === 'gtm-approval-loop'), 'expanded bundled workflows should include gtm-approval-loop');
+    assert.ok(runtime.listHooks().some((hook) => hook.name === 'run-created-brief'), 'bundled hooks should be available');
+    assert.ok(runtime.listAutomations().some((automation) => automation.name === 'verified-followup-automation'), 'bundled automations should be available');
+
     const coder = await nexus.createAgent('coder');
     console.log(`✅ Created agent: ${coder.id}\n`);
 
@@ -61,12 +67,16 @@ async function test() {
       verifyCommands: ['npm run build'],
       skillNames: ['backend-playbook', 'orchestration-playbook'],
       workflowSelectors: ['backend-execution-loop'],
+      hookSelectors: ['run-created-brief', 'before-verify-approval'],
+      automationSelectors: ['verified-followup-automation'],
       backendSelectors: {
         memoryBackend: 'temporal-hyperbolic-memory',
         compressionBackend: 'meta-compression',
         dslCompiler: 'agentlang-neural-compiler'
       },
       backendMode: 'experimental',
+      shieldPolicy: 'balanced',
+      memoryPolicy: { mode: 'balanced', quarantineTag: '#quarantine' },
       actions: [
         {
           type: 'append_file',
@@ -101,10 +111,18 @@ async function test() {
     assert.ok(result.execution.verificationResults.length > 0, 'verifier results should be present');
     assert.ok(result.execution.activeSkills.length > 0, 'skills should be active');
     assert.ok(result.execution.activeWorkflows.length > 0, 'workflows should be active');
+    assert.ok(result.execution.activeHooks.length > 0, 'hooks should be active');
+    assert.ok(result.execution.activeAutomations.length > 0, 'automations should be active');
     assert.strictEqual(result.execution.selectedBackends.memoryBackend, 'temporal-hyperbolic-memory');
     assert.strictEqual(result.execution.selectedBackends.compressionBackend, 'meta-compression');
     assert.strictEqual(result.execution.selectedBackends.dslCompiler, 'agentlang-neural-compiler');
     assert.ok(result.execution.promotionDecisions.length > 0, 'promotion decisions should be recorded');
+    assert.ok(result.execution.shieldDecisions.length > 0, 'shield decisions should be recorded');
+    assert.ok(result.execution.memoryChecks.length > 0, 'memory checks should be recorded');
+    assert.ok(result.execution.federationState, 'federation state should be recorded');
+    assert.ok(result.execution.hookEvents.length > 0, 'hook events should be recorded');
+    assert.ok(result.execution.automationEvents.length > 0, 'automation events should be recorded');
+    assert.ok((runtime.auditMemory()?.scanned ?? 0) > 0, 'memory audit should be available after execution');
 
     await nexus.stop();
     console.log('✅ Stopped\n');

@@ -102,6 +102,28 @@ export interface MemoryNetworkSnapshot {
   links: MemoryNetworkLink[];
 }
 
+export interface MemoryCheckFinding {
+  id: string;
+  severity: 'low' | 'medium' | 'high';
+  category: 'duplicate' | 'contradiction' | 'secret' | 'claim' | 'entropy' | 'provenance';
+  message: string;
+  relatedIds: string[];
+}
+
+export interface MemoryCheckResult {
+  contentPreview: string;
+  action: 'allow' | 'warn' | 'quarantine' | 'block';
+  findings: MemoryCheckFinding[];
+  duplicateCluster: string[];
+  canPromote: boolean;
+}
+
+export interface MemoryAuditResult {
+  scanned: number;
+  quarantined: MemorySnapshot[];
+  findings: Array<MemoryCheckResult & { id: string }>;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // MemoryEngine
 // ─────────────────────────────────────────────────────────────────────────────
@@ -391,6 +413,130 @@ export class MemoryEngine {
     return top.map(r => r.content);
   }
 
+  checkContent(content: string, options: {
+    tags?: string[];
+    priority?: number;
+    parentId?: string;
+  } = {}): MemoryCheckResult {
+    const normalized = content.trim().toLowerCase();
+    const words = normalized.split(/\W+/).filter(Boolean);
+    const findings: MemoryCheckFinding[] = [];
+    const duplicateCluster: string[] = [];
+    const allItems = this.getAllItems();
+
+    for (const item of allItems) {
+      const candidateWords = item.content.toLowerCase().split(/\W+/).filter(Boolean);
+      const overlap = this.wordOverlap(words, candidateWords);
+      if (item.content.trim().toLowerCase() === normalized || overlap >= 0.86) {
+        duplicateCluster.push(item.id);
+      }
+
+      const newNegated = /\b(not|never|no longer|cannot|can't)\b/i.test(content);
+      const oldNegated = /\b(not|never|no longer|cannot|can't)\b/i.test(item.content);
+      if (overlap >= 0.42 && newNegated !== oldNegated) {
+        findings.push({
+          id: `contradiction:${item.id}`,
+          severity: 'medium',
+          category: 'contradiction',
+          message: 'Potential contradiction with an existing memory on the same topic.',
+          relatedIds: [item.id],
+        });
+      }
+    }
+
+    if (duplicateCluster.length > 0) {
+      findings.push({
+        id: 'duplicate-cluster',
+        severity: duplicateCluster.length > 1 ? 'medium' : 'low',
+        category: 'duplicate',
+        message: 'Content is highly similar to one or more existing memories.',
+        relatedIds: duplicateCluster,
+      });
+    }
+
+    if (/(api[_-]?key|secret|token|password|ghp_|sk-[a-z0-9]{8,})/i.test(content)) {
+      findings.push({
+        id: 'secret-pattern',
+        severity: 'high',
+        category: 'secret',
+        message: 'Potential secret-bearing content detected.',
+        relatedIds: [],
+      });
+    }
+
+    if (/(guaranteed|100%\\s*(roi|secure|accurate|success)|always works|fully compliant)/i.test(content)) {
+      findings.push({
+        id: 'unsupported-claim',
+        severity: 'medium',
+        category: 'claim',
+        message: 'Potential unsupported claim detected in memory content.',
+        relatedIds: [],
+      });
+    }
+
+    const entropyScore = this.estimateEntropy(words);
+    if (entropyScore > 0.82) {
+      findings.push({
+        id: 'entropy-noise',
+        severity: 'low',
+        category: 'entropy',
+        message: 'Memory content appears noisy or low-signal.',
+        relatedIds: [],
+      });
+    }
+
+    if ((options.tags?.length ?? 0) === 0 && !options.parentId && (options.priority ?? 0) < 0.7) {
+      findings.push({
+        id: 'low-provenance',
+        severity: 'low',
+        category: 'provenance',
+        message: 'Memory has weak provenance and should remain session-scoped until revalidated.',
+        relatedIds: [],
+      });
+    }
+
+    const action = findings.some((finding) => finding.severity === 'high')
+      ? 'block'
+      : findings.some((finding) => finding.severity === 'medium')
+        ? 'quarantine'
+        : findings.some((finding) => finding.severity === 'low')
+          ? 'warn'
+          : 'allow';
+
+    return {
+      contentPreview: content.length > 140 ? `${content.slice(0, 137)}...` : content,
+      action,
+      findings,
+      duplicateCluster,
+      canPromote: action === 'allow' || action === 'warn',
+    };
+  }
+
+  audit(limit: number = 80): MemoryAuditResult {
+    const snapshots = this.listSnapshots(limit);
+    const findings = snapshots.map((snapshot) => ({
+      id: snapshot.id,
+      ...this.checkContent(this.getDetail(snapshot.id)?.content ?? snapshot.excerpt, {
+        tags: snapshot.tags,
+        priority: snapshot.priority,
+        parentId: snapshot.parentId,
+      }),
+    }));
+
+    return {
+      scanned: findings.length,
+      quarantined: snapshots.filter((snapshot) =>
+        snapshot.tags.includes('#quarantine') ||
+        findings.some((finding) => finding.id === snapshot.id && (finding.action === 'quarantine' || finding.action === 'block'))
+      ),
+      findings,
+    };
+  }
+
+  listQuarantined(limit: number = 40): MemorySnapshot[] {
+    return this.audit(limit * 2).quarantined.slice(0, Math.max(limit, 1));
+  }
+
   // ─────────────────────────────────────────────────────────────────────────
   // Vector Index Helpers
   // ─────────────────────────────────────────────────────────────────────────
@@ -564,6 +710,14 @@ export class MemoryEngine {
     const intersection = [...setA].filter(x => setB.has(x));
     const union = new Set([...setA, ...setB]);
     return intersection.length / union.size;
+  }
+
+  private estimateEntropy(words: string[]): number {
+    const filtered = words.filter((word) => word.length > 1);
+    if (filtered.length === 0) return 1;
+    const unique = new Set(filtered);
+    const shortNoise = filtered.filter((word) => word.length <= 2).length / filtered.length;
+    return Math.min((unique.size / filtered.length) * 0.85 + shortNoise * 0.15, 1);
   }
 
   private rowToItem(row: any): MemoryItem {

@@ -32,6 +32,7 @@ import { HybridRetriever } from '../../engines/hybrid-retriever.js';
 import { nexusEventBus } from '../../engines/event-bus.js';
 import { AttentionScorer } from '../../engines/attention-stream.js';
 import { SkillCardRegistry, type SkillCard } from '../../engines/skill-card.js';
+import type { HookTrigger } from '../../engines/runtime-assets.js';
 import { DarwinLoop } from '../../engines/darwin-loop.js';
 import { NexusNetRelay } from '../../engines/nexusnet-relay.js';
 import {
@@ -510,6 +511,112 @@ export class MCPAdapter implements Adapter {
                             goal: { type: 'string', description: 'Optional override goal' }
                         },
                         required: ['workflowId'],
+                    },
+                },
+                {
+                    name: 'nexus_hook_generate',
+                    description: 'Generate a runtime hook artifact for checkpoint and system-event execution.',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {
+                            name: { type: 'string', description: 'Hook name' },
+                            description: { type: 'string', description: 'Hook description' },
+                            trigger: { type: 'string', enum: ['run.created', 'before-read', 'before-mutate', 'before-verify', 'retry', 'run.failed', 'run.verified', 'promotion.approved', 'memory.stored', 'shield.blocked'], description: 'Hook trigger' },
+                            riskClass: { type: 'string', enum: ['read', 'orchestrate', 'mutate'], description: 'Risk class for the hook' },
+                            scope: { type: 'string', enum: ['session', 'worker', 'global'], description: 'Initial hook scope' }
+                        },
+                        required: ['name', 'description', 'trigger'],
+                    },
+                },
+                {
+                    name: 'nexus_hook_deploy',
+                    description: 'Deploy or promote a hook artifact for future runs.',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {
+                            hookId: { type: 'string', description: 'Hook artifact ID or exact name' },
+                            scope: { type: 'string', enum: ['session', 'worker', 'global'], description: 'Deployment scope' }
+                        },
+                        required: ['hookId'],
+                    },
+                },
+                {
+                    name: 'nexus_hook_revoke',
+                    description: 'Revoke a runtime hook artifact.',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {
+                            hookId: { type: 'string', description: 'Hook artifact ID or exact name' }
+                        },
+                        required: ['hookId'],
+                    },
+                },
+                {
+                    name: 'nexus_automation_generate',
+                    description: 'Generate a runtime automation artifact for event, schedule, or connector triggers.',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {
+                            name: { type: 'string', description: 'Automation name' },
+                            description: { type: 'string', description: 'Automation description' },
+                            triggerMode: { type: 'string', enum: ['event', 'schedule', 'connector'], description: 'Trigger mode' },
+                            eventTrigger: { type: 'string', enum: ['run.created', 'before-read', 'before-mutate', 'before-verify', 'retry', 'run.failed', 'run.verified', 'promotion.approved', 'memory.stored', 'shield.blocked'], description: 'Event trigger when triggerMode=event' },
+                            scope: { type: 'string', enum: ['session', 'worker', 'global'], description: 'Initial automation scope' }
+                        },
+                        required: ['name', 'description'],
+                    },
+                },
+                {
+                    name: 'nexus_automation_deploy',
+                    description: 'Deploy or promote an automation artifact.',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {
+                            automationId: { type: 'string', description: 'Automation artifact ID or exact name' },
+                            scope: { type: 'string', enum: ['session', 'worker', 'global'], description: 'Deployment scope' }
+                        },
+                        required: ['automationId'],
+                    },
+                },
+                {
+                    name: 'nexus_automation_run',
+                    description: 'Run an automation artifact through the real execution runtime.',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {
+                            automationId: { type: 'string', description: 'Automation artifact ID or exact name' },
+                            goal: { type: 'string', description: 'Optional override goal' }
+                        },
+                        required: ['automationId'],
+                    },
+                },
+                {
+                    name: 'nexus_automation_revoke',
+                    description: 'Revoke a runtime automation artifact.',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {
+                            automationId: { type: 'string', description: 'Automation artifact ID or exact name' }
+                        },
+                        required: ['automationId'],
+                    },
+                },
+                {
+                    name: 'nexus_memory_audit',
+                    description: 'Audit stored memories for duplicates, contradictions, quarantine candidates, and promotion safety.',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {
+                            limit: { type: 'number', description: 'Maximum memories to scan' }
+                        },
+                    },
+                },
+                {
+                    name: 'nexus_federation_status',
+                    description: 'Return local federation status, peer inventory, relay learnings, and active peer links.',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {},
                     },
                 },
                 {
@@ -1356,6 +1463,150 @@ export class MCPAdapter implements Adapter {
                 }
             }
 
+            case 'nexus_hook_generate': {
+                const name = String(request.params.arguments?.name ?? '');
+                const description = String(request.params.arguments?.description ?? '');
+                const trigger = String(request.params.arguments?.trigger ?? 'run.created') as HookTrigger;
+                const riskClass = String(request.params.arguments?.riskClass ?? 'orchestrate') as 'read' | 'orchestrate' | 'mutate';
+                const scope = String(request.params.arguments?.scope ?? 'session') as 'session' | 'worker' | 'global';
+                const artifact = this.getRuntime().generateHook({ name, description, trigger, riskClass, scope });
+                return {
+                    content: [{
+                        type: 'text',
+                        text: `🪝 Hook generated\nID: ${artifact.hookId}\nName: ${artifact.name}\nTrigger: ${artifact.trigger}\nScope: ${artifact.scope}`,
+                    }],
+                };
+            }
+
+            case 'nexus_hook_deploy': {
+                const hookId = String(request.params.arguments?.hookId ?? '');
+                const scope = String(request.params.arguments?.scope ?? 'session') as 'session' | 'worker' | 'global';
+                const runtime = this.getRuntime();
+                const known = runtime.listHooks().find((hook) => hook.hookId === hookId || hook.name === hookId);
+                const artifact = known ? runtime.deployHook(known.hookId, scope) : undefined;
+                if (!artifact) {
+                    return { content: [{ type: 'text', text: `❌ Hook not found: ${hookId}` }] };
+                }
+                nexusEventBus.emit('hook.deploy', { hookId: artifact.hookId, scope: artifact.scope, status: artifact.rolloutStatus });
+                return {
+                    content: [{
+                        type: 'text',
+                        text: `🪝 Hook deployed\nID: ${artifact.hookId}\nName: ${artifact.name}\nScope: ${artifact.scope}\nRollout: ${artifact.rolloutStatus}`,
+                    }],
+                };
+            }
+
+            case 'nexus_hook_revoke': {
+                const hookId = String(request.params.arguments?.hookId ?? '');
+                const runtime = this.getRuntime();
+                const known = runtime.listHooks().find((hook) => hook.hookId === hookId || hook.name === hookId);
+                const artifact = known ? runtime.revokeHook(known.hookId) : undefined;
+                if (!artifact) {
+                    return { content: [{ type: 'text', text: `❌ Hook not found: ${hookId}` }] };
+                }
+                nexusEventBus.emit('hook.revoke', { hookId: artifact.hookId, status: artifact.rolloutStatus });
+                return {
+                    content: [{
+                        type: 'text',
+                        text: `🧯 Hook revoked\nID: ${artifact.hookId}\nName: ${artifact.name}\nRollout: ${artifact.rolloutStatus}`,
+                    }],
+                };
+            }
+
+            case 'nexus_automation_generate': {
+                const name = String(request.params.arguments?.name ?? '');
+                const description = String(request.params.arguments?.description ?? '');
+                const triggerMode = String(request.params.arguments?.triggerMode ?? 'event') as 'event' | 'schedule' | 'connector';
+                const eventTrigger = request.params.arguments?.eventTrigger ? String(request.params.arguments?.eventTrigger) as HookTrigger : undefined;
+                const scope = String(request.params.arguments?.scope ?? 'session') as 'session' | 'worker' | 'global';
+                const artifact = this.getRuntime().generateAutomation({ name, description, triggerMode, eventTrigger, scope });
+                return {
+                    content: [{
+                        type: 'text',
+                        text: `🤖 Automation generated\nID: ${artifact.automationId}\nName: ${artifact.name}\nTrigger Mode: ${artifact.triggerMode}\nScope: ${artifact.scope}`,
+                    }],
+                };
+            }
+
+            case 'nexus_automation_deploy': {
+                const automationId = String(request.params.arguments?.automationId ?? '');
+                const scope = String(request.params.arguments?.scope ?? 'session') as 'session' | 'worker' | 'global';
+                const runtime = this.getRuntime();
+                const known = runtime.listAutomations().find((automation) => automation.automationId === automationId || automation.name === automationId);
+                const artifact = known ? runtime.deployAutomation(known.automationId, scope) : undefined;
+                if (!artifact) {
+                    return { content: [{ type: 'text', text: `❌ Automation not found: ${automationId}` }] };
+                }
+                nexusEventBus.emit('automation.deploy', { automationId: artifact.automationId, scope: artifact.scope, status: artifact.rolloutStatus });
+                return {
+                    content: [{
+                        type: 'text',
+                        text: `🤖 Automation deployed\nID: ${artifact.automationId}\nName: ${artifact.name}\nScope: ${artifact.scope}\nRollout: ${artifact.rolloutStatus}`,
+                    }],
+                };
+            }
+
+            case 'nexus_automation_run': {
+                const automationId = String(request.params.arguments?.automationId ?? '');
+                const goalOverride = request.params.arguments?.goal ? String(request.params.arguments.goal) : undefined;
+                try {
+                    const execution = await this.getRuntime().runAutomation(automationId, goalOverride);
+                    return {
+                        content: [{
+                            type: 'text',
+                            text: [
+                                `🤖 Automation Runtime — ${summarizeExecution(execution)}`,
+                                `Run ID: ${execution.runId}`,
+                                `Artifacts: ${execution.artifactsPath}`,
+                                `Automations: ${execution.activeAutomations.map((automation) => automation.name).join(', ') || 'none'}`,
+                                `Result: ${execution.result}`,
+                            ].join('\n'),
+                        }],
+                    };
+                } catch (error: any) {
+                    return { content: [{ type: 'text', text: `❌ Automation runtime error: ${error.message}` }] };
+                }
+            }
+
+            case 'nexus_automation_revoke': {
+                const automationId = String(request.params.arguments?.automationId ?? '');
+                const runtime = this.getRuntime();
+                const known = runtime.listAutomations().find((automation) => automation.automationId === automationId || automation.name === automationId);
+                const artifact = known ? runtime.revokeAutomation(known.automationId) : undefined;
+                if (!artifact) {
+                    return { content: [{ type: 'text', text: `❌ Automation not found: ${automationId}` }] };
+                }
+                nexusEventBus.emit('automation.revoke', { automationId: artifact.automationId, status: artifact.rolloutStatus });
+                return {
+                    content: [{
+                        type: 'text',
+                        text: `🧯 Automation revoked\nID: ${artifact.automationId}\nName: ${artifact.name}\nRollout: ${artifact.rolloutStatus}`,
+                    }],
+                };
+            }
+
+            case 'nexus_memory_audit': {
+                const limit = Number(request.params.arguments?.limit ?? 80);
+                const audit = this.getRuntime().auditMemory(limit) ?? { scanned: 0, quarantined: [], findings: [] };
+                nexusEventBus.emit('memory.audit', { scanned: audit.scanned, quarantined: audit.quarantined.length });
+                return {
+                    content: [{
+                        type: 'text',
+                        text: JSON.stringify(audit, null, 2),
+                    }],
+                };
+            }
+
+            case 'nexus_federation_status': {
+                const snapshot = this.getRuntime().getNetworkStatus();
+                return {
+                    content: [{
+                        type: 'text',
+                        text: JSON.stringify(snapshot, null, 2),
+                    }],
+                };
+            }
+
             case 'nexus_run_status': {
                 const runId = String(request.params.arguments?.runId ?? '');
                 const run = this.getRuntime().getRun(runId);
@@ -1373,7 +1624,12 @@ export class MCPAdapter implements Adapter {
                             workers: run.workerResults.length,
                             verifiedWorkers: run.workerResults.filter((worker) => worker.verified).length,
                             workflows: run.activeWorkflows.map((workflow) => workflow.name),
+                            hooks: run.activeHooks.map((hook) => hook.name),
+                            automations: run.activeAutomations.map((automation) => automation.name),
                             promotions: run.promotionDecisions,
+                            shield: run.shieldDecisions,
+                            memoryChecks: run.memoryChecks,
+                            federation: run.federationState,
                             backends: run.selectedBackends,
                         }, null, 2),
                     }],

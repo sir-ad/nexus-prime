@@ -118,6 +118,34 @@ async function runTests() {
     console.log(`  prefrontal: ${stats.prefrontal}, hippocampus: ${stats.hippocampus}, cortex: ${stats.cortex}`);
     console.log(`  links: ${stats.totalLinks}`);
 
+    console.log('\n🛡️ Memory Checks');
+    const duplicateCheck = mem.checkContent('authentication is broken for OAuth2 users', {
+        tags: ['#bug', '#auth'],
+        priority: 0.9,
+    });
+    assert(duplicateCheck.duplicateCluster.length > 0, 'Duplicate cluster is detected for repeated memory content');
+    assert(duplicateCheck.action === 'warn' || duplicateCheck.action === 'quarantine', `Duplicate memory is not treated as clean allow (got ${duplicateCheck.action})`);
+
+    const secretCheck = mem.checkContent('OPENAI_API_KEY=sk-secret-token-value', {
+        tags: ['#security'],
+        priority: 0.95,
+    });
+    assert(secretCheck.action === 'block', 'Secret-bearing memory content is blocked');
+
+    const contradictionCheck = mem.checkContent('authentication is not broken for OAuth2 users', {
+        tags: ['#decision'],
+        priority: 0.75,
+    });
+    assert(
+        contradictionCheck.findings.some((finding: any) => finding.category === 'contradiction'),
+        'Contradiction detection flags opposite claims on the same topic'
+    );
+
+    const audit = mem.audit(10);
+    assert(audit.scanned >= 4, `Audit scans stored memories (got ${audit.scanned})`);
+    assert(Array.isArray(audit.findings), 'Audit returns structured findings');
+    assert(Array.isArray(mem.listQuarantined(10)), 'Quarantine listing is available');
+
     // ── Persistence ───────────────────────────────────────────────────────────
     console.log('\n💿 Persistence (close + reload)');
     mem.close();

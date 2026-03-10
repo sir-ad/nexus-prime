@@ -239,10 +239,14 @@ program
   .option('--nxl-file <path>', 'NXL/YAML file to compile and execute')
   .option('--skills <skills...>', 'Runtime skill selectors')
   .option('--workflows <workflows...>', 'Runtime workflow selectors')
+  .option('--hooks <hooks...>', 'Runtime hook selectors')
+  .option('--automations <automations...>', 'Runtime automation selectors')
   .option('--memory-backend <id>', 'Memory backend selector')
   .option('--compression-backend <id>', 'Compression backend selector')
   .option('--dsl-compiler <id>', 'DSL compiler selector')
   .option('--backend-mode <mode>', 'Backend mode (default, shadow, experimental)')
+  .option('--shield-policy <policy>', 'Security shield policy (balanced, strict, permissive)')
+  .option('--memory-policy <policy>', 'Memory policy mode (balanced, strict, off)')
   .action(async (
     agentId: string,
     task: string,
@@ -254,10 +258,14 @@ program
       nxlFile?: string;
       skills?: string[];
       workflows?: string[];
+      hooks?: string[];
+      automations?: string[];
       memoryBackend?: string;
       compressionBackend?: string;
       dslCompiler?: string;
       backendMode?: 'default' | 'shadow' | 'experimental';
+      shieldPolicy?: 'balanced' | 'strict' | 'permissive';
+      memoryPolicy?: 'balanced' | 'strict' | 'off';
     }
   ) => {
     if (!nexus) {
@@ -285,12 +293,16 @@ program
       actions,
       skillNames: options.skills,
       workflowSelectors: options.workflows,
+      hookSelectors: options.hooks,
+      automationSelectors: options.automations,
       backendSelectors: {
         memoryBackend: options.memoryBackend,
         compressionBackend: options.compressionBackend,
         dslCompiler: options.dslCompiler,
       },
       backendMode: options.backendMode,
+      shieldPolicy: options.shieldPolicy,
+      memoryPolicy: options.memoryPolicy ? { mode: options.memoryPolicy, quarantineTag: '#quarantine' } : undefined,
     });
     console.log(`📝 Result: ${result.result}`);
     console.log(`📊 Value: ${result.experience.value.toFixed(2)}`);
@@ -313,7 +325,140 @@ program
         console.log('🔍 Results:');
         results.forEach(r => console.log(`  - ${r}`));
       })
+  )
+  .addCommand(
+    new Command('audit')
+      .option('-l, --limit <number>', 'Maximum memories to scan', '80')
+      .action(async (options: { limit: string }) => {
+        if (!nexus) {
+          nexus = createNexusPrime();
+          await nexus.start();
+        }
+        const audit = nexus.getRuntime().auditMemory(parseInt(options.limit, 10));
+        console.log(JSON.stringify(audit ?? { scanned: 0, quarantined: [], findings: [] }, null, 2));
+      })
   );
+
+program
+  .command('hook')
+  .description('Manage runtime hooks')
+  .addCommand(
+    new Command('generate')
+      .requiredOption('--name <name>', 'Hook name')
+      .requiredOption('--description <description>', 'Hook description')
+      .requiredOption('--trigger <trigger>', 'Hook trigger')
+      .option('--risk-class <riskClass>', 'Risk class', 'orchestrate')
+      .option('--scope <scope>', 'Hook scope', 'session')
+      .action(async (options: { name: string; description: string; trigger: any; riskClass: 'read' | 'orchestrate' | 'mutate'; scope: 'session' | 'worker' | 'global' }) => {
+        if (!nexus) {
+          nexus = createNexusPrime();
+          await nexus.start();
+        }
+        const hook = nexus.getRuntime().generateHook(options);
+        console.log(JSON.stringify(hook, null, 2));
+      })
+  )
+  .addCommand(
+    new Command('deploy')
+      .argument('<hookId>', 'Hook id or name')
+      .option('--scope <scope>', 'Deployment scope', 'session')
+      .action(async (hookId: string, options: { scope: 'session' | 'worker' | 'global' }) => {
+        if (!nexus) {
+          nexus = createNexusPrime();
+          await nexus.start();
+        }
+        const known = nexus.getRuntime().listHooks().find((hook) => hook.hookId === hookId || hook.name === hookId);
+        console.log(JSON.stringify(known ? nexus.getRuntime().deployHook(known.hookId, options.scope) : { error: 'hook-not-found' }, null, 2));
+      })
+  )
+  .addCommand(
+    new Command('revoke')
+      .argument('<hookId>', 'Hook id or name')
+      .action(async (hookId: string) => {
+        if (!nexus) {
+          nexus = createNexusPrime();
+          await nexus.start();
+        }
+        const known = nexus.getRuntime().listHooks().find((hook) => hook.hookId === hookId || hook.name === hookId);
+        console.log(JSON.stringify(known ? nexus.getRuntime().revokeHook(known.hookId) : { error: 'hook-not-found' }, null, 2));
+      })
+  );
+
+program
+  .command('automation')
+  .description('Manage runtime automations')
+  .addCommand(
+    new Command('generate')
+      .requiredOption('--name <name>', 'Automation name')
+      .requiredOption('--description <description>', 'Automation description')
+      .option('--trigger-mode <mode>', 'Trigger mode', 'event')
+      .option('--event-trigger <trigger>', 'Event trigger')
+      .option('--scope <scope>', 'Automation scope', 'session')
+      .action(async (options: {
+        name: string;
+        description: string;
+        triggerMode: 'event' | 'schedule' | 'connector';
+        eventTrigger?: any;
+        scope: 'session' | 'worker' | 'global';
+      }) => {
+        if (!nexus) {
+          nexus = createNexusPrime();
+          await nexus.start();
+        }
+        const automation = nexus.getRuntime().generateAutomation(options);
+        console.log(JSON.stringify(automation, null, 2));
+      })
+  )
+  .addCommand(
+    new Command('deploy')
+      .argument('<automationId>', 'Automation id or name')
+      .option('--scope <scope>', 'Deployment scope', 'session')
+      .action(async (automationId: string, options: { scope: 'session' | 'worker' | 'global' }) => {
+        if (!nexus) {
+          nexus = createNexusPrime();
+          await nexus.start();
+        }
+        const known = nexus.getRuntime().listAutomations().find((automation) => automation.automationId === automationId || automation.name === automationId);
+        console.log(JSON.stringify(known ? nexus.getRuntime().deployAutomation(known.automationId, options.scope) : { error: 'automation-not-found' }, null, 2));
+      })
+  )
+  .addCommand(
+    new Command('revoke')
+      .argument('<automationId>', 'Automation id or name')
+      .action(async (automationId: string) => {
+        if (!nexus) {
+          nexus = createNexusPrime();
+          await nexus.start();
+        }
+        const known = nexus.getRuntime().listAutomations().find((automation) => automation.automationId === automationId || automation.name === automationId);
+        console.log(JSON.stringify(known ? nexus.getRuntime().revokeAutomation(known.automationId) : { error: 'automation-not-found' }, null, 2));
+      })
+  )
+  .addCommand(
+    new Command('run')
+      .argument('<automationId>', 'Automation id or name')
+      .option('--goal <goal>', 'Optional override goal')
+      .action(async (automationId: string, options: { goal?: string }) => {
+        if (!nexus) {
+          nexus = createNexusPrime();
+          await nexus.start();
+        }
+        const execution = await nexus.getRuntime().runAutomation(automationId, options.goal);
+        console.log(`📝 Result: ${execution.result}`);
+        printExecutionSummary(execution);
+      })
+  );
+
+program
+  .command('network')
+  .description('Inspect local federation status')
+  .action(async () => {
+    if (!nexus) {
+      nexus = createNexusPrime();
+      await nexus.start();
+    }
+    console.log(JSON.stringify(nexus.getRuntime().getNetworkStatus(), null, 2));
+  });
 
 program
   .command('status')

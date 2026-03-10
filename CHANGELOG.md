@@ -2,6 +2,28 @@
 
 All notable changes to Nexus Prime will be documented in this file.
 
+## [3.4.0] - 2026-03-11
+
+### Added
+- **Expanded Living Product Brain**: Added broader bundled skill/workflow coverage for PDLC, GTM, writing, deep-tech, API, data, Python, Django, TypeScript, Node, React, AI, security, economics, plus builder/operator and approval-loop artifact families.
+- **Hook Runtime**: Added first-class hook artifacts with checkpoint/event triggers for `run.created`, `before-read`, `before-mutate`, `before-verify`, `retry`, `run.failed`, `run.verified`, `promotion.approved`, `memory.stored`, and `shield.blocked`.
+- **Automation Runtime**: Added first-class automation artifacts for event-driven, scheduled, and connector-bound workflows, including bounded follow-up execution and connector delivery records.
+- **Security Shield**: Added a final shield layer for patch apply, promotion, connector delivery, and memory governance decisions with `allow`, `warn`, `quarantine`, and `block` outcomes.
+- **Memory Audit Surfaces**: Added structured memory checks, audit reports, duplicate/contradiction detection, quarantine listing, and promotion-safety signals.
+- **Federation State Model**: Replaced the mock federation surface with a real local-federation snapshot containing peer inventory, heartbeat aging, relay learnings, and published traces.
+- **New MCP / CLI / Dashboard APIs**: Added hook, automation, memory-audit, and federation control/read surfaces across runtime APIs.
+
+### Changed
+- **Runtime Ledger**: Execution runs now record active hooks, active automations, shield decisions, memory checks, and federation state alongside skills, workflows, verifier evidence, and promotions.
+- **Runtime Lifecycle**: Hook dispatch, automation dispatch, memory checks, and shield evaluation now participate directly in the real execution path instead of being external concepts.
+- **Dashboard APIs**: Added `/api/hooks`, `/api/automations`, `/api/memory/audit`, `/api/memory/quarantine`, and `/api/federation`, plus deploy/run routes for hooks and automations.
+- **CLI Execution Inputs**: `nexus-prime execute` now accepts hook selectors, automation selectors, shield policy, and memory policy.
+
+### Fixed
+- **Release Metadata Drift**: Synchronized the package lockfile version with the package version at `3.4.0`.
+- **Federation Truthfulness**: Removed the fake gist-style publish IDs from the federation engine and replaced them with local-federation state and auditable trace handling.
+- **Memory Safety Gates**: High-risk secret-bearing memories and unsupported claim patterns are now flagged before promotion-oriented use.
+
 ## [3.2.2] - 2026-03-09
 
 ### Added

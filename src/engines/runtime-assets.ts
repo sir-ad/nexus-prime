@@ -4,6 +4,19 @@ import * as path from 'path';
 export type SkillRiskClass = 'read' | 'orchestrate' | 'mutate';
 export type SkillScope = 'base' | 'session' | 'worker' | 'runtime-hot' | 'global';
 export type SkillCheckpoint = 'before-read' | 'before-mutate' | 'before-verify' | 'retry';
+export type HookTrigger =
+    | 'run.created'
+    | 'before-read'
+    | 'before-mutate'
+    | 'before-verify'
+    | 'retry'
+    | 'run.failed'
+    | 'run.verified'
+    | 'promotion.approved'
+    | 'memory.stored'
+    | 'shield.blocked';
+export type AutomationTriggerMode = 'event' | 'schedule' | 'connector';
+export type ConnectorKind = 'github' | 'http';
 
 export type RuntimeBindingType =
     | 'write_file'
@@ -34,6 +47,10 @@ export interface DomainSkillSeed {
     verifierHooks: string[];
     roleAffinity: string[];
     toolBindings: RuntimeBinding[];
+    promotionThresholds?: {
+        minSuccesses: number;
+        maxFailures: number;
+    };
 }
 
 export interface WorkflowStepSeed {
@@ -55,6 +72,10 @@ export interface DomainWorkflowSeed {
     verifierHooks: string[];
     roleAffinity: string[];
     steps: WorkflowStepSeed[];
+    promotionThresholds?: {
+        minSuccesses: number;
+        maxFailures: number;
+    };
 }
 
 export interface ParsedMarkdownArtifact {
@@ -68,7 +89,39 @@ const BASE_DOMAIN_SKILLS: Array<{
     instructions: string[];
     outputs: string[];
     guardrails: string[];
+    roleAffinity: string[];
+    verifierHooks: string[];
+    toolBindings: RuntimeBinding[];
+    builderRiskClass?: SkillRiskClass;
 }> = [
+    {
+        domain: 'pdlc',
+        noun: 'product development lifecycle',
+        instructions: [
+            'Plan discovery, delivery, launch, feedback, and iteration as one lifecycle.',
+            'Translate goals into milestones, acceptance criteria, and checkpoint ownership.',
+            'Prefer measurable outcomes over vague roadmap language.',
+        ],
+        outputs: ['delivery plan', 'release checklist', 'feedback loop'],
+        guardrails: ['Do not hide milestone risk.', 'Do not collapse planning and approval into one step.'],
+        roleAffinity: ['planner', 'coder', 'verifier'],
+        verifierHooks: ['Record lifecycle checkpoint evidence before promotion.'],
+        toolBindings: [],
+    },
+    {
+        domain: 'gtm',
+        noun: 'go-to-market execution',
+        instructions: [
+            'Translate launch work into audience, channel, offer, proof, and timing.',
+            'Keep GTM plans tied to shipped capability rather than aspirational copy.',
+            'Map launch work to concrete owners and deadlines.',
+        ],
+        outputs: ['launch plan', 'channel matrix', 'proof checklist'],
+        guardrails: ['Do not invent traction.', 'Mark roadmap items as roadmap items.'],
+        roleAffinity: ['planner', 'skill-maker', 'verifier'],
+        verifierHooks: ['Validate launch claims against shipped runtime artifacts.'],
+        toolBindings: [],
+    },
     {
         domain: 'marketing',
         noun: 'message architecture',
@@ -79,6 +132,9 @@ const BASE_DOMAIN_SKILLS: Array<{
         ],
         outputs: ['positioning brief', 'launch narrative', 'proof matrix'],
         guardrails: ['Do not invent customer evidence.', 'Do not overstate launch readiness.'],
+        roleAffinity: ['planner', 'skill-maker', 'verifier'],
+        verifierHooks: ['Check messaging against live product behavior before promotion.'],
+        toolBindings: [],
     },
     {
         domain: 'product',
@@ -90,6 +146,37 @@ const BASE_DOMAIN_SKILLS: Array<{
         ],
         outputs: ['PRD delta', 'scope cut list', 'success criteria'],
         guardrails: ['Do not hide dependencies.', 'Always state assumptions explicitly.'],
+        roleAffinity: ['planner', 'coder', 'verifier'],
+        verifierHooks: ['Attach scope and dependency evidence to the run ledger.'],
+        toolBindings: [],
+    },
+    {
+        domain: 'writing',
+        noun: 'editorial synthesis',
+        instructions: [
+            'Condense research, runtime evidence, and technical detail into clear prose.',
+            'Prefer crisp, verifiable writing over filler or hype.',
+            'Keep audience and decision context explicit.',
+        ],
+        outputs: ['brief', 'summary', 'editorial draft'],
+        guardrails: ['Do not fabricate quotes.', 'Do not mask uncertainty.'],
+        roleAffinity: ['planner', 'skill-maker', 'research-shadow'],
+        verifierHooks: ['Check important claims against source artifacts.'],
+        toolBindings: [],
+    },
+    {
+        domain: 'deep-tech',
+        noun: 'research synthesis',
+        instructions: [
+            'Break hard technical problems into assumptions, experiments, and edge cases.',
+            'Capture evidence, tradeoffs, and failure modes explicitly.',
+            'Keep research findings connected to implementation decisions.',
+        ],
+        outputs: ['research note', 'experiment plan', 'decision matrix'],
+        guardrails: ['Do not treat speculation as evidence.', 'Separate hypothesis from result.'],
+        roleAffinity: ['research-shadow', 'planner', 'verifier'],
+        verifierHooks: ['Link research conclusions to concrete artifacts or measurements.'],
+        toolBindings: [],
     },
     {
         domain: 'backend',
@@ -101,6 +188,98 @@ const BASE_DOMAIN_SKILLS: Array<{
         ],
         outputs: ['API contract notes', 'migration checklist', 'verification plan'],
         guardrails: ['Do not bypass verification.', 'Do not silently change contracts.'],
+        roleAffinity: ['planner', 'coder', 'verifier'],
+        verifierHooks: ['Record changed contracts and rollback paths.'],
+        toolBindings: [{ type: 'run_command', command: 'npm test' }],
+        builderRiskClass: 'mutate',
+    },
+    {
+        domain: 'api',
+        noun: 'API design and integration',
+        instructions: [
+            'Keep interface shape, versioning, and failure modes explicit.',
+            'Prefer additive contracts and explicit deprecations.',
+            'Document request, response, and verification expectations together.',
+        ],
+        outputs: ['contract delta', 'consumer impact note', 'verification matrix'],
+        guardrails: ['Do not silently break clients.', 'Do not blur request validation rules.'],
+        roleAffinity: ['planner', 'coder', 'verifier'],
+        verifierHooks: ['Check contract examples against implementation artifacts.'],
+        toolBindings: [],
+    },
+    {
+        domain: 'data',
+        noun: 'data and state management',
+        instructions: [
+            'Model storage, migration, retention, and observability together.',
+            'Prefer reversible changes and explicit ownership of state transitions.',
+            'Track integrity and cleanup paths before rollout.',
+        ],
+        outputs: ['schema note', 'retention checklist', 'integrity plan'],
+        guardrails: ['Do not mutate state without rollback.', 'Do not ignore migration verification.'],
+        roleAffinity: ['planner', 'coder', 'verifier'],
+        verifierHooks: ['Attach migration or persistence verification evidence.'],
+        toolBindings: [],
+    },
+    {
+        domain: 'python',
+        noun: 'python application delivery',
+        instructions: [
+            'Favor explicit environments, reproducible commands, and test-backed changes.',
+            'Call out dependency, packaging, and runtime assumptions.',
+            'Prefer typed, readable service boundaries over implicit magic.',
+        ],
+        outputs: ['implementation note', 'env checklist', 'test matrix'],
+        guardrails: ['Do not change runtime dependencies silently.', 'Do not skip test isolation.'],
+        roleAffinity: ['planner', 'coder', 'verifier'],
+        verifierHooks: ['Run or document Python verification commands before promotion.'],
+        toolBindings: [{ type: 'run_command', command: 'python -m pytest' }],
+        builderRiskClass: 'mutate',
+    },
+    {
+        domain: 'django',
+        noun: 'django backend delivery',
+        instructions: [
+            'Treat models, migrations, admin, and public API surface as one system.',
+            'Verify settings, migrations, and management commands explicitly.',
+            'Preserve safe defaults for auth, forms, and data access.',
+        ],
+        outputs: ['migration review', 'settings checklist', 'endpoint review'],
+        guardrails: ['Do not ship unchecked migrations.', 'Do not loosen auth without review.'],
+        roleAffinity: ['planner', 'coder', 'verifier'],
+        verifierHooks: ['Require migration and endpoint verification evidence.'],
+        toolBindings: [{ type: 'run_command', command: 'python manage.py check' }],
+        builderRiskClass: 'mutate',
+    },
+    {
+        domain: 'typescript',
+        noun: 'typed TypeScript delivery',
+        instructions: [
+            'Use explicit types to protect contracts, orchestration, and runtime safety.',
+            'Prefer additive interfaces and deterministic serialization.',
+            'Surface compile-time tradeoffs before broad refactors.',
+        ],
+        outputs: ['type contract note', 'refactor checklist', 'compile verification plan'],
+        guardrails: ['Do not use types to hide runtime ambiguity.', 'Do not widen contracts casually.'],
+        roleAffinity: ['planner', 'coder', 'verifier'],
+        verifierHooks: ['Capture type-check or build evidence when relevant.'],
+        toolBindings: [{ type: 'run_command', command: 'npm run build' }],
+        builderRiskClass: 'mutate',
+    },
+    {
+        domain: 'node',
+        noun: 'Node.js runtime delivery',
+        instructions: [
+            'Balance runtime correctness, dependency safety, and operational visibility.',
+            'Keep scripts, CLIs, and servers explicit about side effects.',
+            'Use bounded commands and deterministic outputs wherever possible.',
+        ],
+        outputs: ['runtime note', 'command contract', 'operational checklist'],
+        guardrails: ['Do not hide side effects in scripts.', 'Do not ship unverifiable command paths.'],
+        roleAffinity: ['planner', 'coder', 'verifier'],
+        verifierHooks: ['Confirm command contracts with real output evidence.'],
+        toolBindings: [{ type: 'run_command', command: 'node -e "process.exit(0)"' }],
+        builderRiskClass: 'mutate',
     },
     {
         domain: 'frontend',
@@ -112,6 +291,25 @@ const BASE_DOMAIN_SKILLS: Array<{
         ],
         outputs: ['UI acceptance notes', 'state coverage list', 'dashboard copy'],
         guardrails: ['Do not regress accessibility.', 'Do not ship hidden loading failures.'],
+        roleAffinity: ['planner', 'coder', 'verifier'],
+        verifierHooks: ['Review loading, error, and mobile states against the shipped UI.'],
+        toolBindings: [],
+        builderRiskClass: 'mutate',
+    },
+    {
+        domain: 'react',
+        noun: 'React application delivery',
+        instructions: [
+            'Keep state flow, rendering intent, and hydration behavior explicit.',
+            'Preserve loading, error, and empty states as first-class product surfaces.',
+            'Prefer composable primitives and measurable UX improvements.',
+        ],
+        outputs: ['component plan', 'state coverage note', 'interaction checklist'],
+        guardrails: ['Do not hide hydration failures.', 'Do not regress accessibility or responsiveness.'],
+        roleAffinity: ['planner', 'coder', 'verifier'],
+        verifierHooks: ['Capture UI state verification evidence before promotion.'],
+        toolBindings: [],
+        builderRiskClass: 'mutate',
     },
     {
         domain: 'sales',
@@ -123,6 +321,9 @@ const BASE_DOMAIN_SKILLS: Array<{
         ],
         outputs: ['objection matrix', 'value narrative', 'demo outline'],
         guardrails: ['Do not fabricate ROI.', 'Do not claim unsupported integrations.'],
+        roleAffinity: ['planner', 'skill-maker', 'verifier'],
+        verifierHooks: ['Validate sales claims against product and deployment evidence.'],
+        toolBindings: [],
     },
     {
         domain: 'finance',
@@ -134,6 +335,52 @@ const BASE_DOMAIN_SKILLS: Array<{
         ],
         outputs: ['cost model notes', 'savings estimate', 'risk summary'],
         guardrails: ['Do not invent budget numbers.', 'Mark estimates as estimates.'],
+        roleAffinity: ['planner', 'research-shadow', 'verifier'],
+        verifierHooks: ['Require evidence for savings and efficiency claims.'],
+        toolBindings: [],
+    },
+    {
+        domain: 'economics',
+        noun: 'economic systems analysis',
+        instructions: [
+            'Model cost, incentives, pricing, and market dynamics as a system.',
+            'Separate assumptions, scenarios, and measured outcomes.',
+            'Translate technical change into economic effects carefully.',
+        ],
+        outputs: ['economic model note', 'scenario table', 'sensitivity summary'],
+        guardrails: ['Do not present modeled outcomes as observed truth.', 'Make assumptions explicit.'],
+        roleAffinity: ['planner', 'research-shadow', 'verifier'],
+        verifierHooks: ['Flag unsupported economic claims before promotion.'],
+        toolBindings: [],
+    },
+    {
+        domain: 'ai',
+        noun: 'AI systems delivery',
+        instructions: [
+            'Treat prompts, evaluations, model behavior, and guardrails as one runtime system.',
+            'Capture failure classes, test prompts, and evidence-backed quality measures.',
+            'Prefer explicit evaluation loops over anecdotal claims.',
+        ],
+        outputs: ['evaluation plan', 'prompt/system note', 'failure taxonomy'],
+        guardrails: ['Do not claim model quality without evaluation evidence.', 'Do not hide unsafe prompt/tool paths.'],
+        roleAffinity: ['planner', 'coder', 'research-shadow', 'verifier'],
+        verifierHooks: ['Attach evaluation evidence and failure notes before promotion.'],
+        toolBindings: [],
+        builderRiskClass: 'mutate',
+    },
+    {
+        domain: 'security',
+        noun: 'security and compliance review',
+        instructions: [
+            'Check secret handling, privilege boundaries, and unsafe execution paths.',
+            'Prefer secure defaults and explicit risk classification.',
+            'Escalate sensitive findings with concrete remediation steps.',
+        ],
+        outputs: ['risk register', 'security checklist', 'mitigation note'],
+        guardrails: ['Do not ignore secret exposure.', 'Do not approve unsafe command paths.'],
+        roleAffinity: ['verifier', 'research-shadow', 'planner'],
+        verifierHooks: ['Run a final risk pass before promotion or transmission.'],
+        toolBindings: [],
     },
     {
         domain: 'workflows',
@@ -145,6 +392,9 @@ const BASE_DOMAIN_SKILLS: Array<{
         ],
         outputs: ['workflow graph', 'checkpoint list', 'handoff contract'],
         guardrails: ['Do not skip handoff validation.', 'Do not mix mutation and approval in one opaque step.'],
+        roleAffinity: ['planner', 'coder', 'verifier', 'skill-maker'],
+        verifierHooks: ['Record workflow evidence before global promotion.'],
+        toolBindings: [],
     },
     {
         domain: 'orchestration',
@@ -156,6 +406,9 @@ const BASE_DOMAIN_SKILLS: Array<{
         ],
         outputs: ['worker assignment map', 'consensus notes', 'retry policy'],
         guardrails: ['Do not duplicate worker scope.', 'Do not promote unverified skills.'],
+        roleAffinity: ['planner', 'coder', 'verifier', 'skill-maker', 'research-shadow'],
+        verifierHooks: ['Attach merge and promotion evidence to the run ledger.'],
+        toolBindings: [],
     },
 ];
 
@@ -174,9 +427,10 @@ export const BUILTIN_SKILL_PACKS: DomainSkillSeed[] = BASE_DOMAIN_SKILLS.flatMap
         triggerConditions: [`goal mentions ${seed.domain}`, `${seed.domain} workflow requested explicitly`],
         expectedOutputs: seed.outputs,
         guardrails: seed.guardrails,
-        verifierHooks: ['Record what changed and how it was verified.'],
-        roleAffinity: ['planner', 'coder', 'skill-maker'],
+        verifierHooks: seed.verifierHooks,
+        roleAffinity: seed.roleAffinity,
         toolBindings: [],
+        promotionThresholds: { minSuccesses: 2, maxFailures: 1 },
     },
     {
         key: `${seed.domain}-reviewer`,
@@ -193,40 +447,93 @@ export const BUILTIN_SKILL_PACKS: DomainSkillSeed[] = BASE_DOMAIN_SKILLS.flatMap
         triggerConditions: [`${seed.domain} output exists`, `run enters verification`],
         expectedOutputs: ['review notes', 'risk list'],
         guardrails: ['Do not approve outputs without evidence.', ...seed.guardrails],
-        verifierHooks: ['Review output against runtime artifacts before promotion.'],
+        verifierHooks: ['Review output against runtime artifacts before promotion.', ...seed.verifierHooks],
         roleAffinity: ['verifier', 'research-shadow'],
         toolBindings: [],
+        promotionThresholds: { minSuccesses: 2, maxFailures: 1 },
+    },
+    {
+        key: `${seed.domain}-builder`,
+        name: `${seed.domain}-builder`,
+        domain: seed.domain,
+        description: `Bundled ${seed.domain} builder/operator for bounded implementation work.`,
+        riskClass: seed.builderRiskClass ?? 'orchestrate',
+        scope: 'base',
+        instructions: [
+            `Operate as the ${seed.domain} builder with bounded mutations and verifier discipline.`,
+            'Keep changes scoped, explicit, and reversible.',
+            'Attach implementation evidence before promotion.',
+        ],
+        triggerConditions: [`${seed.domain} mutation requested`, `${seed.domain} implementation work detected`],
+        expectedOutputs: ['implementation delta', 'verification evidence'],
+        guardrails: ['Do not mutate outside assigned scope.', ...seed.guardrails],
+        verifierHooks: seed.verifierHooks,
+        roleAffinity: ['coder', 'verifier'],
+        toolBindings: seed.toolBindings,
+        promotionThresholds: { minSuccesses: 2, maxFailures: 1 },
     },
 ]));
 
-export const BUILTIN_WORKFLOW_PACKS: DomainWorkflowSeed[] = BASE_DOMAIN_SKILLS.map((seed) => ({
-    key: `${seed.domain}-execution-loop`,
-    name: `${seed.domain}-execution-loop`,
-    domain: seed.domain,
-    description: `Bundled ${seed.domain} workflow with planning, execution, and verification checkpoints.`,
-    triggerConditions: [`goal mentions ${seed.domain}`, `${seed.domain} pack selected`],
-    expectedOutputs: seed.outputs,
-    guardrails: seed.guardrails,
-    verifierHooks: ['Collect verifier evidence before workflow promotion.'],
-    roleAffinity: ['planner', 'coder', 'verifier', 'skill-maker'],
-    steps: [
-        {
-            title: `Plan ${seed.domain} outcome and artifacts`,
-            checkpoint: 'before-read',
-            role: 'planner',
-        },
-        {
-            title: `Execute ${seed.domain} changes with bounded scope`,
-            checkpoint: 'before-mutate',
-            role: 'coder',
-        },
-        {
-            title: `Review ${seed.domain} outputs and attach evidence`,
-            checkpoint: 'before-verify',
-            role: 'verifier',
-        },
-    ],
-}));
+export const BUILTIN_WORKFLOW_PACKS: DomainWorkflowSeed[] = BASE_DOMAIN_SKILLS.flatMap((seed) => ([
+    {
+        key: `${seed.domain}-execution-loop`,
+        name: `${seed.domain}-execution-loop`,
+        domain: seed.domain,
+        description: `Bundled ${seed.domain} workflow with planning, execution, and verification checkpoints.`,
+        triggerConditions: [`goal mentions ${seed.domain}`, `${seed.domain} pack selected`],
+        expectedOutputs: seed.outputs,
+        guardrails: seed.guardrails,
+        verifierHooks: ['Collect verifier evidence before workflow promotion.', ...seed.verifierHooks],
+        roleAffinity: ['planner', 'coder', 'verifier', 'skill-maker'],
+        steps: [
+            {
+                title: `Plan ${seed.domain} outcome and artifacts`,
+                checkpoint: 'before-read',
+                role: 'planner',
+            },
+            {
+                title: `Execute ${seed.domain} changes with bounded scope`,
+                checkpoint: 'before-mutate',
+                role: 'coder',
+            },
+            {
+                title: `Review ${seed.domain} outputs and attach evidence`,
+                checkpoint: 'before-verify',
+                role: 'verifier',
+            },
+        ],
+        promotionThresholds: { minSuccesses: 2, maxFailures: 1 },
+    },
+    {
+        key: `${seed.domain}-approval-loop`,
+        name: `${seed.domain}-approval-loop`,
+        domain: seed.domain,
+        description: `Bundled ${seed.domain} approval loop with review, verification, and promotion control.`,
+        triggerConditions: [`${seed.domain} approval requested`, `${seed.domain} promotion under review`],
+        expectedOutputs: ['approval note', 'review evidence', 'promotion decision'],
+        guardrails: ['Do not approve unverified work.', ...seed.guardrails],
+        verifierHooks: ['Require approval evidence before promotion.', ...seed.verifierHooks],
+        roleAffinity: ['planner', 'verifier', 'research-shadow'],
+        steps: [
+            {
+                title: `Frame ${seed.domain} approval criteria`,
+                checkpoint: 'before-read',
+                role: 'planner',
+            },
+            {
+                title: `Review ${seed.domain} evidence and risks`,
+                checkpoint: 'before-verify',
+                role: 'verifier',
+            },
+            {
+                title: `Publish ${seed.domain} approval outcome`,
+                checkpoint: 'retry',
+                role: 'research-shadow',
+            },
+        ],
+        promotionThresholds: { minSuccesses: 2, maxFailures: 1 },
+    },
+]));
 
 export function slugify(value: string): string {
     return value
@@ -245,12 +552,26 @@ export function detectDomains(text: string, extra: string[] = []): string[] {
         }
     }
 
-    if (matched.size === 0 && /(launch|messaging|gtm|copy|positioning)/.test(haystack)) matched.add('marketing');
+    if (matched.size === 0 && /(pdlc|lifecycle|milestone|release loop)/.test(haystack)) matched.add('pdlc');
+    if (matched.size === 0 && /(go-to-market|gtm|launch campaign|channel)/.test(haystack)) matched.add('gtm');
+    if (matched.size === 0 && /(launch|messaging|copy|positioning)/.test(haystack)) matched.add('marketing');
     if (matched.size === 0 && /(roadmap|spec|scope|product)/.test(haystack)) matched.add('product');
+    if (matched.size === 0 && /(write|writing|editorial|brief|synthesis)/.test(haystack)) matched.add('writing');
+    if (matched.size === 0 && /(research|deep-tech|paper|experiment)/.test(haystack)) matched.add('deep-tech');
     if (matched.size === 0 && /(api|server|database|migration|backend)/.test(haystack)) matched.add('backend');
-    if (matched.size === 0 && /(ui|ux|dashboard|frontend|react)/.test(haystack)) matched.add('frontend');
+    if (matched.size === 0 && /(endpoint|contract|schema|integration)/.test(haystack)) matched.add('api');
+    if (matched.size === 0 && /(data|warehouse|etl|state|retention)/.test(haystack)) matched.add('data');
+    if (matched.size === 0 && /(python|pytest|pip|venv)/.test(haystack)) matched.add('python');
+    if (matched.size === 0 && /(django|manage\\.py|orm|model)/.test(haystack)) matched.add('django');
+    if (matched.size === 0 && /(typescript|tsconfig|types)/.test(haystack)) matched.add('typescript');
+    if (matched.size === 0 && /(node|nodejs|node\\.js|cli)/.test(haystack)) matched.add('node');
+    if (matched.size === 0 && /(ui|ux|dashboard|frontend)/.test(haystack)) matched.add('frontend');
+    if (matched.size === 0 && /(react|jsx|hooks|component)/.test(haystack)) matched.add('react');
     if (matched.size === 0 && /(pricing|buyer|sales|pipeline)/.test(haystack)) matched.add('sales');
     if (matched.size === 0 && /(budget|cost|roi|finance)/.test(haystack)) matched.add('finance');
+    if (matched.size === 0 && /(economic|economics|pricing model|incentive)/.test(haystack)) matched.add('economics');
+    if (matched.size === 0 && /(ai|model|prompt|evaluation|llm)/.test(haystack)) matched.add('ai');
+    if (matched.size === 0 && /(security|secret|risk|compliance|auth)/.test(haystack)) matched.add('security');
     if (matched.size === 0 && /(workflow|playbook|runbook)/.test(haystack)) matched.add('workflows');
     if (matched.size === 0 && /(swarm|orchestr|agent|parallel)/.test(haystack)) matched.add('orchestration');
 

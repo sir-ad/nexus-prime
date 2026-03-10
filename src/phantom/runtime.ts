@@ -4,7 +4,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { GuardrailEngine } from '../engines/guardrails-bridge.js';
-import type { MemoryStats } from '../engines/memory.js';
+import type { MemoryCheckResult, MemoryStats } from '../engines/memory.js';
 import { MemoryEngine } from '../engines/memory.js';
 import { SessionDNAManager } from '../engines/session-dna.js';
 import {
@@ -33,9 +33,31 @@ import {
     createWorkflowRuntime,
     type WorkflowArtifact,
 } from '../engines/workflow-runtime.js';
+import {
+    HookRuntime,
+    createHookRuntime,
+    type HookArtifact,
+} from '../engines/hook-runtime.js';
+import {
+    AutomationRuntime,
+    createAutomationRuntime,
+    type AutomationArtifact,
+    type ConnectorBinding,
+} from '../engines/automation-runtime.js';
+import {
+    SecurityShield,
+    createSecurityShield,
+    type ShieldDecision,
+    type ShieldPolicyMode,
+} from '../engines/security-shield.js';
+import { FederationEngine, federation as defaultFederation } from '../engines/federation.js';
 import { ByzantineConsensus } from '../engines/byzantine-consensus.js';
 import { podNetwork } from '../engines/pod-network.js';
-import { detectDomains, type SkillScope } from '../engines/runtime-assets.js';
+import {
+    detectDomains,
+    type HookTrigger,
+    type SkillScope,
+} from '../engines/runtime-assets.js';
 import { nexusEventBus } from '../engines/event-bus.js';
 import { MergeOracle } from './merge-oracle.js';
 import type { MergeDecision, WorkerResult } from './index.js';
@@ -82,6 +104,11 @@ export interface DerivationPolicy {
     mode: 'auto' | 'manual' | 'disabled';
 }
 
+export interface MemoryPolicy {
+    mode: 'balanced' | 'strict' | 'off';
+    quarantineTag: string;
+}
+
 export interface ExecutionTask {
     goal: string;
     files: string[];
@@ -96,6 +123,9 @@ export interface ExecutionTask {
     backendSelectors: Partial<BackendSelection>;
     skillNames: string[];
     workflowSelectors: string[];
+    hookSelectors: string[];
+    automationSelectors: string[];
+    connectorBindings: ConnectorBinding[];
     actions: SkillBinding[];
     inlineSkills: SkillArtifact[];
     nxlScript?: string;
@@ -103,6 +133,8 @@ export interface ExecutionTask {
     derivationPolicy: DerivationPolicy;
     checkpointPolicy: SkillCheckpoint[];
     backendMode: BackendMode;
+    shieldPolicy: ShieldPolicyMode;
+    memoryPolicy: MemoryPolicy;
 }
 
 export interface WorkerSkillOverlay {
@@ -174,7 +206,7 @@ export interface BackendEvidence {
 }
 
 export interface PromotionDecision {
-    kind: 'skill' | 'workflow' | 'backend';
+    kind: 'skill' | 'workflow' | 'backend' | 'hook' | 'automation';
     target: string;
     scope: SkillScope | 'backend';
     approved: boolean;
@@ -190,6 +222,8 @@ export interface ExecutionRun {
     workerManifests: WorkerManifest[];
     activeSkills: SkillArtifact[];
     activeWorkflows: WorkflowArtifact[];
+    activeHooks: HookArtifact[];
+    activeAutomations: AutomationArtifact[];
     selectedBackends: BackendSelection;
     finalDecision?: MergeDecision;
     workerResults: RuntimeWorkerResult[];
@@ -197,8 +231,13 @@ export interface ExecutionRun {
     verificationResults: WorkerVerification[];
     skillEvents: Array<Record<string, unknown>>;
     workflowEvents: Array<Record<string, unknown>>;
+    hookEvents: Array<Record<string, unknown>>;
+    automationEvents: Array<Record<string, unknown>>;
     backendEvidence: BackendEvidence;
     promotionDecisions: PromotionDecision[];
+    shieldDecisions: ShieldDecision[];
+    memoryChecks: MemoryCheckResult[];
+    federationState?: unknown;
     artifactsIndex: Record<string, string>;
     result: string;
 }
@@ -212,6 +251,10 @@ export interface SubAgentRuntimeOptions {
     sessionDNA?: SessionDNAManager;
     skillRuntime?: SkillRuntime;
     workflowRuntime?: WorkflowRuntime;
+    hookRuntime?: HookRuntime;
+    automationRuntime?: AutomationRuntime;
+    securityShield?: SecurityShield;
+    federation?: FederationEngine;
     artifactsRoot?: string;
 }
 
@@ -420,12 +463,17 @@ class MultiTierConsensusPolicy {
 export class SubAgentRuntime {
     private repoRoot: string;
     private defaultMemoryBackend: MemoryBackend;
+    private memoryEngine?: MemoryEngine;
     private defaultCompressionBackend?: CompressionBackend;
     private defaultDslCompiler?: DSLCompilerBackend;
     private guardrails: GuardrailEngine;
     private sessionDNA?: SessionDNAManager;
     private skillRuntime: SkillRuntime;
     private workflowRuntime: WorkflowRuntime;
+    private hookRuntime: HookRuntime;
+    private automationRuntime: AutomationRuntime;
+    private securityShield: SecurityShield;
+    private federation: FederationEngine;
     private artifactsRoot?: string;
     private backendRegistry: RuntimeBackendRegistry;
     private runs = new Map<string, ExecutionRun>();
@@ -435,6 +483,7 @@ export class SubAgentRuntime {
         const memoryLike = isMemoryBackend(options.memory)
             ? null
             : ((options.memory as MemoryEngine | undefined) ?? new MemoryEngine());
+        this.memoryEngine = memoryLike ?? undefined;
         this.backendRegistry = createRuntimeBackendRegistry(memoryLike ?? {
             recall: (query: string, k?: number) => Promise.resolve((options.memory as MemoryBackend).recall(query, k)),
             store: (content: string, priority?: number, tags?: string[], parentId?: string, depth?: number) => String((options.memory as MemoryBackend).store(content, priority, tags, parentId, depth)),
@@ -458,6 +507,10 @@ export class SubAgentRuntime {
         this.sessionDNA = options.sessionDNA;
         this.skillRuntime = options.skillRuntime ?? createSkillRuntime(undefined, undefined, this.repoRoot);
         this.workflowRuntime = options.workflowRuntime ?? createWorkflowRuntime(undefined, this.repoRoot);
+        this.hookRuntime = options.hookRuntime ?? createHookRuntime(undefined, this.repoRoot);
+        this.automationRuntime = options.automationRuntime ?? createAutomationRuntime(undefined, this.repoRoot);
+        this.securityShield = options.securityShield ?? createSecurityShield();
+        this.federation = options.federation ?? defaultFederation;
         this.artifactsRoot = options.artifactsRoot;
     }
 
@@ -482,11 +535,15 @@ export class SubAgentRuntime {
             workerManifests: [],
             activeSkills: [],
             activeWorkflows: [],
+            activeHooks: [],
+            activeAutomations: [],
             selectedBackends,
             workerResults: [],
             verificationResults: [],
             skillEvents: [],
             workflowEvents: [],
+            hookEvents: [],
+            automationEvents: [],
             backendEvidence: {
                 notes: [],
                 memory: {},
@@ -496,6 +553,8 @@ export class SubAgentRuntime {
                 fallbacks: backends.fallbacks,
             },
             promotionDecisions: [],
+            shieldDecisions: [],
+            memoryChecks: [],
             artifactsIndex: recorder.index,
             result: '',
         };
@@ -503,6 +562,14 @@ export class SubAgentRuntime {
 
         recorder.writeJson('task.json', task);
         this.sessionDNA?.recordDecision('Execution task accepted', task.goal, 0.8);
+        const localPeer = this.federation.heartbeat(`runtime-${runId}`, {
+            displayName: `Runtime ${runId}`,
+            source: 'local',
+            capabilities: ['runtime', 'skills', 'workflows', 'hooks', 'automations'],
+            trust: 'high',
+        });
+        run.federationState = this.federation.getSnapshot();
+        recorder.writeJson('federation-bootstrap.json', { localPeer, snapshot: run.federationState });
 
         const guardAction = `execute: ${task.goal}; verify=${task.verifyCommands.join(', ')}`;
         const guardrail = this.guardrails.check({
@@ -536,7 +603,22 @@ export class SubAgentRuntime {
         recorder.writeJson('memory-evidence.json', run.backendEvidence.memory);
         recorder.writeJson('compression-evidence.json', run.backendEvidence.compression);
 
-        const domainMatches = detectDomains(task.goal, [...memoryMatches, ...task.skillNames, ...task.workflowSelectors]);
+        const goalMemoryCheck = this.memoryEngine?.checkContent(task.goal, {
+            tags: ['#runtime-goal'],
+            priority: 0.4,
+        });
+        if (goalMemoryCheck) {
+            run.memoryChecks.push(goalMemoryCheck);
+            recorder.writeJson('memory-check-goal.json', goalMemoryCheck);
+        }
+
+        const domainMatches = detectDomains(task.goal, [
+            ...memoryMatches,
+            ...task.skillNames,
+            ...task.workflowSelectors,
+            ...task.hookSelectors,
+            ...task.automationSelectors,
+        ]);
         const resolvedSkills = this.skillRuntime.resolveSkillSelectors(task.skillNames, task.goal);
         const generatedSkills = this.skillRuntime.generateRuntimeSkills(task.goal, task.workers, {
             goal: task.goal,
@@ -554,7 +636,11 @@ export class SubAgentRuntime {
                 repeatedFailures: 0,
                 sessionHints: domainMatches,
             });
-        const activeSkills = dedupeSkillArtifacts([...resolvedSkills, ...generatedSkills, ...derivedSkills, ...task.inlineSkills]);
+        const resolvedHooks = this.hookRuntime.resolveHookSelectors(task.hookSelectors, task.goal);
+        const activeHooks = dedupeHookArtifacts([
+            ...resolvedHooks,
+            ...this.hookRuntime.resolveHookSelectors(domainMatches, task.goal),
+        ]);
 
         const resolvedWorkflows = this.workflowRuntime.resolveWorkflowSelectors(task.workflowSelectors, task.goal);
         const derivedWorkflows = task.derivationPolicy.mode === 'disabled'
@@ -565,13 +651,61 @@ export class SubAgentRuntime {
                 repeatedFailures: 0,
                 sessionHints: domainMatches,
             });
-        const activeWorkflows = dedupeWorkflowArtifacts([...resolvedWorkflows, ...derivedWorkflows]);
-        const workflowApplication = this.workflowRuntime.applyToTask(activeWorkflows, task.verifyCommands, task.actions);
+        const preReadHooks = this.hookRuntime.dispatch('run.created', activeHooks, {
+            goal: task.goal,
+            allowMutateHooks: task.skillPolicy.allowMutateSkills,
+        });
+        const beforeReadHooks = this.hookRuntime.dispatch('before-read', activeHooks, {
+            goal: task.goal,
+            allowMutateHooks: task.skillPolicy.allowMutateSkills,
+        });
+        [...preReadHooks.events, ...beforeReadHooks.events]
+            .filter((event) => event.type === 'hook.fired' || event.type === 'hook.blocked')
+            .forEach((event) => {
+                nexusEventBus.emit('hook.fire', {
+                    hookId: String(event.hookId),
+                    name: String(event.name),
+                    trigger: String(event.trigger),
+                    blocked: event.type === 'hook.blocked',
+                });
+            });
+        run.hookEvents.push(...preReadHooks.events, ...beforeReadHooks.events);
+
+        const activeSkills = dedupeSkillArtifacts([
+            ...resolvedSkills,
+            ...generatedSkills,
+            ...derivedSkills,
+            ...task.inlineSkills,
+            ...this.skillRuntime.resolveSkillSelectors(
+                dedupeStrings([...preReadHooks.skillSelectors, ...beforeReadHooks.skillSelectors]),
+                task.goal,
+            ),
+        ]);
+
+        const activeWorkflows = dedupeWorkflowArtifacts([
+            ...resolvedWorkflows,
+            ...derivedWorkflows,
+            ...this.workflowRuntime.resolveWorkflowSelectors(
+                dedupeStrings([...preReadHooks.workflowSelectors, ...beforeReadHooks.workflowSelectors]),
+                task.goal,
+            ),
+        ]);
+        const workflowApplication = this.workflowRuntime.applyToTask(
+            activeWorkflows,
+            task.verifyCommands,
+            [...task.actions, ...preReadHooks.toolBindings, ...beforeReadHooks.toolBindings],
+        );
         const effectiveVerifyCommands = dedupeStrings(workflowApplication.verifyCommands);
         const effectiveActions = workflowApplication.actions;
+        const activeAutomations = dedupeAutomationArtifacts([
+            ...this.automationRuntime.resolveAutomationSelectors(task.automationSelectors, task.goal),
+            ...this.automationRuntime.resolveAutomationSelectors(domainMatches, task.goal),
+        ]);
 
         run.activeSkills = activeSkills;
         run.activeWorkflows = activeWorkflows;
+        run.activeHooks = activeHooks;
+        run.activeAutomations = activeAutomations;
         run.skillEvents = activeSkills.map((skill) => ({
             type: 'skill.selected',
             skillId: skill.skillId,
@@ -581,8 +715,25 @@ export class SubAgentRuntime {
             provenance: skill.provenance,
         }));
         run.workflowEvents = workflowApplication.events;
+        run.hookEvents.push(...activeHooks.map((hook) => ({
+            type: 'hook.selected',
+            hookId: hook.hookId,
+            name: hook.name,
+            trigger: hook.trigger,
+            scope: hook.scope,
+        })));
+        run.automationEvents = activeAutomations.map((automation) => ({
+            type: 'automation.selected',
+            automationId: automation.automationId,
+            name: automation.name,
+            triggerMode: automation.triggerMode,
+            eventTrigger: automation.eventTrigger,
+            scope: automation.scope,
+        }));
         recorder.writeJson('skills.json', activeSkills);
         recorder.writeJson('workflows.json', activeWorkflows);
+        recorder.writeJson('hooks.json', activeHooks);
+        recorder.writeJson('automations.json', activeAutomations);
 
         const manifests = this.createWorkerManifests(task, fileRefs, plan, activeSkills, activeWorkflows, effectiveActions, effectiveVerifyCommands);
         run.workerManifests = manifests;
@@ -594,11 +745,45 @@ export class SubAgentRuntime {
         consensusPolicy.registerAgents(manifests.map((m) => m.workerId));
         run.backendEvidence.consensus = consensusPolicy.shadowStats();
 
+        const beforeMutateHooks = this.hookRuntime.dispatch('before-mutate', activeHooks, {
+            goal: task.goal,
+            allowMutateHooks: task.skillPolicy.allowMutateSkills,
+        });
+        beforeMutateHooks.events.forEach((event) => {
+            nexusEventBus.emit('hook.fire', {
+                hookId: String(event.hookId),
+                name: String(event.name),
+                trigger: String(event.trigger),
+                blocked: event.type === 'hook.blocked',
+            });
+        });
+        run.hookEvents.push(...beforeMutateHooks.events);
+        if (beforeMutateHooks.blocked) {
+            run.state = 'failed';
+            run.result = 'Hooks blocked execution before mutation.';
+            recorder.writeJson('run.json', run);
+            return run;
+        }
+
         run.state = 'running';
         const coderManifests = manifests.filter((manifest) => manifest.role === 'coder');
         const coderResults = await Promise.all(coderManifests.map((manifest) => this.runCoderWorker(runId, recorder, manifest)));
         run.workerResults = coderResults;
         recorder.writeJson('worker-results.json', coderResults);
+
+        const beforeVerifyHooks = this.hookRuntime.dispatch('before-verify', activeHooks, {
+            goal: task.goal,
+            allowMutateHooks: task.skillPolicy.allowMutateSkills,
+        });
+        beforeVerifyHooks.events.forEach((event) => {
+            nexusEventBus.emit('hook.fire', {
+                hookId: String(event.hookId),
+                name: String(event.name),
+                trigger: String(event.trigger),
+                blocked: event.type === 'hook.blocked',
+            });
+        });
+        run.hookEvents.push(...beforeVerifyHooks.events);
 
         run.state = 'verifying';
         const verifierManifests = manifests.filter((manifest) => manifest.role === 'verifier');
@@ -626,15 +811,92 @@ export class SubAgentRuntime {
             winner: decision.winner?.workerId ?? decision.recommendedStrategy,
         });
 
-        const applied = await this.applyDecision(recorder, { ...task, verifyCommands: effectiveVerifyCommands }, decision, consensusPolicy);
+        const preApplyShield = this.securityShield.evaluate({
+            stage: 'apply',
+            target: `run:${runId}`,
+            policy: task.shieldPolicy,
+            text: [decision.synthesized ?? '', ...run.workerResults.map((result) => result.diff)],
+            domains: domainMatches,
+            verified: run.workerResults.some((result) => result.verified),
+            bindings: effectiveActions,
+            connectors: task.connectorBindings,
+        });
+        run.shieldDecisions.push(preApplyShield);
+        recorder.writeJson('shield-apply.json', preApplyShield);
+        nexusEventBus.emit('shield.decision', {
+            target: preApplyShield.target,
+            stage: preApplyShield.stage,
+            action: preApplyShield.action,
+            blocked: preApplyShield.blocked,
+        });
+
+        const applied = preApplyShield.blocked
+            ? { applied: false, rolledBack: false, summary: preApplyShield.summary }
+            : await this.applyDecision(recorder, { ...task, verifyCommands: effectiveVerifyCommands }, decision, consensusPolicy);
         run.state = applied.applied
             ? (applied.rolledBack ? 'rolled_back' : 'merged')
             : 'failed';
         run.result = applied.summary;
 
+        const resultMemoryCheck = this.memoryEngine?.checkContent(run.result, {
+            tags: ['#runtime-result'],
+            priority: applied.applied ? 0.78 : 0.55,
+        });
+        if (resultMemoryCheck) {
+            run.memoryChecks.push(resultMemoryCheck);
+            recorder.writeJson('memory-check-result.json', resultMemoryCheck);
+        }
+
         const promotionDecisions = this.evaluatePromotions(run, consensusPolicy);
         run.promotionDecisions = promotionDecisions;
         recorder.writeJson('promotions.json', promotionDecisions);
+        const completionTrigger: HookTrigger = run.state === 'merged' ? 'run.verified' : 'run.failed';
+        const completionHooks = this.hookRuntime.dispatch(completionTrigger, activeHooks, {
+            goal: task.goal,
+            allowMutateHooks: task.skillPolicy.allowMutateSkills,
+        });
+        completionHooks.events.forEach((event) => {
+            nexusEventBus.emit('hook.fire', {
+                hookId: String(event.hookId),
+                name: String(event.name),
+                trigger: String(event.trigger),
+                blocked: event.type === 'hook.blocked',
+            });
+        });
+        run.hookEvents.push(...completionHooks.events);
+        const automationDispatches = await this.automationRuntime.dispatch(completionTrigger, activeAutomations, {
+            goal: task.goal,
+            executeConnectors: true,
+            payload: {
+                runId,
+                state: run.state,
+                result: run.result,
+            },
+        });
+        automationDispatches.forEach((dispatch) => {
+            nexusEventBus.emit('automation.run', {
+                automationId: dispatch.automationId,
+                trigger: dispatch.trigger,
+                queued: Boolean(dispatch.queuedRun),
+            });
+        });
+        run.automationEvents.push(...automationDispatches.map((dispatch) => ({
+            type: 'automation.dispatched',
+            automationId: dispatch.automationId,
+            name: dispatch.name,
+            trigger: dispatch.trigger,
+            queuedRun: dispatch.queuedRun,
+            deliveries: dispatch.deliveries,
+        })));
+        run.federationState = this.federation.getSnapshot();
+        recorder.writeJson('federation-final.json', run.federationState);
+        if (this.memoryEngine) {
+            const audit = this.memoryEngine.audit(40);
+            nexusEventBus.emit('memory.audit', {
+                scanned: audit.scanned,
+                quarantined: audit.quarantined.length,
+            });
+        }
         recorder.writeJson('run.json', run);
         this.sessionDNA?.recordDecision('Execution completed', applied.summary, applied.applied ? 0.86 : 0.42);
 
@@ -702,6 +964,14 @@ export class SubAgentRuntime {
         return this.workflowRuntime.listArtifacts();
     }
 
+    listHooks(): HookArtifact[] {
+        return this.hookRuntime.listArtifacts();
+    }
+
+    listAutomations(): AutomationArtifact[] {
+        return this.automationRuntime.listArtifacts();
+    }
+
     generateSkill(input: { name: string; instructions: string; riskClass?: SkillArtifact['riskClass']; scope?: SkillScope; provenance?: string }): SkillArtifact {
         return this.skillRuntime.createSkill({
             name: input.name,
@@ -749,6 +1019,93 @@ export class SubAgentRuntime {
         return this.workflowRuntime.revoke(workflowId);
     }
 
+    generateHook(input: { name: string; description: string; trigger: HookTrigger; riskClass?: HookArtifact['riskClass']; scope?: SkillScope }): HookArtifact {
+        return this.hookRuntime.createHook({
+            name: input.name,
+            description: input.description,
+            domain: detectDomains(`${input.name} ${input.description}`)[0],
+            trigger: input.trigger,
+            conditions: ['manual generation'],
+            guardrails: ['Validate before promotion.'],
+            skillSelectors: [],
+            workflowSelectors: [],
+            toolBindings: [],
+            riskClass: input.riskClass ?? 'orchestrate',
+            scope: input.scope ?? 'session',
+            provenance: 'mcp:generate',
+        });
+    }
+
+    deployHook(hookId: string, scope: SkillScope = 'session'): HookArtifact | undefined {
+        return this.hookRuntime.deploy(hookId, scope);
+    }
+
+    revokeHook(hookId: string): HookArtifact | undefined {
+        return this.hookRuntime.revoke(hookId);
+    }
+
+    generateAutomation(input: {
+        name: string;
+        description: string;
+        triggerMode?: AutomationArtifact['triggerMode'];
+        eventTrigger?: HookTrigger;
+        scope?: SkillScope;
+        workflowSelectors?: string[];
+        hookSelectors?: string[];
+        skillSelectors?: string[];
+        connectors?: ConnectorBinding[];
+    }): AutomationArtifact {
+        return this.automationRuntime.createAutomation({
+            name: input.name,
+            description: input.description,
+            domain: detectDomains(`${input.name} ${input.description}`)[0],
+            triggerMode: input.triggerMode ?? 'event',
+            eventTrigger: input.eventTrigger,
+            workflowSelectors: input.workflowSelectors ?? [],
+            hookSelectors: input.hookSelectors ?? [],
+            skillSelectors: input.skillSelectors ?? [],
+            connectors: input.connectors ?? [],
+            scope: input.scope ?? 'session',
+            provenance: 'mcp:generate',
+        });
+    }
+
+    deployAutomation(automationId: string, scope: SkillScope = 'session'): AutomationArtifact | undefined {
+        return this.automationRuntime.deploy(automationId, scope);
+    }
+
+    revokeAutomation(automationId: string): AutomationArtifact | undefined {
+        return this.automationRuntime.revoke(automationId);
+    }
+
+    async runAutomation(automationId: string, goal?: string): Promise<ExecutionRun> {
+        const automation = this.automationRuntime.getArtifact(automationId) ?? this.automationRuntime.findByName(automationId);
+        if (!automation) {
+            throw new Error(`Automation not found: ${automationId}`);
+        }
+
+        return this.run({
+            goal: goal ?? `Run automation ${automation.name}`,
+            workflowSelectors: automation.workflowSelectors,
+            hookSelectors: automation.hookSelectors,
+            skillNames: automation.skillSelectors,
+            connectorBindings: automation.connectors,
+            workers: 1,
+        });
+    }
+
+    auditMemory(limit: number = 80): ReturnType<MemoryEngine['audit']> | undefined {
+        return this.memoryEngine?.audit(limit);
+    }
+
+    listMemoryQuarantine(limit: number = 40): ReturnType<MemoryEngine['listQuarantined']> {
+        return this.memoryEngine?.listQuarantined(limit) ?? [];
+    }
+
+    getNetworkStatus(): unknown {
+        return this.federation.getSnapshot();
+    }
+
     async runWorkflow(workflowId: string, goal?: string): Promise<ExecutionRun> {
         const workflow = this.workflowRuntime.getArtifact(workflowId) ?? this.workflowRuntime.findByName(workflowId);
         if (!workflow) {
@@ -768,6 +1125,8 @@ export class SubAgentRuntime {
             compression: [...this.backendRegistry.compression.values()].map((backend) => backend.descriptor),
             dsl: [...this.backendRegistry.dsl.values()].map((backend) => backend.descriptor),
             consensus: [{ kind: 'multi-tier-byzantine', mode: 'default' }],
+            hooks: this.hookRuntime.listArtifacts().map((hook) => ({ hookId: hook.hookId, name: hook.name, trigger: hook.trigger })),
+            automations: this.automationRuntime.listArtifacts().map((automation) => ({ automationId: automation.automationId, name: automation.name, triggerMode: automation.triggerMode })),
         };
     }
 
@@ -777,6 +1136,10 @@ export class SubAgentRuntime {
             runsTracked: this.runs.size,
             skills: this.skillRuntime.listArtifacts().length,
             workflows: this.workflowRuntime.listArtifacts().length,
+            hooks: this.hookRuntime.listArtifacts().length,
+            automations: this.automationRuntime.listArtifacts().length,
+            shield: 'balanced',
+            federation: this.federation.getSnapshot(),
             artifactsRoot: this.resolveArtifactsRoot(),
         };
     }
@@ -826,6 +1189,9 @@ export class SubAgentRuntime {
             backendSelectors: input.backendSelectors ?? {},
             skillNames: input.skillNames ?? [],
             workflowSelectors: input.workflowSelectors ?? [],
+            hookSelectors: input.hookSelectors ?? [],
+            automationSelectors: input.automationSelectors ?? [],
+            connectorBindings: input.connectorBindings ?? [],
             actions: input.actions ?? [],
             inlineSkills: input.inlineSkills ?? [],
             nxlScript: input.nxlScript,
@@ -837,6 +1203,8 @@ export class SubAgentRuntime {
             derivationPolicy: input.derivationPolicy ?? { mode: 'auto' },
             checkpointPolicy: input.checkpointPolicy ?? ['before-read', 'before-mutate', 'before-verify', 'retry'],
             backendMode: input.backendMode ?? 'default',
+            shieldPolicy: input.shieldPolicy ?? 'balanced',
+            memoryPolicy: input.memoryPolicy ?? { mode: 'balanced', quarantineTag: '#quarantine' },
         };
 
         if (input.nxlScript && (!input.actions || input.actions.length === 0)) {
@@ -853,6 +1221,8 @@ export class SubAgentRuntime {
     }
 
     private executionTaskFromCompiled(compiled: DSLCompilationResult, rawScript?: string): Partial<ExecutionTask> & { goal: string } {
+        const compiledSpec = compiled.spec as unknown as Record<string, unknown>;
+        const compiledMemoryPolicy = (compiledSpec.memoryPolicy as MemoryPolicy | undefined);
         return {
             goal: compiled.spec.goal,
             files: compiled.spec.files,
@@ -875,11 +1245,19 @@ export class SubAgentRuntime {
             },
             skillNames: compiled.spec.skills,
             workflowSelectors: compiled.spec.workflows ?? [],
+            hookSelectors: (compiledSpec.hooks as string[] | undefined) ?? [],
+            automationSelectors: (compiledSpec.automations as string[] | undefined) ?? [],
+            connectorBindings: (compiledSpec.connectors as ConnectorBinding[] | undefined) ?? [],
             actions: (compiled.spec.actions ?? []) as unknown as SkillBinding[],
             inlineSkills: [],
             nxlScript: rawScript,
             derivationPolicy: { mode: compiled.spec.derivationPolicy ?? 'auto' },
             backendMode: compiled.spec.backendMode ?? 'default',
+            shieldPolicy: compiledSpec.shield as ShieldPolicyMode | undefined,
+            memoryPolicy: {
+                mode: compiledMemoryPolicy?.mode ?? 'balanced',
+                quarantineTag: compiledMemoryPolicy?.quarantineTag ?? '#quarantine',
+            },
         };
     }
 
@@ -1247,6 +1625,28 @@ export class SubAgentRuntime {
         if (run.state === 'merged' && verifiedWorkerIds.length > 0) {
             if (run.activeSkills.length > 0) {
                 for (const skill of run.activeSkills.filter((artifact) => artifact.scope !== 'base')) {
+                    const shield = this.securityShield.evaluate({
+                        stage: 'promotion',
+                        target: `skill:${skill.name}`,
+                        policy: 'balanced',
+                        domains: skill.domain ? [skill.domain] : [],
+                        riskClass: skill.riskClass,
+                        verified: verifiedWorkerIds.length > 0,
+                        bindings: skill.toolBindings,
+                        text: skill.instructions,
+                    });
+                    run.shieldDecisions.push(shield);
+                    if (shield.blocked || shield.action === 'quarantine') {
+                        decisions.push({
+                            kind: 'skill',
+                            target: skill.name,
+                            scope: 'session',
+                            approved: false,
+                            rationale: shield.summary,
+                        });
+                        continue;
+                    }
+
                     const approved = consensusPolicy.approveGlobalPromotion(verifiedWorkerIds, [1, 1, 1]);
                     if (approved && run.selectedBackends.consensusPolicy === 'multi-tier-byzantine') {
                         this.skillRuntime.promote(skill.skillId, skill.riskClass === 'mutate' ? 'session' : 'global');
@@ -1263,6 +1663,26 @@ export class SubAgentRuntime {
 
             if (run.activeWorkflows.length > 0) {
                 for (const workflow of run.activeWorkflows.filter((artifact) => artifact.scope !== 'base')) {
+                    const shield = this.securityShield.evaluate({
+                        stage: 'promotion',
+                        target: `workflow:${workflow.name}`,
+                        policy: 'balanced',
+                        domains: workflow.domain ? [workflow.domain] : [],
+                        verified: verifiedWorkerIds.length > 0,
+                        text: [workflow.description, ...workflow.guardrails, ...workflow.expectedOutputs],
+                    });
+                    run.shieldDecisions.push(shield);
+                    if (shield.blocked || shield.action === 'quarantine') {
+                        decisions.push({
+                            kind: 'workflow',
+                            target: workflow.name,
+                            scope: 'session',
+                            approved: false,
+                            rationale: shield.summary,
+                        });
+                        continue;
+                    }
+
                     const approved = consensusPolicy.approveGlobalPromotion(verifiedWorkerIds, [1, 1, 1]);
                     if (approved) {
                         this.workflowRuntime.deploy(workflow.workflowId, run.runId, 'global');
@@ -1275,6 +1695,55 @@ export class SubAgentRuntime {
                         rationale: approved ? 'Workflow promotion passed consensus.' : 'Workflow stayed session-scoped.',
                     });
                 }
+            }
+
+            for (const hook of run.activeHooks.filter((artifact) => artifact.scope !== 'base')) {
+                const shield = this.securityShield.evaluate({
+                    stage: 'promotion',
+                    target: `hook:${hook.name}`,
+                    policy: 'balanced',
+                    domains: hook.domain ? [hook.domain] : [],
+                    riskClass: hook.riskClass,
+                    verified: verifiedWorkerIds.length > 0,
+                    bindings: hook.toolBindings,
+                    text: [hook.description, ...hook.guardrails],
+                });
+                run.shieldDecisions.push(shield);
+                const approved = !shield.blocked && shield.action !== 'quarantine' && consensusPolicy.approveGlobalPromotion(verifiedWorkerIds, [1, 1, 1]);
+                if (approved) {
+                    this.hookRuntime.deploy(hook.hookId, hook.riskClass === 'mutate' ? 'session' : 'global');
+                }
+                decisions.push({
+                    kind: 'hook',
+                    target: hook.name,
+                    scope: approved ? (hook.riskClass === 'mutate' ? 'session' : 'global') : 'session',
+                    approved,
+                    rationale: approved ? 'Hook promotion passed shield and consensus.' : shield.summary,
+                });
+            }
+
+            for (const automation of run.activeAutomations.filter((artifact) => artifact.scope !== 'base')) {
+                const shield = this.securityShield.evaluate({
+                    stage: 'promotion',
+                    target: `automation:${automation.name}`,
+                    policy: 'balanced',
+                    domains: automation.domain ? [automation.domain] : [],
+                    verified: verifiedWorkerIds.length > 0,
+                    connectors: automation.connectors,
+                    text: automation.description,
+                });
+                run.shieldDecisions.push(shield);
+                const approved = !shield.blocked && shield.action !== 'quarantine' && consensusPolicy.approveGlobalPromotion(verifiedWorkerIds, [1, 1, 1]);
+                if (approved) {
+                    this.automationRuntime.deploy(automation.automationId, 'global');
+                }
+                decisions.push({
+                    kind: 'automation',
+                    target: automation.name,
+                    scope: approved ? 'global' : 'session',
+                    approved,
+                    rationale: approved ? 'Automation promotion passed shield and consensus.' : shield.summary,
+                });
             }
         }
 
@@ -1417,6 +1886,26 @@ function dedupeSkillArtifacts(values: SkillArtifact[]): SkillArtifact[] {
 }
 
 function dedupeWorkflowArtifacts(values: WorkflowArtifact[]): WorkflowArtifact[] {
+    const seen = new Set<string>();
+    return values.filter((value) => {
+        const key = value.name.toLowerCase();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+    });
+}
+
+function dedupeHookArtifacts(values: HookArtifact[]): HookArtifact[] {
+    const seen = new Set<string>();
+    return values.filter((value) => {
+        const key = value.name.toLowerCase();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+    });
+}
+
+function dedupeAutomationArtifacts(values: AutomationArtifact[]): AutomationArtifact[] {
     const seen = new Set<string>();
     return values.filter((value) => {
         const key = value.name.toLowerCase();
