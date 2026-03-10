@@ -32,11 +32,19 @@ jobs:
               return;
             }
 
+            const internalFiles = {
+              views: '_views_data.json',
+              clones: '_clones_data.json'
+            };
+
             const placeholder = (label, color) => JSON.stringify({
               schemaVersion: 1,
               label,
               message: 'pending',
-              color,
+              color
+            }, null, 2) + '\n';
+
+            const emptyInternal = () => JSON.stringify({
               count: 0,
               uniques: 0,
               history: {},
@@ -52,7 +60,9 @@ jobs:
                 public: false,
                 files: {
                   [config.files.views]: { content: placeholder('views', config.colors.views) },
-                  [config.files.clones]: { content: placeholder('clones', config.colors.clones) }
+                  [config.files.clones]: { content: placeholder('clones', config.colors.clones) },
+                  [internalFiles.views]: { content: emptyInternal() },
+                  [internalFiles.clones]: { content: emptyInternal() }
                 }
               });
 
@@ -84,22 +94,84 @@ jobs:
             const fs = require('fs');
             const config = JSON.parse(fs.readFileSync('.github/traffic-badges.json', 'utf8'));
             const gistId = process.env.GIST_ID;
+            const internalFiles = {
+              views: '_views_data.json',
+              clones: '_clones_data.json'
+            };
 
             const numberFormat = new Intl.NumberFormat('en-US');
             const gist = await github.request('GET /gists/{gist_id}', { gist_id: gistId });
 
-            function parseExisting(name) {
+            function parseJsonFile(name) {
               const raw = gist.data.files?.[name]?.content;
               if (!raw) {
-                return { history: {} };
+                return null;
               }
               try {
-                const parsed = JSON.parse(raw);
-                // Handle backwards compatibility for nested internal data
-                return parsed.internal ? parsed.internal : parsed;
+                return JSON.parse(raw);
               } catch {
-                return { history: {} };
+                return null;
               }
+            }
+
+            function emptyInternalData() {
+              return {
+                count: 0,
+                uniques: 0,
+                history: {},
+                lastUpdated: new Date(0).toISOString()
+              };
+            }
+
+            function normalizeInternalData(payload) {
+              if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+                return null;
+              }
+
+              if (payload.internal) {
+                return normalizeInternalData(payload.internal);
+              }
+
+              const hasInternalShape =
+                'count' in payload ||
+                'uniques' in payload ||
+                'history' in payload ||
+                'lastUpdated' in payload;
+
+              if (!hasInternalShape) {
+                return null;
+              }
+
+              const historyEntries =
+                payload.history && typeof payload.history === 'object' && !Array.isArray(payload.history)
+                  ? Object.entries(payload.history)
+                  : [];
+
+              const history = Object.fromEntries(
+                historyEntries.map(([key, value]) => {
+                  const entry = value && typeof value === 'object' ? value : {};
+                  return [key, {
+                    count: Number(entry.count || 0),
+                    uniques: Number(entry.uniques || 0),
+                    timestamp: typeof entry.timestamp === 'string' ? entry.timestamp : `${key}T00:00:00Z`
+                  }];
+                })
+              );
+
+              return {
+                count: Number(payload.count || 0),
+                uniques: Number(payload.uniques || 0),
+                history,
+                lastUpdated: typeof payload.lastUpdated === 'string' ? payload.lastUpdated : new Date(0).toISOString()
+              };
+            }
+
+            function parseInternalData(primaryName, fallbackName) {
+              return (
+                normalizeInternalData(parseJsonFile(primaryName)) ||
+                normalizeInternalData(parseJsonFile(fallbackName)) ||
+                emptyInternalData()
+              );
             }
 
             function mergeSeries(label, color, previous, items) {
@@ -118,17 +190,18 @@ jobs:
               const count = orderedEntries.reduce((sum, [, value]) => sum + Number(value.count || 0), 0);
               const uniques = orderedEntries.reduce((sum, [, value]) => sum + Number(value.uniques || 0), 0);
 
-              // Return a flattened object containing both shields.io required fields and internal tracking data
-              return {
+              // shields.io /endpoint only accepts: schemaVersion, label, message, color
+              const badge = {
                 schemaVersion: 1,
                 label,
                 message: `${numberFormat.format(count)} total`,
-                color,
-                count,
-                uniques,
-                history: normalizedHistory,
-                lastUpdated: new Date().toISOString()
+                color
               };
+
+              // Internal data for history accumulation (stored in separate gist file)
+              const internal = { count, uniques, history: normalizedHistory, lastUpdated: new Date().toISOString() };
+
+              return { badge, internal };
             }
 
             const viewsResponse = await github.request('GET /repos/{owner}/{repo}/traffic/views', {
@@ -144,22 +217,24 @@ jobs:
             const viewsPayload = mergeSeries(
               'views',
               config.colors.views,
-              parseExisting(config.files.views),
+              parseInternalData(internalFiles.views, config.files.views),
               viewsResponse.data.views || []
             );
 
             const clonesPayload = mergeSeries(
               'clones',
               config.colors.clones,
-              parseExisting(config.files.clones),
+              parseInternalData(internalFiles.clones, config.files.clones),
               clonesResponse.data.clones || []
             );
 
             await github.request('PATCH /gists/{gist_id}', {
               gist_id: gistId,
               files: {
-                [config.files.views]: { content: `${JSON.stringify(viewsPayload, null, 2)}\n` },
-                [config.files.clones]: { content: `${JSON.stringify(clonesPayload, null, 2)}\n` }
+                [config.files.views]: { content: `${JSON.stringify(viewsPayload.badge, null, 2)}\n` },
+                [config.files.clones]: { content: `${JSON.stringify(clonesPayload.badge, null, 2)}\n` },
+                [internalFiles.views]: { content: `${JSON.stringify(viewsPayload.internal, null, 2)}\n` },
+                [internalFiles.clones]: { content: `${JSON.stringify(clonesPayload.internal, null, 2)}\n` }
               }
             });
 
