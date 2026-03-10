@@ -1,6 +1,7 @@
 import http from 'http';
 import fs from 'fs';
 import path from 'path';
+import { execSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import { nexusEventBus, type NexusEvent, type NexusEventType } from '../engines/event-bus.js';
 import type { Adapter } from '../core/types.js';
@@ -24,6 +25,29 @@ const REQUIRED_CAPABILITIES = {
     events: true,
     stream: true,
 } as const;
+
+const DEFAULT_SKILLS: Array<{ name: string; instructions: string; riskClass: 'read' | 'orchestrate' | 'mutate'; scope: 'session' | 'worker' | 'global' }> = [
+    { name: 'code-review-playbook', instructions: 'Guide structured code review: check for bugs, security issues, performance problems, readability concerns. Produce a checklist with severity ratings.', riskClass: 'read', scope: 'global' },
+    { name: 'token-budget-guardian', instructions: 'Monitor token usage during sessions. Warn when context exceeds 70k tokens. Suggest pruning strategies and memory offloading when approaching limits.', riskClass: 'read', scope: 'global' },
+    { name: 'session-handover', instructions: 'At session end, generate a comprehensive summary: files modified, decisions made, open questions, recommended next steps. Store as session-summary memory.', riskClass: 'orchestrate', scope: 'global' },
+    { name: 'memory-hygiene', instructions: 'Review stored memories for staleness, duplicates, and contradictions. Suggest pruning candidates and consolidation opportunities. Never auto-delete.', riskClass: 'read', scope: 'global' },
+    { name: 'test-first-guard', instructions: 'Before implementing features, ensure test files exist or are planned. Prompt for test strategy if missing. Verify tests pass after implementation.', riskClass: 'orchestrate', scope: 'session' },
+    { name: 'commit-message-crafter', instructions: 'Generate concise, semantic commit messages following conventional commits format. Analyze staged changes to infer the correct type (feat/fix/chore/refactor).', riskClass: 'read', scope: 'global' },
+    { name: 'session-start-research', instructions: 'At session start, recall relevant memories (nexus_recall_memory), check memory stats (nexus_memory_stats), and build a context map of prior work. Present a concise briefing of what is known about the current task domain before diving in.', riskClass: 'read', scope: 'global' },
+    { name: 'prompt-architect', instructions: 'Help craft effective prompts for LLM interactions. Analyze prompt structure, suggest improvements for clarity, add constraints and examples, optimize for the target model. Apply prompt engineering best practices: chain-of-thought, few-shot examples, role-playing, and structured output formatting.', riskClass: 'read', scope: 'global' },
+    { name: 'architecture-scout', instructions: 'Before modifying code, analyze the architecture: identify patterns, conventions, dependency flow, and potential impact zones. Use nexus_ghost_pass for risk analysis. Document findings as architecture memories for future sessions.', riskClass: 'read', scope: 'global' },
+    { name: 'debug-forensics', instructions: 'When debugging, systematically isolate the root cause: reproduce the issue, trace the execution path, identify the failing component, verify the fix, and store the bug pattern as a memory for future reference.', riskClass: 'orchestrate', scope: 'global' },
+    { name: 'refactor-guardian', instructions: 'Guide safe refactoring: ensure tests pass before changes, make incremental modifications, verify behavior preservation after each step, and flag any breaking changes. Use ghost pass for risk assessment on large refactors.', riskClass: 'orchestrate', scope: 'session' },
+    { name: 'documentation-writer', instructions: 'Generate and maintain documentation: README sections, API docs, inline comments for complex logic, and architecture decision records. Match the existing documentation style and format of the project.', riskClass: 'orchestrate', scope: 'global' },
+    { name: 'dependency-auditor', instructions: 'Audit project dependencies for security vulnerabilities, outdated packages, unused dependencies, and license compliance. Recommend updates and alternatives where appropriate.', riskClass: 'read', scope: 'global' },
+    { name: 'performance-profiler', instructions: 'Identify performance bottlenecks in code: analyze algorithmic complexity, find N+1 query patterns, detect memory leaks, spot unnecessary re-renders, and suggest optimizations with benchmarks.', riskClass: 'read', scope: 'global' },
+];
+
+const DEFAULT_WORKFLOWS: Array<{ name: string; description: string; domain?: string }> = [
+    { name: 'full-audit-loop', description: 'Complete audit cycle: Ghost Pass risk analysis, parallel worker exploration, verification, merge consensus.', domain: 'workflows' },
+    { name: 'research-and-implement', description: 'Research domain with memory recall, plan implementation, write code, run tests, store learnings.', domain: 'workflows' },
+    { name: 'release-pipeline', description: 'Version bump, build verification, test suite, changelog update, git tag and push.', domain: 'workflows' },
+];
 
 interface DashboardServerOptions {
     runtimeProvider?: () => SubAgentRuntime | undefined;
@@ -354,26 +378,31 @@ export class DashboardServer {
                 this.respondJson(res, { error: 'runtime-unavailable' }, 503);
                 return;
             }
-            const defaultSkills: Array<{ name: string; instructions: string; riskClass: 'read' | 'orchestrate' | 'mutate'; scope: 'session' | 'worker' | 'global' }> = [
-                { name: 'code-review-playbook', instructions: 'Guide structured code review: check for bugs, security issues, performance problems, readability concerns. Produce a checklist with severity ratings.', riskClass: 'read', scope: 'global' },
-                { name: 'token-budget-guardian', instructions: 'Monitor token usage during sessions. Warn when context exceeds 70k tokens. Suggest pruning strategies and memory offloading when approaching limits.', riskClass: 'read', scope: 'global' },
-                { name: 'session-handover', instructions: 'At session end, generate a comprehensive summary: files modified, decisions made, open questions, recommended next steps. Store as session-summary memory.', riskClass: 'orchestrate', scope: 'global' },
-                { name: 'memory-hygiene', instructions: 'Review stored memories for staleness, duplicates, and contradictions. Suggest pruning candidates and consolidation opportunities. Never auto-delete.', riskClass: 'read', scope: 'global' },
-                { name: 'test-first-guard', instructions: 'Before implementing features, ensure test files exist or are planned. Prompt for test strategy if missing. Verify tests pass after implementation.', riskClass: 'orchestrate', scope: 'session' },
-                { name: 'commit-message-crafter', instructions: 'Generate concise, semantic commit messages following conventional commits format. Analyze staged changes to infer the correct type (feat/fix/chore/refactor).', riskClass: 'read', scope: 'global' },
-            ];
-            const results = [];
-            for (const skill of defaultSkills) {
+            const results: Array<{ name: string; status: string; id?: string }> = [];
+            for (const skill of DEFAULT_SKILLS) {
                 try {
                     const existing = runtime.listSkills().find((s: any) => s.name === skill.name);
                     if (!existing) {
                         const registered = runtime.generateSkill(skill);
-                        results.push({ name: skill.name, status: 'created', skillId: registered.skillId });
+                        results.push({ name: skill.name, status: 'created', id: registered.skillId });
                     } else {
-                        results.push({ name: skill.name, status: 'exists', skillId: existing.skillId });
+                        results.push({ name: skill.name, status: 'exists', id: existing.skillId });
                     }
                 } catch {
                     results.push({ name: skill.name, status: 'failed' });
+                }
+            }
+            for (const wf of DEFAULT_WORKFLOWS) {
+                try {
+                    const existing = runtime.listWorkflows().find((w: any) => w.name === wf.name);
+                    if (!existing) {
+                        const created = runtime.generateWorkflow(wf);
+                        results.push({ name: wf.name, status: 'created', id: created.workflowId });
+                    } else {
+                        results.push({ name: wf.name, status: 'exists', id: existing.workflowId });
+                    }
+                } catch {
+                    results.push({ name: wf.name, status: 'failed' });
                 }
             }
             this.respondJson(res, { seeded: results });
@@ -549,7 +578,14 @@ export class DashboardServer {
         });
     }
 
+    private lastHeartbeatBroadcast = 0;
+
     private broadcast(event: NexusEvent): void {
+        if (event.type === 'client.heartbeat') {
+            const now = Date.now();
+            if (now - this.lastHeartbeatBroadcast < 10000) return;
+            this.lastHeartbeatBroadcast = now;
+        }
         const normalized = this.normalizeEvent(event);
         const dataStr = `data: ${JSON.stringify(normalized)}\n\n`;
         for (const res of this.clients) {
@@ -646,13 +682,23 @@ export class DashboardServer {
         const podSnapshot = podNetwork.getDashboardSnapshot(20);
 
         let packageVersion = 'unknown';
-        if (fs.existsSync(packageJsonPath)) {
-            try {
-                packageVersion = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8')).version ?? 'unknown';
-            } catch {
-                packageVersion = 'unknown';
+        // Try nexus-prime's own package.json first (works when installed as npm package)
+        const ownPkgPath = path.join(__dirname, '..', 'package.json');
+        const ownPkgPath2 = path.join(__dirname, '..', '..', 'package.json');
+        for (const p of [ownPkgPath, ownPkgPath2, packageJsonPath]) {
+            if (packageVersion !== 'unknown') break;
+            if (fs.existsSync(p)) {
+                try {
+                    const v = JSON.parse(fs.readFileSync(p, 'utf-8')).version;
+                    if (v) packageVersion = v;
+                } catch { /* continue */ }
             }
         }
+
+        let gitUser = '';
+        try {
+            gitUser = execSync('git config user.name', { timeout: 2000, encoding: 'utf-8' }).trim();
+        } catch { /* ignore */ }
 
         let pagesWorkflowValid = false;
         if (fs.existsSync(workflowPath)) {
@@ -685,6 +731,7 @@ export class DashboardServer {
             },
             release: {
                 packageVersion,
+                gitUser,
             },
             docs: {
                 present: fs.existsSync(docsDir),

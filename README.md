@@ -310,6 +310,27 @@ nexus-prime setup status
 
 ## 📜 Changelog
 
+### v3.4.0 "Dashboard Overhaul"
+- **Heartbeat Throttling**: Eliminated refresh storm from client heartbeats — graph stays stable.
+- **Smart Empty States**: Token dial, event filters, and graph all show context-aware placeholder UI.
+- **14 Default Skills**: session-start-research, prompt-architect, architecture-scout, debug-forensics, refactor-guardian, documentation-writer, dependency-auditor, performance-profiler + original 6.
+- **3 Default Workflows**: full-audit-loop, research-and-implement, release-pipeline — auto-seeded on first load.
+- **Graph Caching**: Memory topology preserves last-known-good state during refreshes.
+- **Version & User Display**: Header now shows package version and git username correctly.
+- **README Audit**: Updated changelog, fixed maintainer reference, verified all screenshot paths.
+
+### v3.3.0 "Dashboard Polish"
+- **Tool Spend Tracker**: Estimated cost visualization for token usage across sessions.
+- **Skill UI**: In-dashboard skill creation form and seed button for default skills.
+- **Tool Detection**: Improved client heuristic detection via environment variables and process scanning.
+- **Dashboard Stability**: Fixed flickering, memory graph load order, and token dial responsiveness.
+
+### v3.2.0 "Runtime Closure"
+- **Topology Console**: Rebuilt dashboard with memory graph, run graph, and POD network visualization.
+- **SSE Live Stream**: Server-Sent Events for real-time event broadcasting with exponential backoff.
+- **Backend Registry**: Selectable memory, compression, and DSL compiler backends.
+- **Security Hardening**: Content Security Policy headers and input sanitization.
+
 ### v3.0.0 "The Pulse Update"
 - **POD Telemetry**: Real-time heartbeat visualization of worker sync.
 - **Improved Tokens**: Optimized HyperTune for large monorepo traversal.
@@ -346,5 +367,5 @@ nexus-prime setup status
 
 <div align="center">
   <strong>License:</strong> MIT <br>
-  <strong>Maintainers:</strong> The Nexus Prime Protocol Consortium
+  <strong>Maintainer:</strong> <a href="https://github.com/sir-ad">Adarsh Agrahari (sir-ad)</a>
 </div>

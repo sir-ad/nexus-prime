@@ -247,6 +247,11 @@
             grid-template-rows: auto auto auto auto;
             overflow-y: auto;
             scrollbar-width: thin;
+        }
+
+        .rail.left > section + section {
+            border-top: 1px solid var(--line);
+            padding-top: 0.5rem;
             scrollbar-color: rgba(188, 204, 255, 0.22) transparent;
         }
 
@@ -433,6 +438,14 @@
             stroke-dashoffset: 439.82;
             filter: drop-shadow(0 0 10px rgba(84, 255, 135, 0.32));
             transition: stroke-dashoffset 300ms ease;
+        }
+
+        .dial-fg.awaiting {
+            stroke: var(--muted);
+            stroke-dasharray: 8 6;
+            stroke-dashoffset: 0;
+            filter: none;
+            opacity: 0.25;
         }
 
         .dial-center {
@@ -1518,7 +1531,9 @@
                 : state.memories[0]?.id;
 
             if (focusMemoryId && !resourceFailed('memory')) {
+                _memoryNetworkLoading = true;
                 await refreshMemorySelection(focusMemoryId, false);
+                _memoryNetworkLoading = false;
             } else if (!focusMemoryId) {
                 state.memoryDetail = null;
                 state.memoryNetwork = { nodes: [], links: [], focusId: null };
@@ -1534,6 +1549,8 @@
 
         let _refreshTimer = null;
         let _refreshInFlight = false;
+        let _memoryNetworkLoading = false;
+        let _lastGraphModel = null;
 
         function scheduleRefresh() {
             if (_refreshTimer) return;
@@ -1546,7 +1563,7 @@
                 _refreshInFlight = true;
                 try { await refreshAll(); } catch {}
                 _refreshInFlight = false;
-            }, 300);
+            }, 2000);
         }
 
         async function refreshMemorySelection(memoryId, openDrawer = true) {
@@ -1727,7 +1744,9 @@
         }
 
         function renderHeader() {
-            $('header-version').textContent = `v${state.health.release?.packageVersion || '?'}`;
+            const ver = state.health.release?.packageVersion || '?';
+            const user = state.health.release?.gitUser;
+            $('header-version').textContent = user ? `v${ver} · ${user}` : `v${ver}`;
             const pill = $('sync-pill');
             const failedResources = countFailedResources();
             pill.classList.toggle('live', state.streamConnected && failedResources === 0);
@@ -1767,15 +1786,27 @@
             });
 
             const tokenMetrics = computeTokenMetrics();
-            $('token-summary').textContent = resourceFailed('events') ? 'events unavailable' : `${tokenMetrics.events} events`;
-            $('gross-tokens').textContent = formatNumber(tokenMetrics.gross);
-            $('saved-tokens').textContent = formatNumber(tokenMetrics.saved);
-            $('net-tokens').textContent = formatNumber(tokenMetrics.forwarded);
-            $('memory-count').textContent = resourceFailed('memory') && !state.memories.length ? 'n/a' : formatNumber(state.memories.length);
-            $('dial-value').textContent = `${tokenMetrics.ratio}%`;
+            const dialEl = $('dial-progress');
             const circumference = 2 * Math.PI * 70;
-            const offset = circumference - (circumference * tokenMetrics.ratio / 100);
-            $('dial-progress').style.strokeDashoffset = `${offset}`;
+            if (tokenMetrics.events === 0) {
+                $('token-summary').textContent = resourceFailed('events') ? 'events unavailable' : 'awaiting data';
+                $('gross-tokens').textContent = '--';
+                $('saved-tokens').textContent = '--';
+                $('net-tokens').textContent = '--';
+                $('dial-value').textContent = '--';
+                dialEl.classList.add('awaiting');
+                dialEl.style.strokeDashoffset = '0';
+            } else {
+                $('token-summary').textContent = resourceFailed('events') ? 'events unavailable' : `${tokenMetrics.events} events`;
+                $('gross-tokens').textContent = formatNumber(tokenMetrics.gross);
+                $('saved-tokens').textContent = formatNumber(tokenMetrics.saved);
+                $('net-tokens').textContent = formatNumber(tokenMetrics.forwarded);
+                $('dial-value').textContent = `${tokenMetrics.ratio}%`;
+                dialEl.classList.remove('awaiting');
+                const offset = circumference - (circumference * tokenMetrics.ratio / 100);
+                dialEl.style.strokeDashoffset = `${offset}`;
+            }
+            $('memory-count').textContent = resourceFailed('memory') && !state.memories.length ? 'n/a' : formatNumber(state.memories.length);
 
             $('runs-count').textContent = resourceFailed('runs') && !state.runs.length ? 'n/a' : formatNumber(state.runs.length);
             const latestRun = state.runs[0];
@@ -1880,6 +1911,8 @@
         }
 
         function renderGraph() {
+            if (_memoryNetworkLoading && state.graphMode === 'memory') return;
+
             const config = graphModes[state.graphMode];
             $('graph-title').textContent = config.title;
             $('graph-subtitle').textContent = config.subtitle;
@@ -1887,9 +1920,15 @@
                 button.classList.toggle('active', button.dataset.graphMode === state.graphMode);
             });
 
-            const model = buildGraphModel();
+            let model = buildGraphModel();
             const svg = $('graph-canvas');
             const empty = $('graph-empty');
+
+            if (model.nodes.length > 0) {
+                _lastGraphModel = { ...model, mode: state.graphMode };
+            } else if (_lastGraphModel && _lastGraphModel.mode === state.graphMode && _lastGraphModel.nodes.length > 0) {
+                model = _lastGraphModel;
+            }
 
             if (!model.nodes.length) {
                 svg.innerHTML = '';
@@ -1974,10 +2013,15 @@
                 });
             });
 
+            const memTiers = state.health.memory || {};
             $('graph-stats').innerHTML = [
                 chip(`${model.nodes.length} nodes`),
                 chip(`${model.links.length} links`),
-                state.graphMode === 'memory' ? chip(`${state.memories.length} memory snapshots`) : '',
+                state.graphMode === 'memory' ? [
+                    memTiers.prefrontal ? chip(`prefrontal: ${memTiers.prefrontal}`) : '',
+                    memTiers.hippocampus ? chip(`hippocampus: ${memTiers.hippocampus}`) : '',
+                    memTiers.cortex ? chip(`cortex: ${memTiers.cortex}`) : '',
+                ].filter(Boolean).join('') || chip(`${state.memories.length} memories`) : '',
                 state.graphMode === 'runs' ? chip(`${state.runs.length} recent runs`) : '',
                 state.graphMode === 'pod' ? chip(`${(state.pod.activeWorkers || []).length} pod workers`) : '',
             ].filter(Boolean).join('');
@@ -2199,7 +2243,16 @@
                 `).join('')
                 : resourceFailed('events')
                     ? emptyState('Events endpoint unavailable. Live stream may still populate this panel.')
-                    : emptyState('No events for this filter.');
+                    : emptyState(
+                        state.eventFilter === 'memory' ? 'No memory events yet. Events appear when you store or recall memories.'
+                        : state.eventFilter === 'tokens' ? 'No token events yet. Events appear when nexus_optimize_tokens runs.'
+                        : state.eventFilter === 'skills' ? 'No skill events yet. Create or seed skills from the library tab.'
+                        : state.eventFilter === 'workflows' ? 'No workflow events yet. Deploy or run a workflow to see activity.'
+                        : state.eventFilter === 'runtime' ? 'No runtime events yet. Spawn phantom workers to see execution traces.'
+                        : state.eventFilter === 'pod' ? 'No POD signals yet. POD events appear during multi-worker coordination.'
+                        : state.eventFilter === 'clients' ? 'No client events yet (heartbeats are throttled).'
+                        : 'No events for this filter.'
+                    );
         }
 
         function renderDrawer() {
@@ -2693,6 +2746,7 @@
         let _stream = null;
         let _reconnectDelay = 1000;
         let _reconnectTimer = null;
+        let _lastHeartbeatDisplayTime = 0;
 
         function connectStream() {
             if (_stream) { _stream.close(); _stream = null; }
@@ -2722,7 +2776,14 @@
                     }
                     state.events = state.events.slice(0, 120);
                     setResourceStatus('events', 'ready');
-                    if (['runtime', 'memory', 'pod', 'skills', 'workflows', 'clients'].includes(payload.category)) {
+                    const isHeartbeat = payload.type === 'client.heartbeat';
+                    if (isHeartbeat) {
+                        const now = Date.now();
+                        if (now - _lastHeartbeatDisplayTime < 30000) return;
+                        _lastHeartbeatDisplayTime = now;
+                        renderEvents();
+                        renderHeader();
+                    } else if (['runtime', 'memory', 'pod', 'skills', 'workflows', 'clients'].includes(payload.category)) {
                         scheduleRefresh();
                     } else {
                         renderEvents();
@@ -2737,6 +2798,15 @@
         async function bootstrap() {
             attachStaticHandlers();
             await refreshAll();
+
+            // Auto-seed skills and workflows on first load if none exist
+            if (state.skills.length === 0) {
+                try {
+                    await fetchJson('/api/skills/seed', postJson({}));
+                    await refreshAll();
+                } catch { /* seed may fail if runtime unavailable */ }
+            }
+
             $('control-status').textContent = state.banner?.message
                 ? state.banner.message
                 : 'Dashboard actions stay local and route through the runtime.';
