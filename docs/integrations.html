@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Integrations | Nexus Prime</title>
+    <meta name="description"
+        content="Client setup and MCP integration guide for Nexus Prime across Cursor, Claude, Opencode, Codex, and related tooling." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Inter:wght@300;400;500;600;700;900&display=swap"
+        rel="stylesheet" />
+    <style>
+        :root {
+            --green: #00ff88;
+            --cyan: #00d4ff;
+            --purple: #8b5cf6;
+            --amber: #fbbf24;
+            --bg: #040810;
+            --bg2: #080f1a;
+            --bg3: #0d1828;
+            --surface: rgba(13, 24, 40, 0.82);
+            --border: rgba(0, 255, 136, 0.12);
+            --text: #e2f5ff;
+            --text-dim: #7a9bb0;
+            --text-muted: #3d5570;
+        }
+
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.65;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image: linear-gradient(rgba(0, 255, 136, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 136, 0.03) 1px, transparent 1px);
+            background-size: 60px 60px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            padding: 16px 48px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(4, 8, 16, 0.85);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .nav-logo {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--green);
+            text-decoration: none;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 28px;
+            list-style: none;
+        }
+
+        .nav-links a,
+        .footer-links a {
+            font-size: 13px;
+            color: var(--text-dim);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .nav-links a:hover,
+        .nav-links a.active,
+        .footer-links a:hover {
+            color: var(--green);
+        }
+
+        .nav-cta {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--bg);
+            background: var(--green);
+            padding: 8px 20px;
+            border-radius: 4px;
+            text-decoration: none;
+        }
+
+        .page {
+            max-width: 1280px;
+            margin: 100px auto 48px;
+            padding: 0 48px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .hero {
+            display: grid;
+            grid-template-columns: 1.2fr 0.8fr;
+            gap: 28px;
+            margin-bottom: 40px;
+        }
+
+        .hero-card,
+        .panel {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            padding: 28px;
+            box-shadow: 0 24px 80px rgba(0, 0, 0, 0.35);
+        }
+
+        .eyebrow {
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--cyan);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            margin-bottom: 12px;
+        }
+
+        h1 {
+            font-size: clamp(2.4rem, 5vw, 4rem);
+            line-height: 1.05;
+            margin-bottom: 16px;
+        }
+
+        .hero-card p,
+        .panel p,
+        .panel li {
+            color: var(--text-dim);
+        }
+
+        .quick-links {
+            display: grid;
+            gap: 14px;
+        }
+
+        .quick-link {
+            display: block;
+            padding: 16px 18px;
+            border-radius: 14px;
+            border: 1px solid var(--border);
+            background: rgba(4, 8, 16, 0.55);
+            text-decoration: none;
+        }
+
+        .quick-link strong {
+            display: block;
+            color: var(--text);
+            margin-bottom: 6px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 24px;
+        }
+
+        .panel h2 {
+            margin-bottom: 14px;
+            font-size: 1.4rem;
+        }
+
+        .panel h3 {
+            margin: 20px 0 10px;
+            font-size: 1rem;
+            color: var(--text);
+        }
+
+        .panel ul,
+        .panel ol {
+            padding-left: 20px;
+        }
+
+        pre {
+            margin-top: 14px;
+            background: rgba(4, 8, 16, 0.75);
+            border: 1px solid rgba(0, 212, 255, 0.14);
+            border-radius: 14px;
+            padding: 18px;
+            overflow-x: auto;
+            color: var(--text);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            line-height: 1.7;
+        }
+
+        code {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        footer {
+            margin-top: 48px;
+            padding: 28px 0 8px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 24px;
+            flex-wrap: wrap;
+        }
+
+        .footer-logo {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .footer-links {
+            display: flex;
+            gap: 18px;
+            flex-wrap: wrap;
+        }
+
+        @media (max-width: 960px) {
+            nav {
+                padding: 16px 20px;
+                flex-wrap: wrap;
+                gap: 12px;
+            }
+
+            .page {
+                padding: 0 20px;
+            }
+
+            .hero,
+            .grid {
+                grid-template-columns: 1fr;
+            }
+
+            .nav-links {
+                gap: 14px;
+                flex-wrap: wrap;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <nav>
+        <a class="nav-logo" href="index.html">nexus-prime</a>
+        <ul class="nav-links">
+            <li><a href="index.html">Overview</a></li>
+            <li><a href="knowledge-base.html">Knowledge Base</a></li>
+            <li><a href="integrations.html" class="active">Integrations</a></li>
+            <li><a href="architecture-diagrams.html">Architecture Diagrams</a></li>
+        </ul>
+        <a class="nav-cta" href="index.html#documentation">Docs Home →</a>
+    </nav>
+
+    <main class="page">
+        <section class="hero">
+            <div class="hero-card">
+                <div class="eyebrow">Client Integration Guide</div>
+                <h1>Connect Nexus Prime to the tools that actually drive the work.</h1>
+                <p>This page turns the original integration markdown into a website-native reference. Use it to wire
+                    the MCP server into your coding clients, verify the bridge, and debug the common failure modes.</p>
+            </div>
+            <div class="hero-card">
+                <div class="eyebrow">Docs Shortcuts</div>
+                <div class="quick-links">
+                    <a class="quick-link" href="knowledge-base.html">
+                        <strong>Knowledge Base</strong>
+                        <span>Core concepts, runtime behaviors, and API reference.</span>
+                    </a>
+                    <a class="quick-link" href="architecture-diagrams.html">
+                        <strong>Architecture Diagrams</strong>
+                        <span>Visual schematics for memory, swarms, tokens, and request flow.</span>
+                    </a>
+                    <a class="quick-link" href="https://github.com/sir-ad/nexus-prime" target="_blank" rel="noopener">
+                        <strong>GitHub Repository</strong>
+                        <span>Source, releases, issues, and automation workflows.</span>
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <section class="grid">
+            <article class="panel" id="automated-setup">
+                <h2>Automated Setup</h2>
+                <p>The fastest path is still the `setup` command.</p>
+                <pre><code># Globally install first
+npm install -g nexus-prime
+
+# Run setup for your tool
+nexus-prime setup cursor
+nexus-prime setup claude
+nexus-prime setup opencode</code></pre>
+            </article>
+
+            <article class="panel" id="verification">
+                <h2>Verification</h2>
+                <ol>
+                    <li>Open the AI or settings pane in your tool.</li>
+                    <li>Confirm `nexus-prime-mcp` appears in connected servers.</li>
+                    <li>Call `nexus_memory_stats` to verify the bridge is active.</li>
+                </ol>
+            </article>
+
+            <article class="panel" id="clients">
+                <h2>Supported Tools</h2>
+                <h3>Cursor</h3>
+                <p>Automated: <code>nexus-prime setup cursor</code><br />Manual path:
+                    <code>~/Library/Application Support/Cursor/User/globalStorage/mcpServers.json</code></p>
+
+                <h3>Claude Code</h3>
+                <p>Automated: <code>nexus-prime setup claude</code><br />Manual path:
+                    <code>~/.claude-code/mcp.json</code></p>
+
+                <h3>Opencode</h3>
+                <p>Automated: <code>nexus-prime setup opencode</code><br />Manual path:
+                    <code>~/.opencode/config.json</code></p>
+
+                <h3>Kilocode / Codex</h3>
+                <p>For clients without a standardized config yet, pass the MCP environment flags directly:</p>
+                <pre><code>NUXUS_PRIME_MCP=true
+MCP_PORT=3377</code></pre>
+            </article>
+
+            <article class="panel" id="troubleshooting">
+                <h2>Troubleshooting</h2>
+                <h3>Polluted stdout</h3>
+                <p>Use <code>npx -y nexus-prime mcp</code> or the published CLI. Extra stdout breaks JSON-RPC framing in
+                    strict MCP clients.</p>
+
+                <h3>Version mismatch</h3>
+                <p>Ensure the client is picking up the latest npm version. Recent runtime behavior and dashboard fixes
+                    require the current `3.x` line.</p>
+
+                <h3>Bridge verification</h3>
+                <p>If the server appears connected but tools fail, run the MCP process directly and watch stderr for
+                    handshake and guardrail logs.</p>
+            </article>
+        </section>
+
+        <footer>
+            <div class="footer-logo">⬡ nexus-prime docs</div>
+            <div class="footer-links">
+                <a href="index.html">Overview</a>
+                <a href="knowledge-base.html">Knowledge Base</a>
+                <a href="integrations.html">Integrations</a>
+                <a href="architecture-diagrams.html">Architecture Diagrams</a>
+                <a href="https://github.com/sir-ad/nexus-prime" target="_blank" rel="noopener">GitHub</a>
+            </div>
+        </footer>
+    </main>
+</body>
+
+</html>

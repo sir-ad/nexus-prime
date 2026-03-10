@@ -20,7 +20,7 @@
     "type": "git",
     "url": "git+https://github.com/sir-ad/nexus-prime.git"
   },
-  "homepage": "https://github.com/sir-ad/nexus-prime",
+  "homepage": "https://sir-ad.github.io/nexus-prime/",
   "bin": {
     "nexus-prime": "dist/cli.js"
   },
@@ -30,7 +30,7 @@
     "dev": "tsc --watch",
     "start": "node dist/cli.js start",
     "init": "node dist/cli.js init",
-    "test": "npm run build && node test/basic.test.ts && node test/memory.test.ts && node test/phantom.test.ts && node test/dashboard.test.ts",
+    "test": "npm run build && node test/basic.test.ts && node test/memory.test.ts && node test/phantom.test.ts && node test/dashboard.test.ts && node test/docs.test.ts",
     "lint": "eslint src --ext .ts"
   },
   "keywords": [

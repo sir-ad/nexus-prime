@@ -36,6 +36,9 @@ npx nexus-prime mcp
 
 **Nexus Prime** is a local-first coding-agent operating system. Exposed as an MCP (Model Context Protocol) server or integrated programmatically, it provides single and multi-agent systems with **persistent memory, selectable runtime backends, guarded live skills, workflow artifacts, a live dashboard, and parallel Git-worktree execution with verification.**
 
+**Website:** [sir-ad.github.io/nexus-prime](https://sir-ad.github.io/nexus-prime/)
+**Documentation:** [Knowledge Base](https://sir-ad.github.io/nexus-prime/knowledge-base.html) · [Integrations](https://sir-ad.github.io/nexus-prime/integrations.html) · [Architecture Diagrams](https://sir-ad.github.io/nexus-prime/architecture-diagrams.html)
+
 ---
 
 <details>
