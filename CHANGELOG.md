@@ -2,7 +2,7 @@
 
 All notable changes to Nexus Prime will be documented in this file.
 
-## [3.4.0] - 2026-03-11
+## [3.5.0] - 2026-03-11
 
 ### Added
 - **Expanded Living Product Brain**: Added broader bundled skill/workflow coverage for PDLC, GTM, writing, deep-tech, API, data, Python, Django, TypeScript, Node, React, AI, security, economics, plus builder/operator and approval-loop artifact families.
@@ -20,7 +20,7 @@ All notable changes to Nexus Prime will be documented in this file.
 - **CLI Execution Inputs**: `nexus-prime execute` now accepts hook selectors, automation selectors, shield policy, and memory policy.
 
 ### Fixed
-- **Release Metadata Drift**: Synchronized the package lockfile version with the package version at `3.4.0`.
+- **Release Metadata Drift**: Synchronized the package lockfile version with the package version at `3.5.0`.
 - **Federation Truthfulness**: Removed the fake gist-style publish IDs from the federation engine and replaced them with local-federation state and auditable trace handling.
 - **Memory Safety Gates**: High-risk secret-bearing memories and unsupported claim patterns are now flagged before promotion-oriented use.
 
