@@ -2,6 +2,23 @@
 
 All notable changes to Nexus Prime will be documented in this file.
 
+## [3.6.0] - 2026-03-11
+
+### Added
+- **Native Specialist Roster**: Added a generated first-party specialist corpus plus crew templates for PDLC, implementation, GTM, content, finance, security, and research motions.
+- **Task Planner Overlay**: Added a non-regressing planner layer that emits objective, crew, specialist, skill, workflow, tool, swarm, fallback, review-gate, and continuation state before execution.
+- **Planner MCP APIs**: Added `nexus_plan_execution`, `nexus_list_specialists`, and `nexus_list_crews` so MCP clients can inspect the planner and roster without executing mutations.
+- **Planner Dashboard Surfaces**: Added specialist, crew, and live planner-ledger views to the topology console, backed by `/api/specialists`, `/api/crews`, and `/api/runtime/plan`.
+
+### Changed
+- **Runtime Worker Assignment**: Execution runs now persist `plannerState`, assign specialists to worker manifests, and emit `planner.stage` events into the runtime ledger and dashboard stream.
+- **NXL / Orchestrator Integration**: Crew selectors, specialist selectors, and optimization profile now flow through NXL compilation, swarm orchestration, runtime planning, and run-status reporting.
+- **Planner Safety Model**: The specialist planner remains an additive overlay and can be disabled with `NEXUS_SPECIALIST_PLANNER_DISABLED=1`, preserving the stable baseline runtime path.
+
+### Fixed
+- **Tool Policy Truthfulness**: Planner-selected tool policy is now enforced per worker role instead of remaining metadata-only, while explicit action-driven runs remain backward-compatible.
+- **Non-Coder Tool Leakage**: Planner and verifier manifests no longer inherit write-capable tool permissions from mutate specialists when those tools are only meant for coder workers.
+
 ## [3.5.0] - 2026-03-11
 
 ### Added

@@ -1,6 +1,6 @@
 {
   "name": "nexus-prime",
-  "version": "3.5.0",
+  "version": "3.6.0",
   "description": "The Self-Evolving Agent Operating System — cross-session memory, token optimization, parallel sub-agents via MCP",
   "type": "module",
   "main": "dist/index.js",
