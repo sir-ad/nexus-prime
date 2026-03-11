@@ -118,6 +118,9 @@ export class OrchestratorEngine {
       skillPolicy: options?.skillPolicy,
       backendSelectors: options?.backendSelectors,
       skillNames: options?.skillNames,
+      crewSelectors: options?.crewSelectors,
+      specialistSelectors: options?.specialistSelectors,
+      optimizationProfile: options?.optimizationProfile,
       actions: options?.actions,
       inlineSkills: options?.inlineSkills,
       nxlScript: options?.nxlScript,
@@ -138,6 +141,19 @@ export class OrchestratorEngine {
 
   public getLastRun(): ExecutionRun | null {
     return this.lastRun;
+  }
+
+  public async plan(task: string, options?: Partial<ExecutionTask>) {
+    return this.runtime.planExecution({
+      goal: task,
+      files: options?.files,
+      skillNames: options?.skillNames,
+      workflowSelectors: options?.workflowSelectors,
+      crewSelectors: options?.crewSelectors,
+      specialistSelectors: options?.specialistSelectors,
+      optimizationProfile: options?.optimizationProfile,
+      workers: options?.workers,
+    });
   }
 }
 

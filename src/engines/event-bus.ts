@@ -9,6 +9,7 @@ import * as os from 'os';
 
 export type NexusEventType =
     | 'system.boot'
+    | 'planner.stage'
     | 'memory.store'
     | 'memory.recall'
     | 'pod.signal'
@@ -57,6 +58,7 @@ export type NexusEventType =
 
 export interface NexusEventPayloads {
     'system.boot': { version: string; toolsCount: number };
+    'planner.stage': { runId?: string; stage: string; status: string; owner: string; assets: number };
     'memory.store': { id: string; priority: number; tags: string[]; tier: string };
     'memory.recall': { query: string; count: number };
     'pod.signal': { workerId: string; type: string; content: string; confidence?: number; tags?: string[] };

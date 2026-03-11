@@ -58,6 +58,18 @@ import {
     type HookTrigger,
     type SkillScope,
 } from '../engines/runtime-assets.js';
+import {
+    listCrewTemplates,
+    listSpecialists,
+    type ContinuationProposal,
+    type FallbackPlan,
+    type OptimizationProfile,
+    type PlanningLedgerRow,
+    type ReviewGateResult,
+    type SelectedCrew,
+    type SelectedSpecialist,
+} from '../engines/specialist-roster.js';
+import { planTask, type TaskPlannerState } from '../engines/task-planner.js';
 import { nexusEventBus } from '../engines/event-bus.js';
 import { MergeOracle } from './merge-oracle.js';
 import type { MergeDecision, WorkerResult } from './index.js';
@@ -109,6 +121,18 @@ export interface MemoryPolicy {
     quarantineTag: string;
 }
 
+export interface ReviewPolicy {
+    mode: 'full' | 'runtime-only';
+}
+
+export interface ReleasePolicy {
+    mode: 'ship-ready' | 'skip';
+}
+
+export interface ContinuationPolicy {
+    mode: 'suggest' | 'manual';
+}
+
 export interface ExecutionTask {
     goal: string;
     files: string[];
@@ -135,6 +159,13 @@ export interface ExecutionTask {
     backendMode: BackendMode;
     shieldPolicy: ShieldPolicyMode;
     memoryPolicy: MemoryPolicy;
+    crewSelectors: string[];
+    specialistSelectors: string[];
+    optimizationProfile: OptimizationProfile;
+    reviewPolicy: ReviewPolicy;
+    releasePolicy: ReleasePolicy;
+    continuationPolicy: ContinuationPolicy;
+    allowedToolsOverride?: string[];
 }
 
 export interface WorkerSkillOverlay {
@@ -149,6 +180,8 @@ export interface WorkerManifest {
     role: WorkerRole;
     strategy: string;
     worktreeDir: string | null;
+    specialistId?: string;
+    specialistName?: string;
     files: FileRef[];
     skillOverlays: WorkerSkillOverlay;
     workflowOverlays: string[];
@@ -192,6 +225,14 @@ export interface PlannerResult {
     domains: string[];
     selectedFiles: string[];
     selectedWorkflows: string[];
+    selectedSkills: string[];
+    selectedTools: string[];
+    selectedCrew?: SelectedCrew;
+    selectedSpecialists: SelectedSpecialist[];
+    fallbackPlan?: FallbackPlan;
+    reviewGates: ReviewGateResult[];
+    continuation?: ContinuationProposal;
+    ledger: PlanningLedgerRow[];
     strategyMap: Array<{ workerId: string; strategy: string }>;
     risks: string[];
 }
@@ -240,6 +281,7 @@ export interface ExecutionRun {
     federationState?: unknown;
     artifactsIndex: Record<string, string>;
     result: string;
+    plannerState?: TaskPlannerState;
 }
 
 export interface SubAgentRuntimeOptions {
@@ -517,7 +559,9 @@ export class SubAgentRuntime {
     async run(input: Partial<ExecutionTask> & { goal: string }): Promise<ExecutionRun> {
         const runId = buildRunId('exec');
         const recorder = new ArtifactRecorder(runId, this.artifactsRoot);
-        const task = await this.normalizeTask(input);
+        let task = await this.normalizeTask(input);
+        const planner = planTask(task);
+        task = planner.task;
         const backends = this.resolveBackends(task);
         const selectedBackends: BackendSelection = {
             memoryBackend: backends.memory.descriptor.kind,
@@ -557,10 +601,21 @@ export class SubAgentRuntime {
             memoryChecks: [],
             artifactsIndex: recorder.index,
             result: '',
+            plannerState: planner.plannerState,
         };
         this.runs.set(runId, run);
 
         recorder.writeJson('task.json', task);
+        recorder.writeJson('planner-state.json', planner.plannerState);
+        planner.plannerState.ledger.forEach((row) => {
+            nexusEventBus.emit('planner.stage', {
+                runId,
+                stage: row.stage,
+                status: row.status,
+                owner: row.owner,
+                assets: row.selectedAssets.length,
+            });
+        });
         this.sessionDNA?.recordDecision('Execution task accepted', task.goal, 0.8);
         const localPeer = this.federation.heartbeat(`runtime-${runId}`, {
             displayName: `Runtime ${runId}`,
@@ -735,9 +790,9 @@ export class SubAgentRuntime {
         recorder.writeJson('hooks.json', activeHooks);
         recorder.writeJson('automations.json', activeAutomations);
 
-        const manifests = this.createWorkerManifests(task, fileRefs, plan, activeSkills, activeWorkflows, effectiveActions, effectiveVerifyCommands);
+        const manifests = this.createWorkerManifests(task, fileRefs, plan, activeSkills, activeWorkflows, effectiveActions, effectiveVerifyCommands, planner.plannerState);
         run.workerManifests = manifests;
-        run.plannerResult = this.createPlannerResult(task, manifests, fileRefs, domainMatches);
+        run.plannerResult = this.createPlannerResult(task, manifests, fileRefs, domainMatches, planner.plannerState);
         recorder.writeJson('planner-result.json', run.plannerResult);
         recorder.writeJson('manifests.json', manifests);
 
@@ -972,6 +1027,28 @@ export class SubAgentRuntime {
         return this.automationRuntime.listArtifacts();
     }
 
+    listSpecialists() {
+        return listSpecialists();
+    }
+
+    listCrews() {
+        return listCrewTemplates();
+    }
+
+    async planExecution(input: Partial<ExecutionTask> & { goal: string }): Promise<TaskPlannerState> {
+        const task = await this.normalizeTask(input);
+        const planner = planTask(task).plannerState;
+        planner.ledger.forEach((row) => {
+            nexusEventBus.emit('planner.stage', {
+                stage: row.stage,
+                status: row.status,
+                owner: row.owner,
+                assets: row.selectedAssets.length,
+            });
+        });
+        return planner;
+    }
+
     generateSkill(input: { name: string; instructions: string; riskClass?: SkillArtifact['riskClass']; scope?: SkillScope; provenance?: string }): SkillArtifact {
         return this.skillRuntime.createSkill({
             name: input.name,
@@ -1125,6 +1202,13 @@ export class SubAgentRuntime {
             compression: [...this.backendRegistry.compression.values()].map((backend) => backend.descriptor),
             dsl: [...this.backendRegistry.dsl.values()].map((backend) => backend.descriptor),
             consensus: [{ kind: 'multi-tier-byzantine', mode: 'default' }],
+            crews: listCrewTemplates().map((crew) => ({ crewId: crew.crewId, name: crew.name, domains: crew.domains })),
+            specialists: listSpecialists().slice(0, 24).map((specialist) => ({
+                specialistId: specialist.specialistId,
+                name: specialist.name,
+                division: specialist.division,
+                authority: specialist.authority,
+            })),
             hooks: this.hookRuntime.listArtifacts().map((hook) => ({ hookId: hook.hookId, name: hook.name, trigger: hook.trigger })),
             automations: this.automationRuntime.listArtifacts().map((automation) => ({ automationId: automation.automationId, name: automation.name, triggerMode: automation.triggerMode })),
         };
@@ -1138,6 +1222,9 @@ export class SubAgentRuntime {
             workflows: this.workflowRuntime.listArtifacts().length,
             hooks: this.hookRuntime.listArtifacts().length,
             automations: this.automationRuntime.listArtifacts().length,
+            specialists: listSpecialists().length,
+            crews: listCrewTemplates().length,
+            plannerOverlay: process.env.NEXUS_SPECIALIST_PLANNER_DISABLED === '1' ? 'disabled' : 'enabled',
             shield: 'balanced',
             federation: this.federation.getSnapshot(),
             artifactsRoot: this.resolveArtifactsRoot(),
@@ -1205,6 +1292,13 @@ export class SubAgentRuntime {
             backendMode: input.backendMode ?? 'default',
             shieldPolicy: input.shieldPolicy ?? 'balanced',
             memoryPolicy: input.memoryPolicy ?? { mode: 'balanced', quarantineTag: '#quarantine' },
+            crewSelectors: input.crewSelectors ?? [],
+            specialistSelectors: input.specialistSelectors ?? [],
+            optimizationProfile: input.optimizationProfile ?? 'standard',
+            reviewPolicy: input.reviewPolicy ?? { mode: 'full' },
+            releasePolicy: input.releasePolicy ?? { mode: 'ship-ready' },
+            continuationPolicy: input.continuationPolicy ?? { mode: 'suggest' },
+            allowedToolsOverride: input.allowedToolsOverride,
         };
 
         if (input.nxlScript && (!input.actions || input.actions.length === 0)) {
@@ -1258,6 +1352,12 @@ export class SubAgentRuntime {
                 mode: compiledMemoryPolicy?.mode ?? 'balanced',
                 quarantineTag: compiledMemoryPolicy?.quarantineTag ?? '#quarantine',
             },
+            crewSelectors: (compiledSpec.crews as string[] | undefined) ?? [],
+            specialistSelectors: (compiledSpec.specialists as string[] | undefined) ?? [],
+            optimizationProfile: (compiledSpec.optimizationProfile as OptimizationProfile | undefined) ?? 'standard',
+            reviewPolicy: { mode: (compiledSpec.reviewPolicy as ReviewPolicy | undefined)?.mode ?? 'full' },
+            releasePolicy: { mode: (compiledSpec.releasePolicy as ReleasePolicy | undefined)?.mode ?? 'ship-ready' },
+            continuationPolicy: { mode: (compiledSpec.continuationPolicy as ContinuationPolicy | undefined)?.mode ?? 'suggest' },
         };
     }
 
@@ -1287,12 +1387,22 @@ export class SubAgentRuntime {
         activeSkills: SkillArtifact[],
         activeWorkflows: WorkflowArtifact[],
         actions: SkillBinding[],
-        verifyCommands: string[]
+        verifyCommands: string[],
+        plannerState?: TaskPlannerState
     ): WorkerManifest[] {
         const workerIds = new Array(task.workers).fill(null).map((_, idx) => `coder-${idx + 1}`);
         const budgets = this.resolveCompressionBackend(task).allocateWorkerBudget(workerIds, plan);
         const sessionSkillIds = activeSkills.map(skill => skill.skillId);
         const workflowIds = activeWorkflows.map((workflow) => workflow.workflowId);
+        const fallbackTools = task.allowedToolsOverride && task.allowedToolsOverride.length > 0
+            ? task.allowedToolsOverride
+            : undefined;
+        const selectedSpecialists = plannerState?.selectedSpecialists ?? [];
+        const mutateSpecialists = selectedSpecialists.filter((specialist) => specialist.authority === 'mutate');
+        const reviewSpecialists = selectedSpecialists.filter((specialist) => specialist.authority !== 'mutate');
+        const plannerSpecialist = selectedSpecialists[0];
+        const skillMakerSpecialist = reviewSpecialists[0] ?? selectedSpecialists[1] ?? plannerSpecialist;
+        const researchSpecialist = selectedSpecialists[selectedSpecialists.length - 1] ?? plannerSpecialist;
 
         const manifests: WorkerManifest[] = [
             {
@@ -1300,10 +1410,12 @@ export class SubAgentRuntime {
                 role: 'planner',
                 strategy: 'plan',
                 worktreeDir: null,
+                specialistId: plannerSpecialist?.specialistId,
+                specialistName: plannerSpecialist?.name,
                 files,
                 skillOverlays: { base: task.skillNames, session: sessionSkillIds, worker: [], runtimeHot: sessionSkillIds },
                 workflowOverlays: workflowIds,
-                allowedTools: ['read_file', 'run_command'],
+                allowedTools: scopedTools(fallbackTools, ['read_file', 'run_command']),
                 tokenBudget: Math.max(200, Math.round(plan.totalEstimatedTokens * 0.3)),
                 verifyCommands,
                 checkpoints: task.checkpointPolicy,
@@ -1316,10 +1428,12 @@ export class SubAgentRuntime {
                 role: 'skill-maker',
                 strategy: 'derive',
                 worktreeDir: null,
+                specialistId: skillMakerSpecialist?.specialistId,
+                specialistName: skillMakerSpecialist?.name,
                 files,
                 skillOverlays: { base: task.skillNames, session: sessionSkillIds, worker: [], runtimeHot: sessionSkillIds },
                 workflowOverlays: workflowIds,
-                allowedTools: ['read_file', 'write_file'],
+                allowedTools: scopedTools(fallbackTools, ['read_file', 'write_file', 'append_file', 'replace_text']),
                 tokenBudget: 240,
                 verifyCommands,
                 checkpoints: task.checkpointPolicy,
@@ -1332,10 +1446,12 @@ export class SubAgentRuntime {
                 role: 'research-shadow',
                 strategy: task.backendMode,
                 worktreeDir: null,
+                specialistId: researchSpecialist?.specialistId,
+                specialistName: researchSpecialist?.name,
                 files,
                 skillOverlays: { base: task.skillNames, session: sessionSkillIds, worker: [], runtimeHot: sessionSkillIds },
                 workflowOverlays: workflowIds,
-                allowedTools: ['read_file', 'run_command'],
+                allowedTools: scopedTools(fallbackTools, ['read_file', 'run_command']),
                 tokenBudget: 240,
                 verifyCommands,
                 checkpoints: task.checkpointPolicy,
@@ -1346,11 +1462,17 @@ export class SubAgentRuntime {
         ];
 
         workerIds.forEach((workerId, idx) => {
+            const coderSpecialist = mutateSpecialists[idx % Math.max(mutateSpecialists.length, 1)]
+                ?? selectedSpecialists[idx % Math.max(selectedSpecialists.length, 1)];
+            const verifierSpecialist = reviewSpecialists[idx % Math.max(reviewSpecialists.length, 1)]
+                ?? selectedSpecialists[idx % Math.max(selectedSpecialists.length, 1)];
             manifests.push({
                 workerId,
                 role: 'coder',
                 strategy: task.strategies[idx % task.strategies.length],
                 worktreeDir: null,
+                specialistId: coderSpecialist?.specialistId,
+                specialistName: coderSpecialist?.name,
                 files,
                 skillOverlays: {
                     base: task.skillNames,
@@ -1359,7 +1481,7 @@ export class SubAgentRuntime {
                     runtimeHot: sessionSkillIds,
                 },
                 workflowOverlays: workflowIds,
-                allowedTools: ['write_file', 'append_file', 'replace_text', 'run_command'],
+                allowedTools: scopedTools(fallbackTools, ['write_file', 'append_file', 'replace_text', 'run_command']),
                 tokenBudget: budgets.get(workerId) ?? 500,
                 verifyCommands,
                 checkpoints: task.checkpointPolicy,
@@ -1372,6 +1494,8 @@ export class SubAgentRuntime {
                 role: 'verifier',
                 strategy: `verify-${task.strategies[idx % task.strategies.length]}`,
                 worktreeDir: null,
+                specialistId: verifierSpecialist?.specialistId,
+                specialistName: verifierSpecialist?.name,
                 files,
                 skillOverlays: {
                     base: task.skillNames,
@@ -1380,7 +1504,7 @@ export class SubAgentRuntime {
                     runtimeHot: sessionSkillIds,
                 },
                 workflowOverlays: workflowIds,
-                allowedTools: ['run_command'],
+                allowedTools: scopedTools(fallbackTools, ['run_command']),
                 tokenBudget: Math.max(200, Math.round((budgets.get(workerId) ?? 500) * 0.4)),
                 verifyCommands,
                 checkpoints: task.checkpointPolicy,
@@ -1394,18 +1518,33 @@ export class SubAgentRuntime {
         return manifests;
     }
 
-    private createPlannerResult(task: ExecutionTask, manifests: WorkerManifest[], files: FileRef[], domains: string[]): PlannerResult {
+    private createPlannerResult(
+        task: ExecutionTask,
+        manifests: WorkerManifest[],
+        files: FileRef[],
+        domains: string[],
+        plannerState?: TaskPlannerState
+    ): PlannerResult {
         return {
-            summary: `Planner assigned ${manifests.filter((manifest) => manifest.role === 'coder').length} coder worker(s) and ${manifests.filter((manifest) => manifest.role === 'verifier').length} verifier worker(s).`,
+            summary: `Planner assigned ${manifests.filter((manifest) => manifest.role === 'coder').length} coder worker(s) and ${manifests.filter((manifest) => manifest.role === 'verifier').length} verifier worker(s)${plannerState?.selectedCrew ? ` under ${plannerState.selectedCrew.name}` : ''}.`,
             domains,
             selectedFiles: files.map((file) => path.relative(this.repoRoot, file.path) || file.path),
             selectedWorkflows: task.workflowSelectors,
+            selectedSkills: task.skillNames,
+            selectedTools: task.allowedToolsOverride ?? ['read_file', 'run_command'],
+            selectedCrew: plannerState?.selectedCrew,
+            selectedSpecialists: plannerState?.selectedSpecialists ?? [],
+            fallbackPlan: plannerState?.fallbackPlan,
+            reviewGates: plannerState?.reviewGates ?? [],
+            continuation: plannerState?.continuation,
+            ledger: plannerState?.ledger ?? [],
             strategyMap: manifests
                 .filter((manifest) => manifest.role === 'coder')
                 .map((manifest) => ({ workerId: manifest.workerId, strategy: manifest.strategy })),
             risks: [
                 task.verifyCommands.length === 0 ? 'No verification commands configured.' : 'Verification required before merge.',
                 task.skillPolicy.allowMutateSkills ? 'Mutate skills enabled.' : 'Mutate skills remain gated.',
+                plannerState?.fallbackPlan?.summary ?? 'Fallback remains current runtime domain-pack execution.',
             ],
         };
     }
@@ -1441,7 +1580,13 @@ export class SubAgentRuntime {
                 learnings.push(`Activated orchestrate skill: ${skill.name}`);
             }
 
-            const modifiedFiles = await session.applyBindings(manifest.actions);
+            const allowedActions = filterBindingsByTools(manifest.actions, manifest.allowedTools);
+            const blockedActions = manifest.actions.length - allowedActions.length;
+            if (blockedActions > 0) {
+                learnings.push(`Skipped ${blockedActions} binding(s) blocked by the worker tool policy.`);
+            }
+
+            const modifiedFiles = await session.applyBindings(allowedActions);
             modifiedFiles.forEach(file => {
                 this.sessionDNA?.recordFileModified(file);
                 learnings.push(`Modified ${file}`);
@@ -1913,6 +2058,20 @@ function dedupeAutomationArtifacts(values: AutomationArtifact[]): AutomationArti
         seen.add(key);
         return true;
     });
+}
+
+function scopedTools(allowedTools: string[] | undefined, defaults: string[]): string[] {
+    if (!allowedTools || allowedTools.length === 0) {
+        return defaults;
+    }
+
+    const scoped = defaults.filter((tool) => allowedTools.includes(tool));
+    return scoped.length > 0 ? scoped : defaults;
+}
+
+function filterBindingsByTools(bindings: SkillBinding[], allowedTools: string[]): SkillBinding[] {
+    const allowed = new Set(allowedTools);
+    return bindings.filter((binding) => allowed.has(binding.type));
 }
 
 function extractRunTimestamp(run: ExecutionRun): number {

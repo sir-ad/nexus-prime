@@ -57,6 +57,18 @@ async function test() {
     assert.ok(runtime.listWorkflows().some((workflow) => workflow.name === 'gtm-approval-loop'), 'expanded bundled workflows should include gtm-approval-loop');
     assert.ok(runtime.listHooks().some((hook) => hook.name === 'run-created-brief'), 'bundled hooks should be available');
     assert.ok(runtime.listAutomations().some((automation) => automation.name === 'verified-followup-automation'), 'bundled automations should be available');
+    assert.ok(runtime.listSpecialists().length > 20, 'native specialist roster should be available');
+    assert.ok(runtime.listCrews().length > 0, 'crew catalog should be available');
+
+    const planner = await runtime.planExecution({
+      goal: 'Plan a bounded implementation task with release review',
+      files: ['README.md', 'package.json'],
+      crewSelectors: ['crew_implementation'],
+      optimizationProfile: 'standard',
+    });
+    assert.ok(planner.selectedCrew?.crewId, 'planner should choose a crew');
+    assert.ok(planner.ledger.length > 0, 'planner should emit a live ledger');
+    assert.ok(planner.reviewGates.length > 0, 'planner should emit review gates');
 
     const coder = await nexus.createAgent('coder');
     console.log(`✅ Created agent: ${coder.id}\n`);
@@ -108,6 +120,16 @@ async function test() {
       'at least one worker should pass verification'
     );
     assert.ok(result.execution.plannerResult, 'planner result should be present');
+    assert.ok(result.execution.plannerState, 'planner state should be present');
+    assert.ok(result.execution.plannerResult?.selectedCrew?.crewId, 'planner result should include selected crew');
+    assert.ok((result.execution.plannerResult?.selectedSpecialists?.length || 0) > 0, 'planner result should include selected specialists');
+    assert.ok((result.execution.plannerResult?.ledger?.length || 0) > 0, 'planner result should include planning ledger rows');
+    const plannerManifest = result.execution.workerManifests.find((manifest) => manifest.role === 'planner');
+    const coderManifest = result.execution.workerManifests.find((manifest) => manifest.role === 'coder');
+    assert.ok(plannerManifest, 'planner worker manifest should exist');
+    assert.ok(coderManifest, 'coder worker manifest should exist');
+    assert.ok(!plannerManifest?.allowedTools.includes('write_file'), 'planner worker should stay read scoped even when the run mutates files');
+    assert.ok(coderManifest?.allowedTools.includes('write_file'), 'coder worker should retain write tools required for explicit actions');
     assert.ok(result.execution.verificationResults.length > 0, 'verifier results should be present');
     assert.ok(result.execution.activeSkills.length > 0, 'skills should be active');
     assert.ok(result.execution.activeWorkflows.length > 0, 'workflows should be active');

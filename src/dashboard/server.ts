@@ -16,7 +16,7 @@ const __dirname = path.dirname(__filename);
 const HOST = process.env.NEXUS_DASHBOARD_HOST || '127.0.0.1';
 const DEFAULT_PORT = parseInt(process.env.NEXUS_DASHBOARD_PORT || '3377', 10);
 const MAX_PORT_SCAN = 24;
-const DASHBOARD_API_VERSION = '2';
+const DASHBOARD_API_VERSION = '3';
 const REQUIRED_CAPABILITIES = {
     runs: true,
     memory: true,
@@ -27,6 +27,9 @@ const REQUIRED_CAPABILITIES = {
     hooks: true,
     automations: true,
     federation: true,
+    specialists: true,
+    crews: true,
+    planner: true,
 } as const;
 
 const DEFAULT_SKILLS: Array<{ name: string; instructions: string; riskClass: 'read' | 'orchestrate' | 'mutate'; scope: 'session' | 'worker' | 'global' }> = [
@@ -253,6 +256,32 @@ export class DashboardServer {
 
         if (req.method === 'GET' && url.pathname === '/api/automations') {
             this.respondJson(res, this.getRuntime()?.listAutomations() ?? []);
+            return;
+        }
+
+        if (req.method === 'GET' && url.pathname === '/api/specialists') {
+            this.respondJson(res, (this.getRuntime()?.listSpecialists() ?? []).map((specialist) => ({
+                specialistId: specialist.specialistId,
+                name: specialist.name,
+                division: specialist.division,
+                description: specialist.description,
+                authority: specialist.authority,
+                domains: specialist.domains,
+                tools: specialist.tools,
+                mission: specialist.mission,
+                workflow: specialist.workflow,
+                deliverables: specialist.deliverables,
+                communicationStyle: specialist.communicationStyle,
+                successMetrics: specialist.successMetrics,
+                recommendedSkills: specialist.recommendedSkills,
+                recommendedWorkflows: specialist.recommendedWorkflows,
+                sourcePath: specialist.sourcePath,
+            })));
+            return;
+        }
+
+        if (req.method === 'GET' && url.pathname === '/api/crews') {
+            this.respondJson(res, this.getRuntime()?.listCrews() ?? []);
             return;
         }
 
@@ -522,6 +551,27 @@ export class DashboardServer {
                 target: run.runId,
             });
             this.respondJson(res, run, 201);
+            return;
+        }
+
+        if (req.method === 'POST' && url.pathname === '/api/runtime/plan') {
+            const body = await this.readJsonBody(req);
+            const runtime = this.getRuntime();
+            if (!runtime) {
+                this.respondJson(res, { error: 'runtime-unavailable' }, 503);
+                return;
+            }
+            if (!body.goal || typeof body.goal !== 'string') {
+                this.respondJson(res, { error: 'goal-required' }, 400);
+                return;
+            }
+            const plan = await runtime.planExecution(body as Parameters<SubAgentRuntime['planExecution']>[0]);
+            nexusEventBus.emit('dashboard.action', {
+                action: 'runtime.plan',
+                status: 'ready',
+                target: plan.selectedCrew?.crewId,
+            });
+            this.respondJson(res, plan);
             return;
         }
 
@@ -988,6 +1038,7 @@ export class DashboardServer {
 }
 
 function mapEventCategory(type: NexusEventType): DashboardEventCard['category'] {
+    if (type.startsWith('planner.')) return 'runtime';
     if (type.startsWith('memory.')) return 'memory';
     if (type.startsWith('pod.')) return 'pod';
     if (type.startsWith('phantom.')) return 'runtime';
@@ -1019,6 +1070,7 @@ function mapEventSeverity(type: NexusEventType, payload: Record<string, unknown>
 function mapEventTitle(type: NexusEventType): string {
     return {
         'system.boot': 'Runtime boot',
+        'planner.stage': 'Planner stage',
         'memory.store': 'Memory stored',
         'memory.recall': 'Memory recall',
         'pod.signal': 'POD signal',
@@ -1065,6 +1117,7 @@ function mapEventTitle(type: NexusEventType): string {
 }
 
 function mapEventSource(type: NexusEventType, payload: Record<string, unknown>): string {
+    if (type.startsWith('planner.')) return String(payload.owner ?? payload.runId ?? 'planner');
     if (type.startsWith('client.')) return String(payload.displayName ?? payload.clientId ?? 'client');
     if (type === 'pod.signal') return String(payload.workerId ?? 'pod');
     if (type.startsWith('phantom.')) return String(payload.workerId ?? payload.winner ?? 'runtime');
@@ -1079,6 +1132,8 @@ function mapEventSource(type: NexusEventType, payload: Record<string, unknown>):
 
 function summarizeEvent(type: NexusEventType, payload: Record<string, unknown>): string {
     switch (type) {
+        case 'planner.stage':
+            return `${payload.stage ?? 'stage'} · ${payload.status ?? 'unknown'} · ${payload.assets ?? 0} asset(s)`;
         case 'memory.store':
             return `Priority ${payload.priority ?? 'n/a'} · ${(payload.tags as string[] | undefined)?.join(', ') ?? 'no tags'}`;
         case 'memory.recall':

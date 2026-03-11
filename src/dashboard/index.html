@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nexus Prime Topology Console</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M32 4 58 32 32 60 6 32 32 4Z' fill='none' stroke='%2354ff87' stroke-width='4'/%3E%3C/svg%3E">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;600&display=swap');
 
@@ -38,7 +39,7 @@
         html,
         body {
             margin: 0;
-            min-height: 100%;
+            height: 100%;
             background:
                 radial-gradient(circle at 18% 18%, rgba(61, 161, 255, 0.16), transparent 18rem),
                 radial-gradient(circle at 84% 14%, rgba(176, 92, 255, 0.12), transparent 22rem),
@@ -46,12 +47,14 @@
                 linear-gradient(180deg, #020306 0%, var(--bg) 40%, var(--bg-deep) 100%);
             color: var(--text);
             font-family: var(--sans);
-            overflow: hidden;
         }
 
         body {
             display: flex;
             flex-direction: column;
+            min-height: 100vh;
+            height: 100vh;
+            overflow: hidden;
         }
 
         button,
@@ -75,7 +78,7 @@
             align-items: center;
             justify-content: space-between;
             gap: 1rem;
-            padding: 1rem 1.4rem;
+            padding: 0.88rem 1.1rem;
             border-bottom: 1px solid var(--line);
             background: rgba(5, 8, 13, 0.76);
             backdrop-filter: blur(28px);
@@ -106,7 +109,7 @@
         .subtitle {
             margin-top: 0.15rem;
             color: var(--muted);
-            font-size: 0.84rem;
+            font-size: 0.78rem;
         }
 
         .banner {
@@ -146,12 +149,12 @@
             display: inline-flex;
             align-items: center;
             gap: 0.55rem;
-            padding: 0.48rem 0.8rem;
+            padding: 0.42rem 0.72rem;
             border-radius: 999px;
             border: 1px solid var(--line);
             background: rgba(255, 255, 255, 0.03);
             color: var(--muted);
-            font-size: 0.82rem;
+            font-size: 0.76rem;
         }
 
         .status-pill .dot,
@@ -192,6 +195,8 @@
             grid-template-columns: 320px minmax(0, 1fr) 410px;
             gap: 1rem;
             padding: 0.9rem 1rem 1rem;
+            overflow: hidden;
+            align-items: stretch;
         }
 
         .panel {
@@ -228,35 +233,69 @@
             flex: 1;
             min-height: 0;
             overflow: auto;
-            padding: 0.85rem;
+            padding: 0.72rem;
             scrollbar-width: thin;
             scrollbar-color: rgba(188, 204, 255, 0.22) transparent;
         }
 
         .panel-body.compact {
-            padding: 0.75rem;
+            padding: 0.62rem;
         }
 
         .rail {
-            display: grid;
+            display: flex;
+            flex-direction: column;
             gap: 1rem;
             min-height: 0;
         }
 
         .rail.left {
-            grid-template-rows: auto auto auto auto;
             overflow-y: auto;
             scrollbar-width: thin;
         }
 
         .rail.left > section + section {
-            border-top: 1px solid var(--line);
-            padding-top: 0.5rem;
             scrollbar-color: rgba(188, 204, 255, 0.22) transparent;
         }
 
+        .rail.left > .panel {
+            flex: 0 0 auto;
+        }
+
+        .rail.left > .panel:first-child {
+            min-height: 196px;
+        }
+
+        .rail.left .panel-body {
+            overflow: visible;
+        }
+
         .rail.right {
-            grid-template-rows: 1fr auto;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        .rail.right > .panel:first-child,
+        .graph-panel {
+            min-height: 0;
+        }
+
+        .rail.right > .panel:first-child {
+            flex: 1 1 0;
+            min-height: 260px;
+        }
+
+        .rail.right > .panel:first-child .panel-body {
+            min-height: 0;
+        }
+
+        .rail.right > .panel:last-child {
+            flex: 0 0 clamp(250px, 36vh, 360px);
+            min-height: 250px;
+        }
+
+        .rail.right > .panel:last-child .panel-body {
+            overflow: auto;
         }
 
         .stack {
@@ -268,7 +307,7 @@
             border: 1px solid var(--line);
             background: var(--panel-soft);
             border-radius: var(--radius-card);
-            padding: 0.78rem;
+            padding: 0.68rem;
         }
 
         .card.interactive {
@@ -292,7 +331,7 @@
         }
 
         .card-title strong {
-            font-size: 0.92rem;
+            font-size: 0.86rem;
             font-weight: 600;
         }
 
@@ -308,12 +347,12 @@
 
         .meta {
             color: var(--muted);
-            font-size: 0.72rem;
+            font-size: 0.68rem;
             line-height: 1.5;
         }
 
         .hero-metric {
-            padding: 0.88rem;
+            padding: 0.75rem;
             border-radius: var(--radius-card);
             border: 1px solid var(--line);
             background: linear-gradient(160deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01));
@@ -330,7 +369,7 @@
 
         .hero-metric strong {
             display: block;
-            font-size: 1.62rem;
+            font-size: 1.48rem;
             letter-spacing: -0.05em;
             margin-bottom: 0.2rem;
         }
@@ -339,6 +378,35 @@
             display: grid;
             gap: 0.75rem;
             grid-template-columns: 1fr 1fr;
+        }
+
+        .planner-table-wrap {
+            overflow: auto;
+            border: 1px solid var(--line);
+            border-radius: var(--radius-card);
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .planner-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: var(--mono);
+            font-size: 0.68rem;
+        }
+
+        .planner-table th,
+        .planner-table td {
+            text-align: left;
+            padding: 0.52rem 0.58rem;
+            border-bottom: 1px solid var(--line);
+            vertical-align: top;
+        }
+
+        .planner-table th {
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            font-size: 0.6rem;
         }
 
         .ecosystem-list,
@@ -353,7 +421,7 @@
             align-items: center;
             justify-content: space-between;
             gap: 0.75rem;
-            padding: 0.68rem 0.78rem;
+            padding: 0.58rem 0.68rem;
             border-radius: 16px;
             border: 1px solid var(--line);
             background: rgba(255, 255, 255, 0.03);
@@ -368,7 +436,7 @@
 
         .client-name {
             font-weight: 600;
-            font-size: 0.92rem;
+            font-size: 0.86rem;
         }
 
         .state-chip,
@@ -377,8 +445,8 @@
             align-items: center;
             justify-content: center;
             border-radius: 999px;
-            padding: 0.2rem 0.5rem;
-            font-size: 0.68rem;
+            padding: 0.16rem 0.44rem;
+            font-size: 0.62rem;
             border: 1px solid var(--line);
             background: rgba(255, 255, 255, 0.05);
             text-transform: uppercase;
@@ -413,13 +481,13 @@
 
         .token-dial {
             position: relative;
-            width: 168px;
-            height: 168px;
+            width: 150px;
+            height: 150px;
         }
 
         .token-dial svg {
-            width: 168px;
-            height: 168px;
+            width: 150px;
+            height: 150px;
             transform: rotate(-90deg);
         }
 
@@ -457,7 +525,7 @@
         }
 
         .dial-value {
-            font-size: 1.68rem;
+            font-size: 1.54rem;
             font-weight: 700;
             letter-spacing: -0.06em;
         }
@@ -469,10 +537,6 @@
             letter-spacing: 0.12em;
         }
 
-        .graph-panel {
-            min-height: 0;
-        }
-
         .graph-toolbar {
             display: flex;
             gap: 0.55rem;
@@ -481,6 +545,7 @@
 
         .segmented {
             display: inline-flex;
+            flex-wrap: wrap;
             gap: 0.35rem;
             padding: 0.24rem;
             border-radius: 999px;
@@ -495,11 +560,11 @@
         .primary-button {
             border: 0;
             border-radius: 999px;
-            padding: 0.42rem 0.68rem;
+            padding: 0.34rem 0.58rem;
             background: transparent;
             color: var(--muted);
             transition: background 160ms ease, color 160ms ease, transform 160ms ease;
-            font-size: 0.72rem;
+            font-size: 0.66rem;
         }
 
         .segmented button.active,
@@ -526,10 +591,18 @@
             color: var(--text);
         }
 
+        .graph-panel > .panel-body {
+            display: flex;
+            flex-direction: column;
+            gap: 0.85rem;
+            overflow: auto;
+        }
+
         #graph-stage {
             position: relative;
-            min-height: 300px;
-            height: 100%;
+            min-height: 280px;
+            height: clamp(280px, 38vh, 420px);
+            flex: 0 0 auto;
             border-radius: 22px;
             border: 1px solid var(--line);
             background:
@@ -602,7 +675,6 @@
             grid-template-columns: 1fr auto;
             gap: 0.9rem;
             align-items: center;
-            margin-top: 0.9rem;
         }
 
         .graph-stats {
@@ -632,7 +704,7 @@
 
         .entity-header h3 {
             margin: 0;
-            font-size: 0.82rem;
+            font-size: 0.76rem;
             letter-spacing: 0.08em;
             text-transform: uppercase;
             color: var(--muted);
@@ -641,15 +713,16 @@
         .filter-bar {
             display: flex;
             flex-wrap: wrap;
-            gap: 0.35rem;
+            gap: 0.28rem;
             justify-content: flex-end;
+            max-width: 100%;
         }
 
         .event-card {
             border-radius: 18px;
             border: 1px solid var(--line);
             background: rgba(255, 255, 255, 0.03);
-            padding: 0.78rem;
+            padding: 0.62rem;
             border-left: 3px solid var(--muted);
         }
 
@@ -667,7 +740,7 @@
 
         .event-head strong {
             display: block;
-            font-size: 0.88rem;
+            font-size: 0.8rem;
         }
 
         .event-head .meta {
@@ -681,7 +754,7 @@
         details.raw summary {
             cursor: pointer;
             color: var(--muted);
-            font-size: 0.68rem;
+            font-size: 0.62rem;
             text-transform: uppercase;
             letter-spacing: 0.08em;
         }
@@ -720,7 +793,7 @@
         .field select,
         .field textarea {
             width: 100%;
-            padding: 0.62rem 0.72rem;
+            padding: 0.56rem 0.64rem;
             border-radius: 14px;
             border: 1px solid var(--line);
             background: rgba(255, 255, 255, 0.03);
@@ -828,8 +901,6 @@
         .library-grid {
             display: grid;
             gap: 0.7rem;
-            max-height: 28rem;
-            overflow: auto;
         }
 
         .refresh-bar {
@@ -865,17 +936,17 @@
 
         @media (max-width: 1440px) {
             .layout {
-                grid-template-columns: 290px minmax(0, 1fr) 360px;
+                grid-template-columns: 280px minmax(0, 1fr) 340px;
             }
 
             .token-dial {
-                width: 140px;
-                height: 140px;
+                width: 132px;
+                height: 132px;
             }
 
             .token-dial svg {
-                width: 140px;
-                height: 140px;
+                width: 132px;
+                height: 132px;
             }
 
             .metrics-grid {
@@ -885,12 +956,14 @@
 
         @media (max-width: 1180px) {
             body {
+                height: auto;
                 overflow: auto;
             }
 
             .layout {
                 grid-template-columns: 1fr;
                 height: auto;
+                overflow: visible;
             }
 
             .rail.left,
@@ -900,6 +973,10 @@
 
             .graph-panel {
                 min-height: 24rem;
+            }
+
+            #graph-stage {
+                height: min(56vh, 420px);
             }
         }
 
@@ -1009,8 +1086,8 @@
                             <div class="meta" id="latest-run-state">No runs yet</div>
                         </div>
                         <div class="hero-metric">
-                            <label>Skills / Workflows</label>
-                            <strong id="artifact-count">0 / 0</strong>
+                            <label>Catalog</label>
+                            <strong id="artifact-count">0 / 0 / 0 / 0 / 0 / 0</strong>
                             <div class="meta" id="artifact-summary">Runtime library loading</div>
                         </div>
                         <div class="hero-metric">
@@ -1065,10 +1142,14 @@
                             <div id="library-tabs" class="segmented">
                                 <button data-library-mode="memories" class="active">Memories</button>
                                 <button data-library-mode="skills">Skills</button>
+                                <button data-library-mode="specialists">Roster</button>
+                                <button data-library-mode="crews">Crews</button>
+                                <button data-library-mode="planning">Plan</button>
                                 <button data-library-mode="workflows">Workflows</button>
-                                <button data-library-mode="spend">Spend</button>
-                                <button data-library-mode="pod">POD</button>
-                                <button data-library-mode="clients">Clients</button>
+                                <button data-library-mode="hooks">Hooks</button>
+                                <button data-library-mode="automations">Autos</button>
+                                <button data-library-mode="governance">Governance</button>
+                                <button data-library-mode="federation">Federation</button>
                             </div>
                         </div>
                     </div>
@@ -1096,6 +1177,10 @@
                         <button data-event-filter="pod">POD</button>
                         <button data-event-filter="skills">Skills</button>
                         <button data-event-filter="workflows">Flows</button>
+                        <button data-event-filter="hooks">Hooks</button>
+                        <button data-event-filter="automations">Autos</button>
+                        <button data-event-filter="shield">Shield</button>
+                        <button data-event-filter="federation">Net</button>
                         <button data-event-filter="clients">Clients</button>
                     </div>
                 </div>
@@ -1126,6 +1211,14 @@
                             <input id="skills-input" type="text" placeholder="backend-playbook, orchestration-playbook">
                         </div>
                         <div class="field">
+                            <label for="crews-input">Crews</label>
+                            <input id="crews-input" type="text" placeholder="implementation, pdlc">
+                        </div>
+                        <div class="field">
+                            <label for="specialists-input">Specialists</label>
+                            <input id="specialists-input" type="text" placeholder="frontend developer, qa engineer">
+                        </div>
+                        <div class="field">
                             <label for="workflows-input">Workflows</label>
                             <input id="workflows-input" type="text" placeholder="backend-execution-loop">
                         </div>
@@ -1146,8 +1239,16 @@
                                 <label for="dsl-backend">DSL Compiler</label>
                                 <select id="dsl-backend"></select>
                             </div>
+                            <div class="field">
+                                <label for="optimization-profile">Optimization</label>
+                                <select id="optimization-profile">
+                                    <option value="standard" selected>Standard</option>
+                                    <option value="max">Max</option>
+                                </select>
+                            </div>
                         </div>
                         <div class="action-bar">
+                            <button id="plan-button" type="button" class="ghost-button">Plan Run</button>
                             <button type="submit" class="primary-button">Execute Run</button>
                             <button id="refresh-button" type="button" class="ghost-button">Refresh All</button>
                         </div>
@@ -1173,8 +1274,8 @@
     <div id="drawer-backdrop" class="drawer-backdrop"></div>
 
     <script>
-        const DASHBOARD_API_VERSION = '2';
-        const REQUIRED_CAPABILITIES = ['runs', 'memory', 'pod', 'clients', 'events', 'stream'];
+        const DASHBOARD_API_VERSION = '3';
+        const REQUIRED_CAPABILITIES = ['runs', 'memory', 'pod', 'clients', 'events', 'stream', 'specialists', 'crews', 'planner'];
 
         function createResourceState() {
             return { status: 'idle', error: '' };
@@ -1183,15 +1284,23 @@
         const state = {
             runs: [],
             skills: [],
+            specialists: [],
+            crews: [],
             workflows: [],
+            hooks: [],
+            automations: [],
             backends: {},
             health: {},
             memories: [],
+            memoryAudit: { scanned: 0, quarantined: [], findings: [] },
+            memoryQuarantine: [],
             memoryDetail: null,
             memoryNetwork: { nodes: [], links: [], focusId: null },
             pod: { messages: [], activeWorkers: [], tagClusters: [], confidenceBands: { high: 0, medium: 0, low: 0 } },
             clients: [],
+            federation: { localNode: null, knownPeers: [], activePeerLinks: 0, relayLearnings: [], tracesPublished: 0 },
             events: [],
+            plannerPreview: null,
             graphMode: 'memory',
             libraryMode: 'memories',
             eventFilter: 'all',
@@ -1204,14 +1313,143 @@
                 backends: createResourceState(),
                 runs: createResourceState(),
                 skills: createResourceState(),
+                specialists: createResourceState(),
+                crews: createResourceState(),
                 workflows: createResourceState(),
+                hooks: createResourceState(),
+                automations: createResourceState(),
                 memory: createResourceState(),
+                memoryAudit: createResourceState(),
+                memoryQuarantine: createResourceState(),
                 pod: createResourceState(),
                 clients: createResourceState(),
+                federation: createResourceState(),
                 events: createResourceState(),
                 memoryDetail: createResourceState(),
                 memoryNetwork: createResourceState(),
             },
+        };
+
+        const RESOURCE_LOADERS = {
+            runs: {
+                url: '/api/runs?limit=20',
+                assign(value) {
+                    state.runs = Array.isArray(value) ? value : state.runs;
+                },
+            },
+            skills: {
+                url: '/api/skills',
+                assign(value) {
+                    state.skills = Array.isArray(value) ? value : state.skills;
+                },
+            },
+            specialists: {
+                url: '/api/specialists',
+                assign(value) {
+                    state.specialists = Array.isArray(value) ? value : state.specialists;
+                },
+            },
+            crews: {
+                url: '/api/crews',
+                assign(value) {
+                    state.crews = Array.isArray(value) ? value : state.crews;
+                },
+            },
+            workflows: {
+                url: '/api/workflows',
+                assign(value) {
+                    state.workflows = Array.isArray(value) ? value : state.workflows;
+                },
+            },
+            hooks: {
+                url: '/api/hooks',
+                assign(value) {
+                    state.hooks = Array.isArray(value) ? value : state.hooks;
+                },
+            },
+            automations: {
+                url: '/api/automations',
+                assign(value) {
+                    state.automations = Array.isArray(value) ? value : state.automations;
+                },
+            },
+            backends: {
+                url: '/api/backends',
+                assign(value) {
+                    state.backends = value || state.backends;
+                },
+            },
+            health: {
+                url: '/api/health',
+                assign(value) {
+                    state.health = value || state.health;
+                },
+            },
+            memory: {
+                url: '/api/memory?limit=40',
+                assign(value) {
+                    state.memories = Array.isArray(value) ? value : state.memories;
+                },
+            },
+            memoryAudit: {
+                url: '/api/memory/audit?limit=80',
+                assign(value) {
+                    state.memoryAudit = value || state.memoryAudit;
+                },
+            },
+            memoryQuarantine: {
+                url: '/api/memory/quarantine?limit=40',
+                assign(value) {
+                    state.memoryQuarantine = Array.isArray(value) ? value : state.memoryQuarantine;
+                },
+            },
+            pod: {
+                url: '/api/pod?limit=30',
+                assign(value) {
+                    state.pod = value || state.pod;
+                },
+            },
+            clients: {
+                url: '/api/clients',
+                assign(value) {
+                    state.clients = Array.isArray(value) ? value : state.clients;
+                },
+            },
+            federation: {
+                url: '/api/federation',
+                assign(value) {
+                    state.federation = value || state.federation;
+                },
+            },
+            events: {
+                url: '/api/events?limit=80',
+                assign(value) {
+                    if (!Array.isArray(value)) return;
+                    const seen = new Set();
+                    state.events = value.map((event) => normalizeEventCard(event)).filter((event) => {
+                        if (!event || seen.has(event.id)) return false;
+                        seen.add(event.id);
+                        return true;
+                    });
+                },
+            },
+        };
+
+        const CATEGORY_RESOURCE_MAP = {
+            memory: ['memory', 'memoryAudit', 'memoryQuarantine'],
+            tokens: ['events'],
+            runtime: ['runs', 'pod'],
+            pod: ['pod'],
+            skills: ['skills'],
+            specialists: ['specialists'],
+            crews: ['crews'],
+            workflows: ['workflows'],
+            clients: ['clients'],
+            hooks: ['hooks'],
+            automations: ['automations'],
+            shield: ['memoryAudit', 'memoryQuarantine'],
+            federation: ['federation'],
+            system: ['health'],
         };
 
         const graphModes = {
@@ -1331,6 +1569,10 @@
 
         function emptyState(message) {
             return `<div class="empty">${escapeHtml(message)}</div>`;
+        }
+
+        function resourcesForEventCategory(category) {
+            return CATEGORY_RESOURCE_MAP[category] || [];
         }
 
         function normalizeLegacyCategory(type) {
@@ -1480,38 +1722,83 @@
             return text ? JSON.parse(text) : null;
         }
 
-        async function refreshAll() {
+        function captureScrollPositions() {
+            const selectors = {
+                leftRail: '.rail.left',
+                graphBody: '.graph-panel > .panel-body',
+                eventBody: '.rail.right > .panel:first-child .panel-body',
+                libraryList: '#library-list',
+                eventList: '#event-list',
+                drawerBody: '#drawer-body',
+            };
+            const positions = {};
+            for (const [key, selector] of Object.entries(selectors)) {
+                const element = document.querySelector(selector);
+                positions[key] = element ? element.scrollTop : 0;
+            }
+            return positions;
+        }
+
+        function restoreScrollPositions(positions) {
+            if (!positions) return;
+            const selectors = {
+                leftRail: '.rail.left',
+                graphBody: '.graph-panel > .panel-body',
+                eventBody: '.rail.right > .panel:first-child .panel-body',
+                libraryList: '#library-list',
+                eventList: '#event-list',
+                drawerBody: '#drawer-body',
+            };
+            for (const [key, selector] of Object.entries(selectors)) {
+                const element = document.querySelector(selector);
+                if (element && typeof positions[key] === 'number') {
+                    element.scrollTop = positions[key];
+                }
+            }
+        }
+
+        function syncSelectedData() {
+            if (!state.selected) return;
+
+            const { kind, id } = state.selected;
+            if (kind === 'memory') {
+                state.selected.data = state.memoryDetail || state.memories.find((item) => item.id === id) || state.selected.data;
+                return;
+            }
+
+            const catalog = {
+                run: state.runs.find((item) => item.runId === id),
+                skill: state.skills.find((item) => item.skillId === id),
+                specialist: state.specialists.find((item) => item.specialistId === id),
+                crew: state.crews.find((item) => item.crewId === id),
+                workflow: state.workflows.find((item) => item.workflowId === id),
+                hook: state.hooks.find((item) => item.hookId === id),
+                automation: state.automations.find((item) => item.automationId === id),
+                client: state.clients.find((item) => item.clientId === id),
+                'federation-peer': state.federation.knownPeers?.find((item) => item.peerId === id),
+            };
+
+            if (kind === 'pod-worker') return;
+            if (catalog[kind]) {
+                state.selected.data = catalog[kind];
+            }
+        }
+
+        async function refreshAll(resourceNames = null) {
             const bar = $('refresh-bar');
             bar.classList.remove('done');
             bar.classList.add('active');
-            const resources = [
-                ['runs', '/api/runs?limit=20', (value) => { state.runs = Array.isArray(value) ? value : state.runs; }],
-                ['skills', '/api/skills', (value) => { state.skills = Array.isArray(value) ? value : state.skills; }],
-                ['workflows', '/api/workflows', (value) => { state.workflows = Array.isArray(value) ? value : state.workflows; }],
-                ['backends', '/api/backends', (value) => { state.backends = value || state.backends; }],
-                ['health', '/api/health', (value) => { state.health = value || state.health; }],
-                ['memory', '/api/memory?limit=40', (value) => { state.memories = Array.isArray(value) ? value : state.memories; }],
-                ['pod', '/api/pod?limit=30', (value) => { state.pod = value || state.pod; }],
-                ['clients', '/api/clients', (value) => { state.clients = Array.isArray(value) ? value : state.clients; }],
-                ['events', '/api/events?limit=80', (value) => {
-                    if (Array.isArray(value)) {
-                        const seen = new Set();
-                        state.events = value.map((event) => normalizeEventCard(event)).filter((e) => {
-                            if (!e || seen.has(e.id)) return false;
-                            seen.add(e.id);
-                            return true;
-                        });
-                    }
-                }],
-            ];
-
-            const results = await Promise.allSettled(resources.map(([, url]) => fetchJson(url)));
+            const targets = resourceNames?.length
+                ? resourceNames.filter((name, index, list) => RESOURCE_LOADERS[name] && list.indexOf(name) === index)
+                : Object.keys(RESOURCE_LOADERS);
+            const resources = targets.map((name) => [name, RESOURCE_LOADERS[name]]);
+            const results = await Promise.allSettled(resources.map(([, config]) => fetchJson(config.url)));
             let refreshed = false;
 
             results.forEach((result, index) => {
-                const [name, , assign] = resources[index];
+                const [name, config] = resources[index];
                 if (result.status === 'fulfilled') {
-                    assign(result.value);
+                    config.assign(result.value);
                     setResourceStatus(name, 'ready');
                     refreshed = true;
                 } else {
@@ -1526,21 +1813,25 @@
             reconcileBanner();
             populateBackendSelects();
 
-            const focusMemoryId = state.selected?.kind === 'memory'
-                ? state.selected.id
-                : state.memories[0]?.id;
+            const shouldRefreshMemorySelection = targets.includes('memory') || targets.includes('memoryAudit') || targets.includes('memoryQuarantine') || !resourceNames;
+            const focusMemoryId = shouldRefreshMemorySelection
+                ? state.selected?.kind === 'memory'
+                    ? state.selected.id
+                    : state.memories[0]?.id
+                : null;
 
             if (focusMemoryId && !resourceFailed('memory')) {
                 _memoryNetworkLoading = true;
                 await refreshMemorySelection(focusMemoryId, false);
                 _memoryNetworkLoading = false;
-            } else if (!focusMemoryId) {
+            } else if (shouldRefreshMemorySelection && !focusMemoryId) {
                 state.memoryDetail = null;
                 state.memoryNetwork = { nodes: [], links: [], focusId: null };
                 setResourceStatus('memoryDetail', 'idle');
                 setResourceStatus('memoryNetwork', 'idle');
             }
 
+            syncSelectedData();
             bar.classList.remove('active');
             bar.classList.add('done');
             setTimeout(() => bar.classList.remove('done'), 600);
@@ -1551,17 +1842,24 @@
         let _refreshInFlight = false;
         let _memoryNetworkLoading = false;
         let _lastGraphModel = null;
+        let _pendingRefreshTargets = new Set();
 
-        function scheduleRefresh() {
+        function scheduleRefresh(resourceNames = null) {
+            const targets = resourceNames?.length ? resourceNames : Object.keys(RESOURCE_LOADERS);
+            targets.forEach((name) => {
+                if (RESOURCE_LOADERS[name]) _pendingRefreshTargets.add(name);
+            });
             if (_refreshTimer) return;
             _refreshTimer = setTimeout(async () => {
                 _refreshTimer = null;
                 if (_refreshInFlight) {
-                    scheduleRefresh();
+                    scheduleRefresh(Array.from(_pendingRefreshTargets));
                     return;
                 }
                 _refreshInFlight = true;
-                try { await refreshAll(); } catch {}
+                const pending = Array.from(_pendingRefreshTargets);
+                _pendingRefreshTargets.clear();
+                try { await refreshAll(pending.length ? pending : null); } catch {}
                 _refreshInFlight = false;
             }, 2000);
         }
@@ -1722,6 +2020,7 @@
         }
 
         function render() {
+            const scrollPositions = captureScrollPositions();
             renderBanner();
             renderHeader();
             renderLeftRail();
@@ -1729,6 +2028,7 @@
             renderLibrary();
             renderEvents();
             renderDrawer();
+            restoreScrollPositions(scrollPositions);
         }
 
         function renderBanner() {
@@ -1813,19 +2113,22 @@
             $('latest-run-state').textContent = resourceFailed('runs') && !latestRun
                 ? 'Runs endpoint unavailable'
                 : latestRun
-                ? `${latestRun.state} · ${latestRun.selectedBackends?.memoryBackend || 'memory n/a'}`
+                ? `${latestRun.state} · ${latestRun.plannerResult?.selectedCrew?.name || latestRun.selectedBackends?.memoryBackend || 'memory n/a'}`
                 : 'No runs yet';
-            $('artifact-count').textContent = `${state.skills.length} / ${state.workflows.length}`;
-            $('artifact-summary').textContent = resourceFailed('skills') || resourceFailed('workflows')
-                ? 'Skill or workflow endpoint unavailable'
-                : `${state.skills.filter((item) => item.rolloutStatus === 'promoted').length} promoted skills · ${state.workflows.filter((item) => item.rolloutStatus === 'promoted').length} promoted workflows`;
+            $('artifact-count').textContent = `${state.skills.length} / ${state.workflows.length} / ${state.hooks.length} / ${state.automations.length} / ${state.specialists.length} / ${state.crews.length}`;
+            $('artifact-summary').textContent = resourceFailed('skills') || resourceFailed('workflows') || resourceFailed('hooks') || resourceFailed('automations') || resourceFailed('specialists') || resourceFailed('crews')
+                ? 'Catalog surface partially unavailable'
+                : `${state.skills.filter((item) => item.rolloutStatus === 'promoted').length} skills · ${state.workflows.filter((item) => item.rolloutStatus === 'promoted').length} workflows · ${state.hooks.filter((item) => item.rolloutStatus === 'promoted').length} hooks · ${state.automations.filter((item) => item.rolloutStatus === 'promoted').length} automations · ${state.specialists.length} specialists · ${state.crews.length} crews`;
             $('docs-health').textContent = resourceFailed('health')
                 ? 'Unknown'
                 : state.health.docs?.pagesWorkflowValid ? 'Healthy' : 'Needs attention';
+            const federationSummary = resourceFailed('federation')
+                ? 'Federation unavailable'
+                : `${state.federation.activePeerLinks || 0} active links · ${(state.federation.knownPeers || []).length} known peers`;
             $('ci-health').textContent = resourceFailed('health')
                 ? 'Health endpoint unavailable'
                 : state.health.docs?.pagesWorkflowValid
-                ? `Pages valid · ${state.health.ci?.eventHistory || 0} events`
+                ? `Pages valid · ${state.health.ci?.eventHistory || 0} events · ${federationSummary}`
                 : 'Pages syntax or docs deployment needs attention';
 
             const memory = state.health.memory || {};
@@ -2030,6 +2333,71 @@
                 : config.subtitle;
         }
 
+        function getPlannerViewModel() {
+            const selectedRunPlan = state.selected?.kind === 'run'
+                ? normalizePlannerView(state.selected.data?.plannerState || state.selected.data?.plannerResult, state.selected.data?.goal)
+                : null;
+            const latestRun = state.runs[0];
+            return normalizePlannerView(state.plannerPreview, state.plannerPreview?.objective)
+                || selectedRunPlan
+                || normalizePlannerView(latestRun?.plannerState || latestRun?.plannerResult, latestRun?.goal);
+        }
+
+        function normalizePlannerView(plan, fallbackObjective = '') {
+            if (!plan) return null;
+            const selectedTools = Array.isArray(plan.selectedTools)
+                ? plan.selectedTools
+                : Array.isArray(plan.toolPolicy?.allowedTools)
+                    ? plan.toolPolicy.allowedTools
+                    : [];
+            return {
+                objective: plan.objective || fallbackObjective || 'Execution plan',
+                optimizationProfile: plan.optimizationProfile || 'standard',
+                selectedCrew: plan.selectedCrew || null,
+                selectedSpecialists: Array.isArray(plan.selectedSpecialists) ? plan.selectedSpecialists : [],
+                selectedSkills: Array.isArray(plan.selectedSkills) ? plan.selectedSkills : [],
+                selectedWorkflows: Array.isArray(plan.selectedWorkflows) ? plan.selectedWorkflows : [],
+                selectedTools,
+                swarmDecision: plan.swarmDecision || null,
+                fallbackPlan: plan.fallbackPlan || null,
+                reviewGates: Array.isArray(plan.reviewGates) ? plan.reviewGates : [],
+                continuation: plan.continuation || null,
+                ledger: Array.isArray(plan.ledger) ? plan.ledger : [],
+            };
+        }
+
+        function renderPlannerLedgerTable(ledger) {
+            if (!ledger?.length) {
+                return emptyState('No planning ledger available yet.');
+            }
+            return `
+                <div class="planner-table-wrap">
+                    <table class="planner-table">
+                        <thead>
+                            <tr>
+                                <th>Stage</th>
+                                <th>Status</th>
+                                <th>Owner</th>
+                                <th>Selected Assets</th>
+                                <th>Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${ledger.map((row) => `
+                                <tr>
+                                    <td>${escapeHtml(row.stage)}</td>
+                                    <td><span class="state-chip ${stateClass(row.status === 'fallback' ? 'rolled_back' : row.status === 'completed' ? 'active' : 'standby')}">${escapeHtml(row.status)}</span></td>
+                                    <td>${escapeHtml(row.owner)}</td>
+                                    <td>${escapeHtml((row.selectedAssets || []).join(', ') || 'n/a')}</td>
+                                    <td>${escapeHtml(row.notes || '')}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
         function renderLibrary() {
             document.querySelectorAll('#library-tabs button').forEach((button) => {
                 button.classList.toggle('active', button.dataset.libraryMode === state.libraryMode);
@@ -2037,10 +2405,14 @@
             const titles = {
                 memories: 'Memory Snapshots',
                 skills: 'Skills',
+                specialists: 'Specialist Roster',
+                crews: 'Crew Templates',
+                planning: 'Task Planner',
                 workflows: 'Workflows',
-                spend: 'Tool Spend Tracker',
-                pod: 'POD Signals',
-                clients: 'Connected Ecosystem',
+                hooks: 'Hooks',
+                automations: 'Automations',
+                governance: 'Memory Governance',
+                federation: 'Federation Mesh',
             };
             $('library-title').textContent = titles[state.libraryMode];
             const container = $('library-list');
@@ -2119,6 +2491,108 @@
                     : emptyState('No skills loaded. Click "Seed Defaults" to install starter skills.');
                 container.innerHTML = skillForm + skillList;
                 bindSkillFormHandlers();
+            } else if (state.libraryMode === 'specialists') {
+                container.innerHTML = resourceFailed('specialists') && !state.specialists.length
+                    ? emptyState('Specialist roster endpoint unavailable.')
+                    : state.specialists.length
+                        ? state.specialists.map((specialist) => `
+                            <div class="card interactive ${state.selected?.kind === 'specialist' && state.selected.id === specialist.specialistId ? 'active' : ''}" data-kind="specialist" data-id="${escapeHtml(specialist.specialistId)}">
+                                <div class="card-title">
+                                    <strong>${escapeHtml(specialist.name)}</strong>
+                                    <span class="state-chip ${stateClass(specialist.authority === 'mutate' ? 'active' : specialist.authority === 'review' ? 'inferred' : 'ready')}">${escapeHtml(specialist.authority)}</span>
+                                </div>
+                                <div class="meta">${escapeHtml(specialist.division)} · ${escapeHtml(specialist.description || 'No description provided.')}</div>
+                                <div class="list-inline">
+                                    ${(specialist.domains || []).slice(0, 5).map((domain) => chip(domain)).join('')}
+                                </div>
+                            </div>
+                        `).join('')
+                        : emptyState('No specialists available.');
+            } else if (state.libraryMode === 'crews') {
+                container.innerHTML = resourceFailed('crews') && !state.crews.length
+                    ? emptyState('Crew endpoint unavailable.')
+                    : state.crews.length
+                        ? state.crews.map((crew) => `
+                            <div class="card interactive ${state.selected?.kind === 'crew' && state.selected.id === crew.crewId ? 'active' : ''}" data-kind="crew" data-id="${escapeHtml(crew.crewId)}">
+                                <div class="card-title">
+                                    <strong>${escapeHtml(crew.name)}</strong>
+                                    <span class="state-chip info">${escapeHtml((crew.reviewGates || []).length)} gates</span>
+                                </div>
+                                <div class="meta">${escapeHtml(crew.summary)}</div>
+                                <div class="list-inline">
+                                    ${(crew.domains || []).map((domain) => chip(domain)).join('')}
+                                </div>
+                            </div>
+                        `).join('')
+                        : emptyState('No crews available.');
+            } else if (state.libraryMode === 'planning') {
+                const planner = getPlannerViewModel();
+                container.innerHTML = planner
+                    ? `
+                        <div class="metrics-grid">
+                            <div class="hero-metric">
+                                <label>Chosen Crew</label>
+                                <strong>${escapeHtml(planner.selectedCrew?.name || 'Baseline')}</strong>
+                                <div class="meta">${escapeHtml(planner.selectedCrew?.summary || 'Current runtime fallback remains available.')}</div>
+                            </div>
+                            <div class="hero-metric">
+                                <label>Specialists</label>
+                                <strong>${formatNumber(planner.selectedSpecialists.length)}</strong>
+                                <div class="meta">${escapeHtml(planner.selectedSpecialists.map((specialist) => specialist.name).slice(0, 3).join(', ') || 'None selected')}</div>
+                            </div>
+                            <div class="hero-metric">
+                                <label>Tool Policy</label>
+                                <strong>${formatNumber(planner.selectedTools.length)}</strong>
+                                <div class="meta">${escapeHtml(planner.selectedTools.join(', ') || 'Baseline tool policy')}</div>
+                            </div>
+                            <div class="hero-metric">
+                                <label>Swarm</label>
+                                <strong>${escapeHtml(planner.swarmDecision?.mode || 'sequential')}</strong>
+                                <div class="meta">${escapeHtml(planner.swarmDecision ? `${planner.swarmDecision.workers} workers · ${planner.optimizationProfile}` : planner.optimizationProfile)}</div>
+                            </div>
+                        </div>
+                        <div class="stack" style="margin-top:0.8rem;">
+                            <div class="card">
+                                <div class="card-title">
+                                    <strong>${escapeHtml(planner.objective)}</strong>
+                                    <span class="state-chip ${stateClass(planner.optimizationProfile === 'max' ? 'active' : 'ready')}">${escapeHtml(planner.optimizationProfile)}</span>
+                                </div>
+                                <div class="meta">Fallback: ${escapeHtml(planner.fallbackPlan?.summary || 'Current runtime fallback remains active.')}</div>
+                                <div class="list-inline" style="margin-top:0.5rem;">
+                                    ${planner.selectedSpecialists.map((specialist) => `<span class="chip" data-entity-action="specialist:${escapeHtml(specialist.specialistId)}">${escapeHtml(specialist.name)}</span>`).join('')}
+                                </div>
+                            </div>
+                            <div class="card">
+                                <div class="card-title">
+                                    <strong>Selected Assets</strong>
+                                    <span class="state-chip info">${formatNumber(planner.selectedSkills.length + planner.selectedWorkflows.length)}</span>
+                                </div>
+                                <div class="list-inline">
+                                    ${planner.selectedSkills.map((skill) => chip(`skill:${skill}`)).join('')}
+                                    ${planner.selectedWorkflows.map((workflow) => chip(`wf:${workflow}`)).join('')}
+                                    ${planner.selectedTools.map((tool) => chip(`tool:${tool}`)).join('')}
+                                </div>
+                            </div>
+                            <div class="card">
+                                <div class="card-title">
+                                    <strong>Review Gates</strong>
+                                    <span class="state-chip info">${formatNumber(planner.reviewGates.length)}</span>
+                                </div>
+                                <div class="list-inline">
+                                    ${planner.reviewGates.map((gate) => chip(`${gate.gate}:${gate.status}`)).join('')}
+                                </div>
+                            </div>
+                            <div class="card">
+                                <div class="card-title">
+                                    <strong>Continuation</strong>
+                                    <span class="state-chip good">${formatNumber(planner.continuation?.suggestedActions?.length || 0)} next step(s)</span>
+                                </div>
+                                <div class="meta">${escapeHtml(planner.continuation?.summary || 'No continuation proposal recorded yet.')}</div>
+                            </div>
+                            ${renderPlannerLedgerTable(planner.ledger)}
+                        </div>
+                    `
+                    : emptyState('No planner state yet. Use Plan Run or execute a non-trivial task to see the live ledger.');
             } else if (state.libraryMode === 'workflows') {
                 container.innerHTML = resourceFailed('workflows') && !state.workflows.length
                     ? emptyState('Workflows endpoint unavailable.')
@@ -2134,81 +2608,159 @@
                         </div>
                     `).join('')
                     : emptyState('No workflows loaded.');
-            } else if (state.libraryMode === 'pod') {
-                container.innerHTML = resourceFailed('pod') && !(state.pod.messages || []).length
-                    ? emptyState('POD endpoint unavailable.')
-                    : state.pod.messages?.length
-                    ? state.pod.messages.map((message) => `
-                        <div class="card interactive ${state.selected?.kind === 'pod-worker' && state.selected.id === message.workerId ? 'active' : ''}" data-kind="pod-worker" data-id="${escapeHtml(message.workerId)}">
+            } else if (state.libraryMode === 'hooks') {
+                container.innerHTML = resourceFailed('hooks') && !state.hooks.length
+                    ? emptyState('Hooks endpoint unavailable.')
+                    : state.hooks.length
+                    ? state.hooks.map((hook) => `
+                        <div class="card interactive ${state.selected?.kind === 'hook' && state.selected.id === hook.hookId ? 'active' : ''}" data-kind="hook" data-id="${escapeHtml(hook.hookId)}">
                             <div class="card-title">
-                                <strong>${escapeHtml(message.workerId)}</strong>
-                                <span class="state-chip ${stateClass(message.type === 'instruction' ? 'warn' : 'active')}">${escapeHtml(message.type)}</span>
+                                <strong>${escapeHtml(hook.name)}</strong>
+                                <span class="state-chip ${stateClass(hook.rolloutStatus)}">${escapeHtml(hook.rolloutStatus)}</span>
                             </div>
-                            <div class="meta">${formatDate(message.timestamp)} · confidence ${Number(message.confidence || 0).toFixed(2)}</div>
-                            <div class="meta">${escapeHtml(message.content)}</div>
-                            <div class="list-inline">${(message.tags || []).map((tag) => chip(tag)).join('')}</div>
+                            <div class="meta">${escapeHtml(hook.trigger || 'n/a')} · ${escapeHtml(hook.domain || 'general')} · risk ${escapeHtml(hook.riskClass || 'n/a')}</div>
+                            <div class="list-inline">
+                                ${chip(`scope:${hook.scope}`)}
+                                ${chip(`fired:${hook.effectiveness?.fired || 0}`)}
+                                ${chip(`blocked:${hook.effectiveness?.blocked || 0}`)}
+                            </div>
                         </div>
                     `).join('')
-                    : emptyState('No POD signals captured.');
-            } else if (state.libraryMode === 'spend') {
-                const spendData = computeSpendData();
+                    : emptyState('No hooks loaded.');
+            } else if (state.libraryMode === 'automations') {
+                container.innerHTML = resourceFailed('automations') && !state.automations.length
+                    ? emptyState('Automations endpoint unavailable.')
+                    : state.automations.length
+                    ? state.automations.map((automation) => `
+                        <div class="card interactive ${state.selected?.kind === 'automation' && state.selected.id === automation.automationId ? 'active' : ''}" data-kind="automation" data-id="${escapeHtml(automation.automationId)}">
+                            <div class="card-title">
+                                <strong>${escapeHtml(automation.name)}</strong>
+                                <span class="state-chip ${stateClass(automation.rolloutStatus)}">${escapeHtml(automation.rolloutStatus)}</span>
+                            </div>
+                            <div class="meta">${escapeHtml(automation.triggerMode || 'n/a')} · ${escapeHtml(automation.domain || 'general')} · ${escapeHtml(automation.eventTrigger || 'manual')}</div>
+                            <div class="list-inline">
+                                ${chip(`scope:${automation.scope}`)}
+                                ${chip(`queued:${automation.effectiveness?.queuedRuns || 0}`)}
+                                ${chip(`deliveries:${automation.effectiveness?.deliveries || 0}`)}
+                            </div>
+                        </div>
+                    `).join('')
+                    : emptyState('No automations loaded.');
+            } else if (state.libraryMode === 'governance') {
                 container.innerHTML = `
                     <div class="metrics-grid">
                         <div class="hero-metric">
-                            <label>Total Tokens</label>
-                            <strong>${formatNumber(spendData.totalTokens)}</strong>
-                            <div class="meta">Across ${spendData.sessionCount} sessions</div>
+                            <label>Audited Memories</label>
+                            <strong>${resourceFailed('memoryAudit') ? 'n/a' : formatNumber(state.memoryAudit.scanned || 0)}</strong>
+                            <div class="meta">Latest governance audit sweep</div>
                         </div>
                         <div class="hero-metric">
-                            <label>Estimated Cost</label>
-                            <strong>$${spendData.estimatedCost}</strong>
-                            <div class="meta">Based on avg token pricing</div>
+                            <label>Quarantined</label>
+                            <strong>${resourceFailed('memoryQuarantine') ? 'n/a' : formatNumber(state.memoryQuarantine.length)}</strong>
+                            <div class="meta">Memories withheld from promotion paths</div>
+                        </div>
+                        <div class="hero-metric">
+                            <label>Findings</label>
+                            <strong>${resourceFailed('memoryAudit') ? 'n/a' : formatNumber(state.memoryAudit.findings?.length || 0)}</strong>
+                            <div class="meta">Duplicate, secret, contradiction, and entropy checks</div>
+                        </div>
+                        <div class="hero-metric">
+                            <label>Blocking Issues</label>
+                            <strong>${resourceFailed('memoryAudit') ? 'n/a' : formatNumber((state.memoryAudit.findings || []).filter((item) => item.action === 'block' || item.action === 'quarantine').length)}</strong>
+                            <div class="meta">Promotion-blocking governance actions</div>
                         </div>
                     </div>
-                    <div style="margin-top:0.75rem;">
-                        <div class="entity-header"><h3>By Category</h3></div>
-                        ${spendData.byCategory.length ? spendData.byCategory.map((cat) => `
-                            <div class="card" style="margin-bottom:0.5rem;">
-                                <div class="card-title">
-                                    <strong>${escapeHtml(cat.category)}</strong>
-                                    <span class="mono" style="font-size:0.78rem;">${formatNumber(cat.tokens)} tokens</span>
-                                </div>
-                                <div style="height:4px; border-radius:2px; background:rgba(255,255,255,0.08); overflow:hidden;">
-                                    <div style="height:100%; width:${cat.pct}%; background:var(--accent); border-radius:2px;"></div>
-                                </div>
-                            </div>
-                        `).join('') : emptyState('No token events recorded yet.')}
+                    <div class="stack" style="margin-top:0.8rem;">
+                        <div class="entity-header"><h3>Quarantine Queue</h3></div>
+                        ${resourceFailed('memoryQuarantine') && !state.memoryQuarantine.length
+                            ? emptyState('Memory quarantine endpoint unavailable.')
+                            : state.memoryQuarantine.length
+                                ? state.memoryQuarantine.slice(0, 18).map((memory) => `
+                                    <div class="card interactive ${state.selected?.kind === 'memory' && state.selected.id === memory.id ? 'active' : ''}" data-kind="memory" data-id="${escapeHtml(memory.id)}">
+                                        <div class="card-title">
+                                            <strong>${escapeHtml(memory.excerpt)}</strong>
+                                            <span class="state-chip warn">quarantine</span>
+                                        </div>
+                                        <div class="meta">${escapeHtml(memory.tier)} · priority ${Number(memory.priority || 0).toFixed(2)} · ${memory.linkCount || 0} links</div>
+                                    </div>
+                                `).join('')
+                                : emptyState('No memories are quarantined right now.')}
                     </div>
-                    <div style="margin-top:0.75rem;">
-                        <div class="entity-header"><h3>Recent Activity</h3></div>
-                        ${spendData.recentEvents.length ? spendData.recentEvents.map((ev) => `
-                            <div class="card" style="margin-bottom:0.4rem;">
-                                <div class="meta">${escapeHtml(ev.title)} · ${formatNumber(ev.tokens)} tokens · ${formatAgo(ev.time)}</div>
-                            </div>
-                        `).join('') : emptyState('No recent token activity.')}
+                    <div class="stack" style="margin-top:0.8rem;">
+                        <div class="entity-header"><h3>Latest Findings</h3></div>
+                        ${resourceFailed('memoryAudit') && !(state.memoryAudit.findings || []).length
+                            ? emptyState('Memory audit endpoint unavailable.')
+                            : (state.memoryAudit.findings || []).length
+                                ? state.memoryAudit.findings.slice(0, 18).map((finding) => `
+                                    <div class="card interactive ${state.selected?.kind === 'memory' && state.selected.id === finding.id ? 'active' : ''}" data-kind="memory" data-id="${escapeHtml(finding.id)}">
+                                        <div class="card-title">
+                                            <strong>${escapeHtml(finding.contentPreview || finding.id)}</strong>
+                                            <span class="state-chip ${stateClass(finding.action === 'block' ? 'failed' : finding.action === 'quarantine' ? 'staged' : finding.action)}">${escapeHtml(finding.action)}</span>
+                                        </div>
+                                        <div class="meta">${(finding.findings || []).map((item) => `${item.category}:${item.severity}`).join(' · ') || 'No sub-findings'}</div>
+                                    </div>
+                                `).join('')
+                                : emptyState('No governance findings available yet.')}
                     </div>
                 `;
-            } else if (state.libraryMode === 'clients') {
-                container.innerHTML = resourceFailed('clients') && !state.clients.length
-                    ? emptyState('Clients endpoint unavailable.')
-                    : state.clients.length
-                    ? state.clients.map((client) => `
-                        <div class="card interactive ${state.selected?.kind === 'client' && state.selected.id === client.clientId ? 'active' : ''}" data-kind="client" data-id="${escapeHtml(client.clientId)}">
-                            <div class="card-title">
-                                <strong>${escapeHtml(client.displayName)}</strong>
-                                <span class="state-chip ${stateClass(client.state)}">${escapeHtml(client.state)}</span>
-                            </div>
-                            <div class="meta">${escapeHtml(client.source)} · last seen ${escapeHtml(formatAgo(client.lastSeen || client.lastHeartbeat))}</div>
-                            <div class="list-inline">${(client.evidence || []).map((evidence) => chip(evidence)).join('')}</div>
+            } else if (state.libraryMode === 'federation') {
+                const peers = state.federation.knownPeers || [];
+                container.innerHTML = `
+                    <div class="metrics-grid">
+                        <div class="hero-metric">
+                            <label>Known Peers</label>
+                            <strong>${resourceFailed('federation') ? 'n/a' : formatNumber(peers.length)}</strong>
+                            <div class="meta">Local-first mesh inventory</div>
                         </div>
-                    `).join('')
-                    : emptyState('No clients detected.');
+                        <div class="hero-metric">
+                            <label>Active Links</label>
+                            <strong>${resourceFailed('federation') ? 'n/a' : formatNumber(state.federation.activePeerLinks || 0)}</strong>
+                            <div class="meta">Currently healthy peer relationships</div>
+                        </div>
+                        <div class="hero-metric">
+                            <label>Relay Learnings</label>
+                            <strong>${resourceFailed('federation') ? 'n/a' : formatNumber((state.federation.relayLearnings || []).length)}</strong>
+                            <div class="meta">Synced from relay and peer exchange</div>
+                        </div>
+                        <div class="hero-metric">
+                            <label>Published Traces</label>
+                            <strong>${resourceFailed('federation') ? 'n/a' : formatNumber(state.federation.tracesPublished || 0)}</strong>
+                            <div class="meta">Execution traces published across the mesh</div>
+                        </div>
+                    </div>
+                    <div class="stack" style="margin-top:0.8rem;">
+                        <div class="entity-header"><h3>Peers</h3></div>
+                        ${resourceFailed('federation') && !peers.length
+                            ? emptyState('Federation endpoint unavailable.')
+                            : peers.length
+                                ? peers.map((peer) => `
+                                    <div class="card interactive ${state.selected?.kind === 'federation-peer' && state.selected.id === peer.peerId ? 'active' : ''}" data-kind="federation-peer" data-id="${escapeHtml(peer.peerId)}">
+                                        <div class="card-title">
+                                            <strong>${escapeHtml(peer.displayName || peer.peerId)}</strong>
+                                            <span class="state-chip ${stateClass(peer.health || (peer.active ? 'active' : 'offline'))}">${escapeHtml(peer.health || (peer.active ? 'active' : 'offline'))}</span>
+                                        </div>
+                                        <div class="meta">${escapeHtml(peer.source || 'local')} · trust ${escapeHtml(peer.trust || 'unknown')} · ${formatAgo(peer.lastHeartbeat)}</div>
+                                        <div class="list-inline">${(peer.capabilities || []).slice(0, 5).map((capability) => chip(capability)).join('')}</div>
+                                    </div>
+                                `).join('')
+                                : emptyState('No federation peers discovered yet.')}
+                    </div>
+                `;
             }
 
             container.querySelectorAll('.card.interactive').forEach((card) => {
                 card.addEventListener('click', () => {
                     const kind = card.getAttribute('data-kind');
                     const id = card.getAttribute('data-id');
+                    void openEntity(kind, id);
+                });
+            });
+            container.querySelectorAll('[data-entity-action]').forEach((element) => {
+                element.addEventListener('click', (event) => {
+                    event.stopPropagation();
+                    const action = element.getAttribute('data-entity-action');
+                    if (!action) return;
+                    const [kind, id] = action.split(':');
                     void openEntity(kind, id);
                 });
             });
@@ -2248,6 +2800,10 @@
                         : state.eventFilter === 'tokens' ? 'No token events yet. Events appear when nexus_optimize_tokens runs.'
                         : state.eventFilter === 'skills' ? 'No skill events yet. Create or seed skills from the library tab.'
                         : state.eventFilter === 'workflows' ? 'No workflow events yet. Deploy or run a workflow to see activity.'
+                        : state.eventFilter === 'hooks' ? 'No hook events yet. Hook activity appears at runtime checkpoints.'
+                        : state.eventFilter === 'automations' ? 'No automation events yet. Trigger or queue an automation to see activity.'
+                        : state.eventFilter === 'shield' ? 'No shield decisions yet. Risk gates appear after verifier and promotion checks.'
+                        : state.eventFilter === 'federation' ? 'No federation events yet. Federation activity appears when peers or relay sync update.'
                         : state.eventFilter === 'runtime' ? 'No runtime events yet. Spawn phantom workers to see execution traces.'
                         : state.eventFilter === 'pod' ? 'No POD signals yet. POD events appear during multi-worker coordination.'
                         : state.eventFilter === 'clients' ? 'No client events yet (heartbeats are throttled).'
@@ -2280,9 +2836,14 @@
             if (kind === 'memory') return data.excerpt || 'Memory';
             if (kind === 'run') return data.goal || 'Run';
             if (kind === 'skill') return data.name || 'Skill';
+            if (kind === 'specialist') return data.name || 'Specialist';
+            if (kind === 'crew') return data.name || 'Crew';
             if (kind === 'workflow') return data.name || 'Workflow';
+            if (kind === 'hook') return data.name || 'Hook';
+            if (kind === 'automation') return data.name || 'Automation';
             if (kind === 'pod-worker') return data.workerId || 'POD Worker';
             if (kind === 'client') return data.displayName || 'Client';
+            if (kind === 'federation-peer') return data.displayName || data.peerId || 'Peer';
             return 'Inspector';
         }
 
@@ -2290,9 +2851,14 @@
             if (kind === 'memory') return `${data.id} · ${data.tier} · ${formatDate(data.timestamp)}`;
             if (kind === 'run') return `${data.runId} · ${data.state}`;
             if (kind === 'skill') return `${data.skillId} · ${data.rolloutStatus}`;
+            if (kind === 'specialist') return `${data.specialistId} · ${data.authority}`;
+            if (kind === 'crew') return `${data.crewId} · ${(data.reviewGates || []).length} review gates`;
             if (kind === 'workflow') return `${data.workflowId} · ${data.rolloutStatus}`;
+            if (kind === 'hook') return `${data.hookId} · ${data.rolloutStatus}`;
+            if (kind === 'automation') return `${data.automationId} · ${data.rolloutStatus}`;
             if (kind === 'pod-worker') return `${data.messageCount || data.messages?.length || 0} messages`;
             if (kind === 'client') return `${data.clientId} · ${data.state}`;
+            if (kind === 'federation-peer') return `${data.peerId} · ${data.health || 'unknown'}`;
             return '';
         }
 
@@ -2341,6 +2907,7 @@
             }
 
             if (kind === 'run') {
+                const planner = normalizePlannerView(data.plannerState || data.plannerResult, data.goal);
                 return `
                     <section class="drawer-section">
                         <h4>Run Summary</h4>
@@ -2365,6 +2932,20 @@
                             label: `${worker.workerId} · ${worker.role}`,
                             meta: `${worker.verified ? 'verified' : 'unverified'} · ${worker.modifiedFiles?.length || 0} files`,
                         })))}
+                    </section>
+                    <section class="drawer-section">
+                        <h4>Planner</h4>
+                        <div class="list-inline">
+                            ${planner?.selectedCrew ? chip(`crew:${planner.selectedCrew.name}`) : chip('crew:baseline')}
+                            ${chip(`specialists:${planner?.selectedSpecialists?.length || 0}`)}
+                            ${chip(`tools:${planner?.selectedTools?.length || 0}`)}
+                            ${chip(`gates:${planner?.reviewGates?.length || 0}`)}
+                        </div>
+                        <div class="meta">${escapeHtml(planner?.fallbackPlan?.summary || 'Current runtime fallback remains active.')}</div>
+                    </section>
+                    <section class="drawer-section">
+                        <h4>Planning Ledger</h4>
+                        ${renderPlannerLedgerTable(planner?.ledger || [])}
                     </section>
                 `;
             }
@@ -2399,6 +2980,61 @@
                 `;
             }
 
+            if (kind === 'specialist') {
+                return `
+                    <section class="drawer-section">
+                        <h4>Role Profile</h4>
+                        <div class="list-inline">
+                            ${chip(`authority:${data.authority}`)}
+                            ${chip(`division:${data.division}`)}
+                            ${(data.domains || []).slice(0, 5).map((domain) => chip(domain)).join('')}
+                        </div>
+                        <pre>${escapeHtml(data.mission || data.description || '')}</pre>
+                    </section>
+                    <section class="drawer-section">
+                        <h4>Workflow</h4>
+                        ${renderSmallList((data.workflow || []).map((item) => ({ label: item, meta: data.division })))}
+                    </section>
+                    <section class="drawer-section">
+                        <h4>Deliverables</h4>
+                        ${renderSmallList((data.deliverables || []).map((item) => ({ label: item, meta: data.authority })))}
+                    </section>
+                    <section class="drawer-section">
+                        <h4>Runtime Affinity</h4>
+                        <div class="list-inline">
+                            ${(data.recommendedSkills || []).map((item) => chip(`skill:${item}`)).join('')}
+                            ${(data.recommendedWorkflows || []).map((item) => chip(`wf:${item}`)).join('')}
+                            ${(data.tools || []).map((item) => chip(`tool:${item}`)).join('')}
+                        </div>
+                    </section>
+                `;
+            }
+
+            if (kind === 'crew') {
+                return `
+                    <section class="drawer-section">
+                        <h4>Crew Template</h4>
+                        <div class="list-inline">
+                            ${(data.domains || []).map((domain) => chip(domain)).join('')}
+                            ${chip(`required:${(data.requiredSpecialists || []).length}`)}
+                            ${chip(`optional:${(data.optionalSpecialists || []).length}`)}
+                        </div>
+                        <pre>${escapeHtml(data.summary || '')}</pre>
+                    </section>
+                    <section class="drawer-section">
+                        <h4>Required Specialists</h4>
+                        ${renderSmallList((data.requiredSpecialists || []).map((item) => {
+                            const specialist = state.specialists.find((entry) => entry.specialistId === item);
+                            return { label: specialist?.name || item, meta: specialist?.division || 'specialist', action: `specialist:${item}` };
+                        }))}
+                    </section>
+                    <section class="drawer-section">
+                        <h4>Review Gates</h4>
+                        <div class="list-inline">${(data.reviewGates || []).map((gate) => chip(gate)).join('') || '<span class="meta">No review gates recorded.</span>'}</div>
+                    </section>
+                `;
+            }
+
             if (kind === 'workflow') {
                 return `
                     <section class="drawer-section">
@@ -2419,6 +3055,82 @@
                         <div class="action-bar">
                             <button class="primary-button" data-drawer-action="deploy-workflow" data-id="${escapeHtml(data.workflowId)}">Deploy</button>
                             <button class="ghost-button" data-drawer-action="run-workflow" data-id="${escapeHtml(data.workflowId)}">Run</button>
+                        </div>
+                    </section>
+                `;
+            }
+
+            if (kind === 'hook') {
+                return `
+                    <section class="drawer-section">
+                        <h4>Hook</h4>
+                        <div class="list-inline">
+                            ${chip(`scope:${data.scope}`)}
+                            ${chip(`risk:${data.riskClass}`)}
+                            ${chip(`trigger:${data.trigger || 'n/a'}`)}
+                            ${chip(`status:${data.rolloutStatus}`)}
+                        </div>
+                        <pre>${escapeHtml(data.description || '')}</pre>
+                    </section>
+                    <section class="drawer-section">
+                        <h4>Selectors</h4>
+                        <div class="list-inline">
+                            ${(data.workflowSelectors || []).map((selector) => chip(`wf:${selector}`)).join('')}
+                            ${(data.skillSelectors || []).map((selector) => chip(`skill:${selector}`)).join('')}
+                            ${(data.guardrails || []).map((guardrail) => chip(guardrail)).join('') || '<span class="meta">No selectors or guardrails recorded.</span>'}
+                        </div>
+                    </section>
+                    <section class="drawer-section">
+                        <h4>Effectiveness</h4>
+                        <div class="list-inline">
+                            ${chip(`fired:${data.effectiveness?.fired || 0}`)}
+                            ${chip(`blocked:${data.effectiveness?.blocked || 0}`)}
+                            ${chip(`queued:${data.effectiveness?.queued || 0}`)}
+                        </div>
+                    </section>
+                    <section class="drawer-section">
+                        <h4>Actions</h4>
+                        <div class="action-bar">
+                            <button class="primary-button" data-drawer-action="deploy-hook" data-id="${escapeHtml(data.hookId)}">Deploy</button>
+                            <button class="ghost-button" data-drawer-action="revoke-hook" data-id="${escapeHtml(data.hookId)}">Revoke</button>
+                        </div>
+                    </section>
+                `;
+            }
+
+            if (kind === 'automation') {
+                return `
+                    <section class="drawer-section">
+                        <h4>Automation</h4>
+                        <div class="list-inline">
+                            ${chip(`scope:${data.scope}`)}
+                            ${chip(`trigger:${data.triggerMode || 'n/a'}`)}
+                            ${chip(`status:${data.rolloutStatus}`)}
+                        </div>
+                        <pre>${escapeHtml(data.description || '')}</pre>
+                    </section>
+                    <section class="drawer-section">
+                        <h4>Bindings</h4>
+                        <div class="list-inline">
+                            ${(data.workflowSelectors || []).map((selector) => chip(`wf:${selector}`)).join('')}
+                            ${(data.hookSelectors || []).map((selector) => chip(`hook:${selector}`)).join('')}
+                            ${(data.skillSelectors || []).map((selector) => chip(`skill:${selector}`)).join('') || '<span class="meta">No bindings configured.</span>'}
+                        </div>
+                    </section>
+                    <section class="drawer-section">
+                        <h4>Effectiveness</h4>
+                        <div class="list-inline">
+                            ${chip(`queued:${data.effectiveness?.queuedRuns || 0}`)}
+                            ${chip(`deliveries:${data.effectiveness?.deliveries || 0}`)}
+                            ${chip(`failures:${data.effectiveness?.failures || 0}`)}
+                        </div>
+                    </section>
+                    <section class="drawer-section">
+                        <h4>Actions</h4>
+                        <div class="action-bar">
+                            <button class="primary-button" data-drawer-action="deploy-automation" data-id="${escapeHtml(data.automationId)}">Deploy</button>
+                            <button class="ghost-button" data-drawer-action="run-automation" data-id="${escapeHtml(data.automationId)}">Run</button>
+                            <button class="ghost-button" data-drawer-action="revoke-automation" data-id="${escapeHtml(data.automationId)}">Revoke</button>
                         </div>
                     </section>
                 `;
@@ -2470,6 +3182,24 @@
                 `;
             }
 
+            if (kind === 'federation-peer') {
+                return `
+                    <section class="drawer-section">
+                        <h4>Peer Status</h4>
+                        <div class="list-inline">
+                            ${chip(`health:${data.health || 'unknown'}`)}
+                            ${chip(`trust:${data.trust || 'unknown'}`)}
+                            ${chip(`source:${data.source || 'unknown'}`)}
+                        </div>
+                        <div class="meta">Last heartbeat: ${formatDate(data.lastHeartbeat)} · active: ${data.active ? 'yes' : 'no'}</div>
+                    </section>
+                    <section class="drawer-section">
+                        <h4>Capabilities</h4>
+                        <div class="list-inline">${(data.capabilities || []).map((capability) => chip(capability)).join('') || '<span class="meta">No capabilities recorded.</span>'}</div>
+                    </section>
+                `;
+            }
+
             return '<div class="empty">No details available.</div>';
         }
 
@@ -2515,6 +3245,16 @@
                     await fetchJson('/api/workflows/deploy', postJson({ workflowId: id }));
                 } else if (action === 'run-workflow') {
                     await fetchJson('/api/workflows/run', postJson({ workflowId: id }));
+                } else if (action === 'deploy-hook') {
+                    await fetchJson('/api/hooks/deploy', postJson({ hookId: id }));
+                } else if (action === 'revoke-hook') {
+                    await fetchJson('/api/hooks/revoke', postJson({ hookId: id }));
+                } else if (action === 'deploy-automation') {
+                    await fetchJson('/api/automations/deploy', postJson({ automationId: id }));
+                } else if (action === 'run-automation') {
+                    await fetchJson('/api/automations/run', postJson({ automationId: id }));
+                } else if (action === 'revoke-automation') {
+                    await fetchJson('/api/automations/revoke', postJson({ automationId: id }));
                 } else if (action === 'reconnect-client') {
                     await fetchJson(`/api/clients/${encodeURIComponent(id)}/reconnect`, postJson({}));
                 } else if (action === 'clear-client') {
@@ -2532,6 +3272,24 @@
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(body),
+            };
+        }
+
+        function buildExecutionPayload() {
+            return {
+                goal: $('goal-input').value.trim(),
+                files: parseList($('files-input').value),
+                workers: Number($('workers-input').value || 2),
+                skillNames: parseList($('skills-input').value),
+                crewSelectors: parseList($('crews-input').value),
+                specialistSelectors: parseList($('specialists-input').value),
+                workflowSelectors: parseList($('workflows-input').value),
+                optimizationProfile: $('optimization-profile').value || 'standard',
+                backendSelectors: {
+                    memoryBackend: $('memory-backend').value || undefined,
+                    compressionBackend: $('compression-backend').value || undefined,
+                    dslCompiler: $('dsl-backend').value || undefined,
+                },
             };
         }
 
@@ -2573,10 +3331,26 @@
                     const skill = state.skills.find((item) => item.skillId === id);
                     if (!skill) return;
                     state.selected = { kind: 'skill', id, data: skill };
+                } else if (kind === 'specialist') {
+                    const specialist = state.specialists.find((item) => item.specialistId === id);
+                    if (!specialist) return;
+                    state.selected = { kind: 'specialist', id, data: specialist };
+                } else if (kind === 'crew') {
+                    const crew = state.crews.find((item) => item.crewId === id);
+                    if (!crew) return;
+                    state.selected = { kind: 'crew', id, data: crew };
                 } else if (kind === 'workflow') {
                     const workflow = state.workflows.find((item) => item.workflowId === id);
                     if (!workflow) return;
                     state.selected = { kind: 'workflow', id, data: workflow };
+                } else if (kind === 'hook') {
+                    const hook = state.hooks.find((item) => item.hookId === id);
+                    if (!hook) return;
+                    state.selected = { kind: 'hook', id, data: hook };
+                } else if (kind === 'automation') {
+                    const automation = state.automations.find((item) => item.automationId === id);
+                    if (!automation) return;
+                    state.selected = { kind: 'automation', id, data: automation };
                 } else if (kind === 'pod-worker') {
                     const worker = await fetchJson(`/api/pod/${encodeURIComponent(id)}`);
                     state.selected = { kind: 'pod-worker', id, data: worker };
@@ -2584,6 +3358,10 @@
                     const client = state.clients.find((item) => item.clientId === id);
                     if (!client) return;
                     state.selected = { kind: 'client', id, data: client };
+                } else if (kind === 'federation-peer') {
+                    const peer = state.federation.knownPeers?.find((item) => item.peerId === id);
+                    if (!peer) return;
+                    state.selected = { kind: 'federation-peer', id, data: peer };
                 }
                 render();
             } catch (error) {
@@ -2674,33 +3452,43 @@
 
             $('execute-form').addEventListener('submit', async (event) => {
                 event.preventDefault();
-                const goal = $('goal-input').value.trim();
-                if (!goal) {
+                const payload = buildExecutionPayload();
+                if (!payload.goal) {
                     $('control-status').textContent = 'Goal is required.';
                     return;
                 }
 
-                const payload = {
-                    goal,
-                    files: parseList($('files-input').value),
-                    workers: Number($('workers-input').value || 2),
-                    skillNames: parseList($('skills-input').value),
-                    workflowSelectors: parseList($('workflows-input').value),
-                    backendSelectors: {
-                        memory: $('memory-backend').value || undefined,
-                        compression: $('compression-backend').value || undefined,
-                        dsl: $('dsl-backend').value || undefined,
-                    },
-                };
-
                 try {
+                    $('control-status').textContent = 'Planning runtime task...';
+                    state.plannerPreview = await fetchJson('/api/runtime/plan', postJson(payload));
+                    state.libraryMode = 'planning';
+                    render();
                     $('control-status').textContent = 'Executing runtime task...';
                     const run = await fetchJson('/api/runtime/execute', postJson(payload));
                     $('control-status').textContent = `Run ${run.runId} created with state ${run.state}.`;
                     state.selected = { kind: 'run', id: run.runId, data: run };
+                    state.libraryMode = 'planning';
                     await refreshAll();
                 } catch (error) {
                     $('control-status').textContent = `Execution failed: ${error.message}`;
+                }
+            });
+
+            $('plan-button').addEventListener('click', async () => {
+                const payload = buildExecutionPayload();
+                if (!payload.goal) {
+                    $('control-status').textContent = 'Goal is required.';
+                    return;
+                }
+
+                try {
+                    $('control-status').textContent = 'Building planner ledger...';
+                    state.plannerPreview = await fetchJson('/api/runtime/plan', postJson(payload));
+                    state.libraryMode = 'planning';
+                    render();
+                    $('control-status').textContent = `Planner ready: ${state.plannerPreview.selectedCrew?.name || 'baseline path'}.`;
+                } catch (error) {
+                    $('control-status').textContent = `Planning failed: ${error.message}`;
                 }
             });
 
@@ -2776,18 +3564,19 @@
                     }
                     state.events = state.events.slice(0, 120);
                     setResourceStatus('events', 'ready');
+                    renderEvents();
+                    renderHeader();
                     const isHeartbeat = payload.type === 'client.heartbeat';
                     if (isHeartbeat) {
                         const now = Date.now();
                         if (now - _lastHeartbeatDisplayTime < 30000) return;
                         _lastHeartbeatDisplayTime = now;
-                        renderEvents();
-                        renderHeader();
-                    } else if (['runtime', 'memory', 'pod', 'skills', 'workflows', 'clients'].includes(payload.category)) {
-                        scheduleRefresh();
-                    } else {
-                        renderEvents();
-                        renderHeader();
+                        return;
+                    }
+
+                    const refreshTargets = resourcesForEventCategory(payload.category);
+                    if (refreshTargets.length) {
+                        scheduleRefresh(refreshTargets);
                     }
                 } catch {
                     // ignore malformed stream chunks
@@ -2798,14 +3587,6 @@
         async function bootstrap() {
             attachStaticHandlers();
             await refreshAll();
-
-            // Auto-seed skills and workflows on first load if none exist
-            if (state.skills.length === 0) {
-                try {
-                    await fetchJson('/api/skills/seed', postJson({}));
-                    await refreshAll();
-                } catch { /* seed may fail if runtime unavailable */ }
-            }
 
             $('control-status').textContent = state.banner?.message
                 ? state.banner.message

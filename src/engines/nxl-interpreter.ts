@@ -41,6 +41,9 @@ export interface NXLExecutionSpec {
     skillPolicy: 'guarded-hot' | 'session-only' | 'manual';
     workflowPolicy?: 'guarded-hot' | 'session-only' | 'manual';
     derivationPolicy?: 'auto' | 'manual' | 'disabled';
+    crews?: string[];
+    specialists?: string[];
+    optimizationProfile?: 'standard' | 'max';
     actions?: Array<Record<string, unknown>>;
     metadata?: Record<string, unknown>;
 }
@@ -137,6 +140,8 @@ export class NXLInterpreter {
         const verify = normalizeStringArray(parsedInput.verify) ?? [];
         const skills = normalizeStringArray(parsedInput.skills) ?? [];
         const workflows = normalizeStringArray(parsedInput.workflows) ?? [];
+        const crews = normalizeStringArray(parsedInput.crews) ?? [];
+        const specialists = normalizeStringArray(parsedInput.specialists) ?? [];
         const files = normalizeStringArray(parsedInput.files) ?? [];
         const workers = normalizeNumber(parsedInput.workers) ?? Math.max(1, roles.filter(role => role.includes('coder')).length || roles.length || 1);
         const skillPolicy = normalizeSkillPolicy(parsedInput.skillPolicy);
@@ -164,6 +169,9 @@ export class NXLInterpreter {
             skillPolicy,
             workflowPolicy,
             derivationPolicy,
+            crews,
+            specialists,
+            optimizationProfile: normalizeOptimizationProfile(parsedInput.optimizationProfile),
             actions: Array.isArray(parsedInput.actions)
                 ? parsedInput.actions.filter((value): value is Record<string, unknown> => !!value && typeof value === 'object')
                 : [],
@@ -206,4 +214,8 @@ function normalizeDerivationPolicy(value: unknown): 'auto' | 'manual' | 'disable
 function normalizeBackendMode(value: unknown): 'default' | 'shadow' | 'experimental' {
     if (value === 'shadow' || value === 'experimental') return value;
     return 'default';
+}
+
+function normalizeOptimizationProfile(value: unknown): 'standard' | 'max' {
+    return value === 'max' ? 'max' : 'standard';
 }

@@ -365,12 +365,32 @@ export class MCPAdapter implements Adapter {
                             actions: { type: 'array', items: { type: 'object' }, description: 'Optional runtime actions or skill bindings to execute in worker worktrees' },
                             skills: { type: 'array', items: { type: 'string' }, description: 'Runtime skill selectors' },
                             workflows: { type: 'array', items: { type: 'string' }, description: 'Workflow selectors' },
+                            crews: { type: 'array', items: { type: 'string' }, description: 'Crew selectors' },
+                            specialists: { type: 'array', items: { type: 'string' }, description: 'Specialist selectors' },
                             memoryBackend: { type: 'string', description: 'Memory backend selector' },
                             compressionBackend: { type: 'string', description: 'Compression backend selector' },
                             dslCompiler: { type: 'string', description: 'DSL compiler selector' },
-                            backendMode: { type: 'string', enum: ['default', 'shadow', 'experimental'], description: 'Backend execution mode' }
+                            backendMode: { type: 'string', enum: ['default', 'shadow', 'experimental'], description: 'Backend execution mode' },
+                            optimizationProfile: { type: 'string', enum: ['standard', 'max'], description: 'Planner optimization profile' },
                         },
                         required: ['goal', 'files'],
+                    },
+                },
+                {
+                    name: 'nexus_plan_execution',
+                    description: 'Run the additive task planner without executing mutations. Returns selected crew, specialists, skills, tools, fallback plan, and review gates.',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {
+                            goal: { type: 'string', description: 'The overall goal to plan' },
+                            files: { type: 'array', items: { type: 'string' }, description: 'Optional focused files' },
+                            skills: { type: 'array', items: { type: 'string' }, description: 'Optional skill selectors' },
+                            workflows: { type: 'array', items: { type: 'string' }, description: 'Optional workflow selectors' },
+                            crews: { type: 'array', items: { type: 'string' }, description: 'Optional crew selectors' },
+                            specialists: { type: 'array', items: { type: 'string' }, description: 'Optional specialist selectors' },
+                            optimizationProfile: { type: 'string', enum: ['standard', 'max'], description: 'Planner optimization profile' }
+                        },
+                        required: ['goal'],
                     },
                 },
                 {
@@ -614,6 +634,22 @@ export class MCPAdapter implements Adapter {
                 {
                     name: 'nexus_federation_status',
                     description: 'Return local federation status, peer inventory, relay learnings, and active peer links.',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {},
+                    },
+                },
+                {
+                    name: 'nexus_list_specialists',
+                    description: 'List the built-in imported specialist roster available to the planner and runtime.',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {},
+                    },
+                },
+                {
+                    name: 'nexus_list_crews',
+                    description: 'List the preset crews available to the planner and runtime.',
                     inputSchema: {
                         type: 'object',
                         properties: {},
@@ -1089,6 +1125,12 @@ export class MCPAdapter implements Adapter {
                 const workflows = Array.isArray(request.params.arguments?.workflows)
                     ? (request.params.arguments.workflows as unknown[]).map(String)
                     : undefined;
+                const crews = Array.isArray(request.params.arguments?.crews)
+                    ? (request.params.arguments.crews as unknown[]).map(String)
+                    : undefined;
+                const specialists = Array.isArray(request.params.arguments?.specialists)
+                    ? (request.params.arguments.specialists as unknown[]).map(String)
+                    : undefined;
                 const memoryBackend = request.params.arguments?.memoryBackend
                     ? String(request.params.arguments.memoryBackend)
                     : undefined;
@@ -1101,6 +1143,9 @@ export class MCPAdapter implements Adapter {
                 const backendMode = request.params.arguments?.backendMode
                     ? String(request.params.arguments.backendMode) as 'default' | 'shadow' | 'experimental'
                     : undefined;
+                const optimizationProfile = request.params.arguments?.optimizationProfile
+                    ? String(request.params.arguments.optimizationProfile) as 'standard' | 'max'
+                    : undefined;
 
                 const execution = await this.getRuntime().run({
                     goal,
@@ -1112,8 +1157,11 @@ export class MCPAdapter implements Adapter {
                     actions,
                     skillNames: skills,
                     workflowSelectors: workflows,
+                    crewSelectors: crews,
+                    specialistSelectors: specialists,
                     backendSelectors: { memoryBackend, compressionBackend, dslCompiler },
                     backendMode,
+                    optimizationProfile,
                 });
 
                 const verifiedWorkers = execution.workerResults.filter(result => result.verified).length;
@@ -1169,6 +1217,9 @@ export class MCPAdapter implements Adapter {
                             `Decision: ${execution.finalDecision?.action ?? 'none'}`,
                             `Recommended Strategy: ${execution.finalDecision?.recommendedStrategy ?? 'n/a'}`,
                             `Planner: ${execution.plannerResult?.summary ?? 'n/a'}`,
+                            `Crew: ${execution.plannerResult?.selectedCrew?.name ?? 'n/a'}`,
+                            `Specialists: ${execution.plannerResult?.selectedSpecialists?.length ? execution.plannerResult.selectedSpecialists.map((specialist) => specialist.name).join(', ') : 'none'}`,
+                            `Fallback: ${execution.plannerResult?.fallbackPlan?.summary ?? 'current runtime fallback'}`,
                             `Backends: memory=${execution.selectedBackends.memoryBackend}, compression=${execution.selectedBackends.compressionBackend}, consensus=${execution.selectedBackends.consensusPolicy}, dsl=${execution.selectedBackends.dslCompiler}`,
                             `Active Skills: ${execution.activeSkills.length > 0 ? execution.activeSkills.map(skill => `${skill.name}(${skill.riskClass})`).join(', ') : 'none'}`,
                             `Active Workflows: ${execution.activeWorkflows.length > 0 ? execution.activeWorkflows.map(workflow => workflow.name).join(', ') : 'none'}`,
@@ -1607,6 +1658,93 @@ export class MCPAdapter implements Adapter {
                 };
             }
 
+            case 'nexus_plan_execution': {
+                const goal = String(request.params.arguments?.goal ?? '');
+                const files = Array.isArray(request.params.arguments?.files)
+                    ? (request.params.arguments.files as unknown[]).map(String)
+                    : undefined;
+                const skills = Array.isArray(request.params.arguments?.skills)
+                    ? (request.params.arguments.skills as unknown[]).map(String)
+                    : undefined;
+                const workflows = Array.isArray(request.params.arguments?.workflows)
+                    ? (request.params.arguments.workflows as unknown[]).map(String)
+                    : undefined;
+                const crews = Array.isArray(request.params.arguments?.crews)
+                    ? (request.params.arguments.crews as unknown[]).map(String)
+                    : undefined;
+                const specialists = Array.isArray(request.params.arguments?.specialists)
+                    ? (request.params.arguments.specialists as unknown[]).map(String)
+                    : undefined;
+                const optimizationProfile = request.params.arguments?.optimizationProfile
+                    ? String(request.params.arguments.optimizationProfile) as 'standard' | 'max'
+                    : undefined;
+
+                const planner = await this.getRuntime().planExecution({
+                    goal,
+                    files,
+                    skillNames: skills,
+                    workflowSelectors: workflows,
+                    crewSelectors: crews,
+                    specialistSelectors: specialists,
+                    optimizationProfile,
+                });
+
+                return {
+                    content: [{
+                        type: 'text',
+                        text: [
+                            `🧭 Execution Plan — ${planner.objective}`,
+                            '',
+                            `Crew: ${planner.selectedCrew.name} (${planner.selectedCrew.confidence.score.toFixed(2)})`,
+                            `Specialists: ${planner.selectedSpecialists.length > 0 ? planner.selectedSpecialists.map((specialist) => `${specialist.name}(${specialist.authority})`).join(', ') : 'none'}`,
+                            `Skills: ${planner.selectedSkills.length > 0 ? planner.selectedSkills.join(', ') : 'none'}`,
+                            `Workflows: ${planner.selectedWorkflows.length > 0 ? planner.selectedWorkflows.join(', ') : 'none'}`,
+                            `Tools: ${planner.toolPolicy.allowedTools.join(', ')}`,
+                            `Swarm: ${planner.swarmDecision.mode} (${planner.swarmDecision.workers} workers)`,
+                            `Fallback: ${planner.fallbackPlan.summary}`,
+                            `Review Gates: ${planner.reviewGates.map((gate) => gate.gate).join(', ')}`,
+                            '',
+                            `Planning Ledger:`,
+                            ...planner.ledger.map((row, index) => `${index + 1}. ${row.stage} · ${row.status} · ${row.owner} · ${row.selectedAssets.join(', ') || 'n/a'} · ${row.notes}`),
+                        ].join('\n'),
+                    }],
+                };
+            }
+
+            case 'nexus_list_specialists': {
+                const specialists = this.getRuntime().listSpecialists();
+                return {
+                    content: [{
+                        type: 'text',
+                        text: JSON.stringify({
+                            total: specialists.length,
+                            specialists: specialists.map((specialist) => ({
+                                specialistId: specialist.specialistId,
+                                name: specialist.name,
+                                division: specialist.division,
+                                authority: specialist.authority,
+                                domains: specialist.domains,
+                                recommendedSkills: specialist.recommendedSkills,
+                                recommendedWorkflows: specialist.recommendedWorkflows,
+                            })),
+                        }, null, 2),
+                    }],
+                };
+            }
+
+            case 'nexus_list_crews': {
+                const crews = this.getRuntime().listCrews();
+                return {
+                    content: [{
+                        type: 'text',
+                        text: JSON.stringify({
+                            total: crews.length,
+                            crews,
+                        }, null, 2),
+                    }],
+                };
+            }
+
             case 'nexus_run_status': {
                 const runId = String(request.params.arguments?.runId ?? '');
                 const run = this.getRuntime().getRun(runId);
@@ -1626,6 +1764,7 @@ export class MCPAdapter implements Adapter {
                             workflows: run.activeWorkflows.map((workflow) => workflow.name),
                             hooks: run.activeHooks.map((hook) => hook.name),
                             automations: run.activeAutomations.map((automation) => automation.name),
+                            planner: run.plannerResult,
                             promotions: run.promotionDecisions,
                             shield: run.shieldDecisions,
                             memoryChecks: run.memoryChecks,
