@@ -244,6 +244,7 @@ Nexus Prime now ships bundled domain skill packs and workflow packs for **market
 <summary><b>View Details</b></summary>
 The built-in dashboard exposes active and recent runs, worker states, verifier results, backend catalogs, skills, workflows, live events, and docs/release health from the same runtime ledger that powers CLI and MCP execution.
 </details>
+
 ### 6. Quantum-Inspired Entanglement (Phase 9A)
 <details>
 <summary><b>View Details</b></summary>
