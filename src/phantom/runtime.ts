@@ -59,6 +59,7 @@ import {
     type SkillScope,
 } from '../engines/runtime-assets.js';
 import {
+    getSpecialist,
     listCrewTemplates,
     listSpecialists,
     type ContinuationProposal,
@@ -71,6 +72,12 @@ import {
 } from '../engines/specialist-roster.js';
 import { planTask, type TaskPlannerState } from '../engines/task-planner.js';
 import { nexusEventBus } from '../engines/event-bus.js';
+import {
+    RuntimeRegistry,
+    createEmptyUsageState,
+    type RuntimeRegistrySnapshot,
+    type RuntimeUsageCategory,
+} from '../engines/runtime-registry.js';
 import { MergeOracle } from './merge-oracle.js';
 import type { MergeDecision, WorkerResult } from './index.js';
 import type { FileRef, ReadingPlan } from '../engines/token-supremacy.js';
@@ -165,6 +172,10 @@ export interface ExecutionTask {
     reviewPolicy: ReviewPolicy;
     releasePolicy: ReleasePolicy;
     continuationPolicy: ContinuationPolicy;
+    parentRunId?: string;
+    sourceAutomationId?: string;
+    continuationDepth: number;
+    suppressedAutomationIds: string[];
     allowedToolsOverride?: string[];
 }
 
@@ -192,7 +203,59 @@ export interface WorkerManifest {
     actions: SkillBinding[];
     inlineSkills: SkillArtifact[];
     workflows: WorkflowArtifact[];
+    context: WorkerContextPacket;
     targetWorkerId?: string;
+}
+
+export interface SpecialistContextPacket {
+    specialistId?: string;
+    name?: string;
+    authority?: SelectedSpecialist['authority'];
+    division?: string;
+    mission?: string;
+    rules: string[];
+    workflow: string[];
+    deliverables: string[];
+}
+
+export interface WorkflowContextPacket {
+    workflowId: string;
+    name: string;
+    description: string;
+    guardrails: string[];
+    expectedOutputs: string[];
+    steps: string[];
+}
+
+export interface WorkerPhasePacket {
+    trigger: HookTrigger;
+    notes: string[];
+    addedSkillNames: string[];
+    addedWorkflowNames: string[];
+    addedBindings: string[];
+}
+
+export interface WorkerContextPacket {
+    goal: string;
+    runtimeId: string;
+    runId: string;
+    workerId: string;
+    role: WorkerRole;
+    strategy: string;
+    selectedCrew?: SelectedCrew;
+    specialist: SpecialistContextPacket;
+    activeSkills: Array<{
+        skillId: string;
+        name: string;
+        riskClass: SkillArtifact['riskClass'];
+        scope: SkillScope;
+        instructions: string;
+        toolBindings: SkillBinding[];
+    }>;
+    activeWorkflows: WorkflowContextPacket[];
+    reviewGates: ReviewGateResult[];
+    continuation?: ContinuationProposal;
+    phasePackets: WorkerPhasePacket[];
 }
 
 export interface CommandRecord {
@@ -282,6 +345,7 @@ export interface ExecutionRun {
     artifactsIndex: Record<string, string>;
     result: string;
     plannerState?: TaskPlannerState;
+    continuationChildren: Array<{ automationId: string; runId?: string; status: 'queued' | 'completed' | 'suppressed' | 'failed'; error?: string }>;
 }
 
 export interface SubAgentRuntimeOptions {
@@ -504,6 +568,8 @@ class MultiTierConsensusPolicy {
 
 export class SubAgentRuntime {
     private repoRoot: string;
+    private runtimeId: string;
+    private startedAt: number;
     private defaultMemoryBackend: MemoryBackend;
     private memoryEngine?: MemoryEngine;
     private defaultCompressionBackend?: CompressionBackend;
@@ -518,10 +584,14 @@ export class SubAgentRuntime {
     private federation: FederationEngine;
     private artifactsRoot?: string;
     private backendRegistry: RuntimeBackendRegistry;
+    private runtimeRegistry: RuntimeRegistry;
+    private runtimeSnapshot: RuntimeRegistrySnapshot;
     private runs = new Map<string, ExecutionRun>();
 
     constructor(options: SubAgentRuntimeOptions = {}) {
         this.repoRoot = options.repoRoot ?? process.cwd();
+        this.runtimeId = buildRunId('runtime');
+        this.startedAt = Date.now();
         const memoryLike = isMemoryBackend(options.memory)
             ? null
             : ((options.memory as MemoryEngine | undefined) ?? new MemoryEngine());
@@ -554,6 +624,18 @@ export class SubAgentRuntime {
         this.securityShield = options.securityShield ?? createSecurityShield();
         this.federation = options.federation ?? defaultFederation;
         this.artifactsRoot = options.artifactsRoot;
+        this.runtimeRegistry = new RuntimeRegistry();
+        this.runtimeSnapshot = this.persistRuntimeSnapshot({
+            runtimeId: this.runtimeId,
+            pid: process.pid,
+            cwd: this.repoRoot,
+            entrypoint: 'sub-agent-runtime',
+            startedAt: this.startedAt,
+            lastHeartbeatAt: this.startedAt,
+            lastActivityAt: this.startedAt,
+            libraries: this.collectLibraryCounts(),
+            usage: createEmptyUsageState(),
+        });
     }
 
     async run(input: Partial<ExecutionTask> & { goal: string }): Promise<ExecutionRun> {
@@ -602,11 +684,27 @@ export class SubAgentRuntime {
             artifactsIndex: recorder.index,
             result: '',
             plannerState: planner.plannerState,
+            continuationChildren: [],
         };
         this.runs.set(runId, run);
+        this.attachLatestRun(runId, task.goal, run.state);
 
         recorder.writeJson('task.json', task);
         recorder.writeJson('planner-state.json', planner.plannerState);
+        this.markUsage('plan', {
+            summary: `Planner selected ${planner.plannerState.selectedCrew?.name ?? 'baseline'} for ${task.goal}`,
+            count: planner.plannerState.ledger.length,
+        });
+        this.markUsage('roster', {
+            summary: `${planner.plannerState.selectedSpecialists.length} specialist(s) selected`,
+            count: planner.plannerState.selectedSpecialists.length,
+            details: planner.plannerState.selectedSpecialists.map((specialist) => specialist.name),
+        });
+        this.markUsage('crews', {
+            summary: planner.plannerState.selectedCrew?.name ?? 'No crew selected',
+            count: planner.plannerState.reviewGates.length,
+            details: planner.plannerState.reviewGates.map((gate) => `${gate.gate}:${gate.status}`),
+        });
         planner.plannerState.ledger.forEach((row) => {
             nexusEventBus.emit('planner.stage', {
                 runId,
@@ -624,6 +722,12 @@ export class SubAgentRuntime {
             trust: 'high',
         });
         run.federationState = this.federation.getSnapshot();
+        this.recordFederationUsage(
+            Number((run.federationState as { activePeerLinks?: number })?.activePeerLinks ?? 0),
+            Array.isArray((run.federationState as { knownPeers?: unknown[] })?.knownPeers) ? ((run.federationState as { knownPeers?: unknown[] }).knownPeers?.length ?? 0) : 0,
+            Number((run.federationState as { tracesPublished?: number })?.tracesPublished ?? 0),
+            ((run.federationState as { relay?: RuntimeRegistrySnapshot['federation']['relay'] })?.relay ?? { configured: false, mode: 'degraded' }),
+        );
         recorder.writeJson('federation-bootstrap.json', { localPeer, snapshot: run.federationState });
 
         const guardAction = `execute: ${task.goal}; verify=${task.verifyCommands.join(', ')}`;
@@ -634,11 +738,17 @@ export class SubAgentRuntime {
             isDestructive: false,
         });
         recorder.writeJson('guardrail.json', guardrail);
+        this.markUsage('governance', {
+            summary: `Guardrail score ${guardrail.score}`,
+            details: guardrail.violations.map((violation) => violation.id),
+            count: guardrail.violations.length,
+        });
         nexusEventBus.emit('guardrail.check', { action: guardAction, passed: guardrail.passed, score: guardrail.score });
         if (!guardrail.passed) {
             run.state = 'failed';
             run.mode = 'analysis';
             run.result = 'Guardrails blocked execution.';
+            this.attachLatestRun(runId, task.goal, run.state);
             recorder.writeJson('run.json', run);
             return run;
         }
@@ -649,6 +759,11 @@ export class SubAgentRuntime {
             ? this.resolveFileRefs(task.files)
             : this.discoverTargetFiles(task.goal, backends.compression.selected);
         const memoryMatches = await backends.memory.selected.recall(task.goal, 6);
+        this.markUsage('memories', {
+            summary: `Recalled ${memoryMatches.length} memory match(es) for ${task.goal}`,
+            count: memoryMatches.length,
+            details: memoryMatches.slice(0, 3),
+        });
         const planResult = normalizeReadingPlan(backends.compression.selected.planFiles(task.goal, fileRefs));
         const plan = planResult.plan;
         run.backendEvidence.memory = await (backends.memory.selected.shadowRecall?.(task.goal, 6) ?? Promise.resolve({ recalled: memoryMatches }));
@@ -736,6 +851,7 @@ export class SubAgentRuntime {
                 task.goal,
             ),
         ]);
+        const skillBindings = this.gatherSkillBindings(activeSkills, task.skillPolicy.allowMutateSkills);
 
         const activeWorkflows = dedupeWorkflowArtifacts([
             ...resolvedWorkflows,
@@ -748,7 +864,7 @@ export class SubAgentRuntime {
         const workflowApplication = this.workflowRuntime.applyToTask(
             activeWorkflows,
             task.verifyCommands,
-            [...task.actions, ...preReadHooks.toolBindings, ...beforeReadHooks.toolBindings],
+            [...task.actions, ...skillBindings, ...preReadHooks.toolBindings, ...beforeReadHooks.toolBindings],
         );
         const effectiveVerifyCommands = dedupeStrings(workflowApplication.verifyCommands);
         const effectiveActions = workflowApplication.actions;
@@ -761,6 +877,26 @@ export class SubAgentRuntime {
         run.activeWorkflows = activeWorkflows;
         run.activeHooks = activeHooks;
         run.activeAutomations = activeAutomations;
+        this.markUsage('skills', {
+            summary: `${activeSkills.length} skill(s) active for ${task.goal}`,
+            count: skillBindings.length,
+            details: activeSkills.map((skill) => skill.name),
+        });
+        this.markUsage('workflows', {
+            summary: `${activeWorkflows.length} workflow(s) active for ${task.goal}`,
+            count: activeWorkflows.length,
+            details: activeWorkflows.map((workflow) => workflow.name),
+        });
+        this.markUsage('hooks', {
+            summary: `${activeHooks.length} hook(s) selected`,
+            count: activeHooks.length,
+            details: activeHooks.map((hook) => hook.name),
+        });
+        this.markUsage('automations', {
+            summary: `${activeAutomations.length} automation(s) selected`,
+            count: activeAutomations.length,
+            details: activeAutomations.map((automation) => automation.name),
+        });
         run.skillEvents = activeSkills.map((skill) => ({
             type: 'skill.selected',
             skillId: skill.skillId,
@@ -791,10 +927,14 @@ export class SubAgentRuntime {
         recorder.writeJson('automations.json', activeAutomations);
 
         const manifests = this.createWorkerManifests(task, fileRefs, plan, activeSkills, activeWorkflows, effectiveActions, effectiveVerifyCommands, planner.plannerState);
+        manifests.forEach((manifest) => {
+            manifest.context = this.buildWorkerContext(runId, task, manifest, activeSkills, activeWorkflows, planner.plannerState);
+        });
         run.workerManifests = manifests;
         run.plannerResult = this.createPlannerResult(task, manifests, fileRefs, domainMatches, planner.plannerState);
         recorder.writeJson('planner-result.json', run.plannerResult);
         recorder.writeJson('manifests.json', manifests);
+        this.writeManifestContexts(recorder, manifests);
 
         const consensusPolicy = new MultiTierConsensusPolicy(backends.memory.selected);
         consensusPolicy.registerAgents(manifests.map((m) => m.workerId));
@@ -816,9 +956,27 @@ export class SubAgentRuntime {
         if (beforeMutateHooks.blocked) {
             run.state = 'failed';
             run.result = 'Hooks blocked execution before mutation.';
+            this.attachLatestRun(runId, task.goal, run.state);
             recorder.writeJson('run.json', run);
             return run;
         }
+        const beforeMutateResolved = this.applyPhaseHookEffects(
+            runId,
+            task,
+            'before-mutate',
+            beforeMutateHooks,
+            run,
+            manifests,
+            {
+                verifyCommands: effectiveVerifyCommands,
+                actions: effectiveActions,
+                events: workflowApplication.events,
+            },
+        );
+        recorder.writeJson('manifests.json', manifests);
+        recorder.writeJson('skills.json', run.activeSkills);
+        recorder.writeJson('workflows.json', run.activeWorkflows);
+        this.writeManifestContexts(recorder, manifests);
 
         run.state = 'running';
         const coderManifests = manifests.filter((manifest) => manifest.role === 'coder');
@@ -839,10 +997,30 @@ export class SubAgentRuntime {
             });
         });
         run.hookEvents.push(...beforeVerifyHooks.events);
+        const beforeVerifyResolved = this.applyPhaseHookEffects(
+            runId,
+            task,
+            'before-verify',
+            beforeVerifyHooks,
+            run,
+            manifests,
+            {
+                verifyCommands: beforeMutateResolved.verifyCommands,
+                actions: beforeMutateResolved.actions,
+                events: workflowApplication.events,
+            },
+        );
+        recorder.writeJson('manifests.json', manifests);
+        recorder.writeJson('skills.json', run.activeSkills);
+        recorder.writeJson('workflows.json', run.activeWorkflows);
+        this.writeManifestContexts(recorder, manifests);
 
         run.state = 'verifying';
         const verifierManifests = manifests.filter((manifest) => manifest.role === 'verifier');
-        const verificationResults = await Promise.all(verifierManifests.map((manifest) => this.runVerifierWorker(runId, recorder, manifest, coderResults.find((result) => result.workerId === manifest.targetWorkerId))));
+        const verificationResults = await Promise.all(verifierManifests.map((manifest) => {
+            manifest.verifyCommands = beforeVerifyResolved.verifyCommands;
+            return this.runVerifierWorker(runId, recorder, manifest, coderResults.find((result) => result.workerId === manifest.targetWorkerId));
+        }));
         run.verificationResults = verificationResults;
         recorder.writeJson('verification-results.json', verificationResults);
 
@@ -873,7 +1051,7 @@ export class SubAgentRuntime {
             text: [decision.synthesized ?? '', ...run.workerResults.map((result) => result.diff)],
             domains: domainMatches,
             verified: run.workerResults.some((result) => result.verified),
-            bindings: effectiveActions,
+            bindings: beforeVerifyResolved.actions,
             connectors: task.connectorBindings,
         });
         run.shieldDecisions.push(preApplyShield);
@@ -885,13 +1063,25 @@ export class SubAgentRuntime {
             blocked: preApplyShield.blocked,
         });
 
+        const reviewGates = this.evaluateReviewGates(run);
+        run.plannerState = run.plannerState
+            ? { ...run.plannerState, reviewGates }
+            : run.plannerState;
+        run.plannerResult = run.plannerResult
+            ? { ...run.plannerResult, reviewGates }
+            : run.plannerResult;
+        const blockingGate = reviewGates.find((gate) => gate.status !== 'ready');
+
         const applied = preApplyShield.blocked
             ? { applied: false, rolledBack: false, summary: preApplyShield.summary }
-            : await this.applyDecision(recorder, { ...task, verifyCommands: effectiveVerifyCommands }, decision, consensusPolicy);
+            : blockingGate
+                ? { applied: false, rolledBack: false, summary: `Review gate ${blockingGate.gate} remains ${blockingGate.status}.` }
+                : await this.applyDecision(recorder, { ...task, verifyCommands: beforeVerifyResolved.verifyCommands }, decision, consensusPolicy);
         run.state = applied.applied
             ? (applied.rolledBack ? 'rolled_back' : 'merged')
             : 'failed';
         run.result = applied.summary;
+        this.attachLatestRun(runId, task.goal, run.state);
 
         const resultMemoryCheck = this.memoryEngine?.checkContent(run.result, {
             tags: ['#runtime-result'],
@@ -919,6 +1109,13 @@ export class SubAgentRuntime {
             });
         });
         run.hookEvents.push(...completionHooks.events);
+        if (completionHooks.events.length > 0) {
+            this.markUsage('hooks', {
+                summary: `${completionTrigger} emitted ${completionHooks.events.length} hook event(s)`,
+                count: completionHooks.events.length,
+                details: completionHooks.events.map((event) => String(event.name ?? event.hookId ?? completionTrigger)),
+            });
+        }
         const automationDispatches = await this.automationRuntime.dispatch(completionTrigger, activeAutomations, {
             goal: task.goal,
             executeConnectors: true,
@@ -943,7 +1140,21 @@ export class SubAgentRuntime {
             queuedRun: dispatch.queuedRun,
             deliveries: dispatch.deliveries,
         })));
+        if (automationDispatches.length > 0) {
+            this.markUsage('automations', {
+                summary: `${completionTrigger} dispatched ${automationDispatches.length} automation(s)`,
+                count: automationDispatches.length,
+                details: automationDispatches.map((dispatch) => dispatch.name),
+            });
+        }
+        await this.executeAutomationContinuations(run, automationDispatches, task);
         run.federationState = this.federation.getSnapshot();
+        this.recordFederationUsage(
+            Number((run.federationState as { activePeerLinks?: number })?.activePeerLinks ?? 0),
+            Array.isArray((run.federationState as { knownPeers?: unknown[] })?.knownPeers) ? ((run.federationState as { knownPeers?: unknown[] }).knownPeers?.length ?? 0) : 0,
+            Number((run.federationState as { tracesPublished?: number })?.tracesPublished ?? 0),
+            ((run.federationState as { relay?: RuntimeRegistrySnapshot['federation']['relay'] })?.relay ?? { configured: false, mode: 'degraded' }),
+        );
         recorder.writeJson('federation-final.json', run.federationState);
         if (this.memoryEngine) {
             const audit = this.memoryEngine.audit(40);
@@ -951,7 +1162,14 @@ export class SubAgentRuntime {
                 scanned: audit.scanned,
                 quarantined: audit.quarantined.length,
             });
+            this.markUsage('governance', {
+                summary: `Memory audit scanned ${audit.scanned} entries`,
+                count: audit.quarantined.length,
+            });
         }
+        recorder.writeJson('planner-state.json', run.plannerState);
+        recorder.writeJson('planner-result.json', run.plannerResult);
+        recorder.writeJson('manifests.json', run.workerManifests);
         recorder.writeJson('run.json', run);
         this.sessionDNA?.recordDecision('Execution completed', applied.summary, applied.applied ? 0.86 : 0.42);
 
@@ -1011,6 +1229,14 @@ export class SubAgentRuntime {
         }
     }
 
+    getRuntimeId(): string {
+        return this.runtimeId;
+    }
+
+    getUsageSnapshot(): RuntimeRegistrySnapshot {
+        return this.runtimeSnapshot;
+    }
+
     listSkills(): SkillArtifact[] {
         return this.skillRuntime.listArtifacts();
     }
@@ -1038,6 +1264,18 @@ export class SubAgentRuntime {
     async planExecution(input: Partial<ExecutionTask> & { goal: string }): Promise<TaskPlannerState> {
         const task = await this.normalizeTask(input);
         const planner = planTask(task).plannerState;
+        this.markUsage('plan', {
+            summary: `Planner prepared ${planner.selectedCrew?.name ?? 'baseline'} for ${task.goal}`,
+            count: planner.ledger.length,
+        });
+        this.markUsage('roster', {
+            summary: `${planner.selectedSpecialists.length} specialists selected`,
+            count: planner.selectedSpecialists.length,
+        });
+        this.markUsage('crews', {
+            summary: planner.selectedCrew?.name ?? 'No crew selected',
+            count: planner.reviewGates.length,
+        });
         planner.ledger.forEach((row) => {
             nexusEventBus.emit('planner.stage', {
                 stage: row.stage,
@@ -1167,7 +1405,7 @@ export class SubAgentRuntime {
             hookSelectors: automation.hookSelectors,
             skillNames: automation.skillSelectors,
             connectorBindings: automation.connectors,
-            workers: 1,
+            workers: 2,
         });
     }
 
@@ -1180,7 +1418,118 @@ export class SubAgentRuntime {
     }
 
     getNetworkStatus(): unknown {
-        return this.federation.getSnapshot();
+        const snapshot = this.federation.getSnapshot();
+        this.recordFederationUsage(snapshot.activePeerLinks, snapshot.knownPeers.length, snapshot.tracesPublished, snapshot.relay);
+        return snapshot;
+    }
+
+    async storeMemoryAndDispatch(content: string, priority: number = 0.7, tags: string[] = [], parentId?: string, depth?: number): Promise<{
+        id: string;
+        hookEvents: Array<Record<string, unknown>>;
+        automationDispatches: Awaited<ReturnType<AutomationRuntime['dispatch']>>;
+        continuationRuns: ExecutionRun[];
+    }> {
+        const id = this.memoryEngine
+            ? this.memoryEngine.store(content, priority, tags, parentId, depth)
+            : String(this.defaultMemoryBackend.store(content, priority, tags, parentId, depth));
+        const dispatched = await this.dispatchStoredMemory(id, content, priority, tags);
+        return { id, ...dispatched };
+    }
+
+    async dispatchStoredMemory(id: string, content: string, priority: number = 0.7, tags: string[] = []): Promise<{
+        hookEvents: Array<Record<string, unknown>>;
+        automationDispatches: Awaited<ReturnType<AutomationRuntime['dispatch']>>;
+        continuationRuns: ExecutionRun[];
+    }> {
+        nexusEventBus.emit('memory.store', { id, priority, tags, tier: priority > 0.8 ? 'cortex' : 'hippocampus' });
+        this.markUsage('memories', {
+            summary: `Stored memory with priority ${priority.toFixed(2)}`,
+            count: tags.length,
+            details: tags,
+        });
+
+        const hooks = this.hookRuntime.dispatch('memory.stored', this.listHooks(), {
+            goal: content,
+            allowMutateHooks: false,
+            tags,
+        });
+        hooks.events.forEach((event) => {
+            nexusEventBus.emit('hook.fire', {
+                hookId: String(event.hookId),
+                name: String(event.name),
+                trigger: String(event.trigger),
+                blocked: event.type === 'hook.blocked',
+            });
+        });
+        if (hooks.skillSelectors.length > 0) {
+            this.markUsage('hooks', {
+                summary: `memory.stored hook queued ${hooks.skillSelectors.length} skill selector(s)`,
+                count: hooks.skillSelectors.length,
+                details: hooks.skillSelectors,
+            });
+        }
+
+        const automations = await this.automationRuntime.dispatch('memory.stored', this.listAutomations(), {
+            goal: content,
+            executeConnectors: true,
+            payload: { memoryId: id, priority, tags },
+        });
+        automations.forEach((dispatch) => {
+            nexusEventBus.emit('automation.run', {
+                automationId: dispatch.automationId,
+                trigger: dispatch.trigger,
+                queued: Boolean(dispatch.queuedRun),
+            });
+        });
+        if (automations.length > 0) {
+            this.markUsage('automations', {
+                summary: `${automations.length} automation(s) dispatched after memory store`,
+                count: automations.length,
+                details: automations.map((dispatch) => dispatch.name),
+            });
+        }
+
+        const continuationRuns = await this.executeAutomationContinuations({
+            ...({
+                runId: `memory-${id}`,
+                goal: content,
+                state: 'merged',
+                mode: 'real',
+                continuationChildren: [],
+            } as ExecutionRun),
+            plannerState: undefined,
+            plannerResult: undefined,
+            workerManifests: [],
+            activeSkills: [],
+            activeWorkflows: [],
+            activeHooks: [],
+            activeAutomations: [],
+            selectedBackends: {
+                memoryBackend: this.defaultMemoryBackend.descriptor.kind,
+                compressionBackend: this.defaultCompressionBackend?.descriptor.kind ?? 'deterministic-token-supremacy',
+                consensusPolicy: 'multi-tier-byzantine',
+                dslCompiler: this.defaultDslCompiler?.descriptor.kind ?? 'deterministic-nxl-compiler',
+            },
+            workerResults: [],
+            verificationResults: [],
+            skillEvents: [],
+            workflowEvents: [],
+            hookEvents: hooks.events,
+            automationEvents: automations.map((dispatch) => ({ type: 'automation.dispatched', ...dispatch })),
+            backendEvidence: { notes: [], memory: {}, compression: {}, consensus: {}, dsl: {}, fallbacks: [] },
+            promotionDecisions: [],
+            shieldDecisions: [],
+            memoryChecks: [],
+            federationState: this.federation.getSnapshot(),
+            artifactsPath: this.resolveArtifactsRoot(),
+            artifactsIndex: {},
+            result: content,
+        }, automations, {
+            continuationDepth: 0,
+            sourceAutomationId: undefined,
+        });
+
+        return { hookEvents: hooks.events, automationDispatches: automations, continuationRuns };
     }
 
     async runWorkflow(workflowId: string, goal?: string): Promise<ExecutionRun> {
@@ -1217,6 +1566,7 @@ export class SubAgentRuntime {
     getHealth(): Record<string, unknown> {
         return {
             runtime: 'healthy',
+            runtimeId: this.runtimeId,
             runsTracked: this.runs.size,
             skills: this.skillRuntime.listArtifacts().length,
             workflows: this.workflowRuntime.listArtifacts().length,
@@ -1227,6 +1577,7 @@ export class SubAgentRuntime {
             plannerOverlay: process.env.NEXUS_SPECIALIST_PLANNER_DISABLED === '1' ? 'disabled' : 'enabled',
             shield: 'balanced',
             federation: this.federation.getSnapshot(),
+            usage: this.runtimeSnapshot.usage,
             artifactsRoot: this.resolveArtifactsRoot(),
         };
     }
@@ -1265,7 +1616,7 @@ export class SubAgentRuntime {
         const task: ExecutionTask = {
             goal: input.goal,
             files: input.files ?? [],
-            workers: Math.max(1, Math.min(input.workers ?? 2, 7)),
+            workers: Math.max(2, Math.min(input.workers ?? 2, 7)),
             roles: input.roles ?? ['planner', 'coder', 'verifier', 'skill-maker', 'research-shadow'],
             strategies: input.strategies ?? ['minimal', 'standard', 'thorough'],
             verifyCommands: input.verifyCommands ?? this.defaultVerifyCommands(),
@@ -1298,6 +1649,10 @@ export class SubAgentRuntime {
             reviewPolicy: input.reviewPolicy ?? { mode: 'full' },
             releasePolicy: input.releasePolicy ?? { mode: 'ship-ready' },
             continuationPolicy: input.continuationPolicy ?? { mode: 'suggest' },
+            parentRunId: input.parentRunId,
+            sourceAutomationId: input.sourceAutomationId,
+            continuationDepth: Math.max(0, Number(input.continuationDepth ?? 0)),
+            suppressedAutomationIds: dedupeStrings(input.suppressedAutomationIds ?? []),
             allowedToolsOverride: input.allowedToolsOverride,
         };
 
@@ -1422,6 +1777,7 @@ export class SubAgentRuntime {
                 actions: [],
                 inlineSkills: activeSkills,
                 workflows: activeWorkflows,
+                context: {} as WorkerContextPacket,
             },
             {
                 workerId: 'skill-maker-1',
@@ -1440,6 +1796,7 @@ export class SubAgentRuntime {
                 actions: [],
                 inlineSkills: activeSkills,
                 workflows: activeWorkflows,
+                context: {} as WorkerContextPacket,
             },
             {
                 workerId: 'research-shadow-1',
@@ -1458,6 +1815,7 @@ export class SubAgentRuntime {
                 actions: [],
                 inlineSkills: activeSkills,
                 workflows: activeWorkflows,
+                context: {} as WorkerContextPacket,
             },
         ];
 
@@ -1488,6 +1846,7 @@ export class SubAgentRuntime {
                 actions,
                 inlineSkills: activeSkills,
                 workflows: activeWorkflows,
+                context: {} as WorkerContextPacket,
             });
             manifests.push({
                 workerId: `verifier-${idx + 1}`,
@@ -1511,8 +1870,13 @@ export class SubAgentRuntime {
                 actions: [],
                 inlineSkills: activeSkills,
                 workflows: activeWorkflows,
+                context: {} as WorkerContextPacket,
                 targetWorkerId: workerId,
             });
+        });
+
+        manifests.forEach((manifest) => {
+            manifest.context = this.buildWorkerContext('pending-run', task, manifest, activeSkills, activeWorkflows, plannerState);
         });
 
         return manifests;
@@ -1564,6 +1928,7 @@ export class SubAgentRuntime {
 
             await session.create();
             manifest.worktreeDir = session.worktreeDir;
+            this.writeWorktreeContext(session.worktreeDir, manifest.context);
             manifest.files.forEach(file => this.sessionDNA?.recordFileAccess(file.path));
 
             const readSkills = manifest.inlineSkills.filter(skill => skill.riskClass === 'read');
@@ -1573,17 +1938,20 @@ export class SubAgentRuntime {
                 learnings.push(`Activated read skill: ${skill.name}`);
             }
 
-            const orchestrateSkills = manifest.inlineSkills.filter(skill => skill.riskClass === 'orchestrate');
-            for (const skill of orchestrateSkills) {
+            const mutatePhaseSkills = manifest.inlineSkills.filter(skill => skill.riskClass !== 'read');
+            for (const skill of mutatePhaseSkills) {
                 this.sessionDNA?.recordSkill(skill.name);
                 this.skillRuntime.deploy(skill, manifest.workerId, session.worktreeDir, 'before-mutate');
-                learnings.push(`Activated orchestrate skill: ${skill.name}`);
+                learnings.push(`Activated mutate-phase skill: ${skill.name}`);
             }
 
             const allowedActions = filterBindingsByTools(manifest.actions, manifest.allowedTools);
             const blockedActions = manifest.actions.length - allowedActions.length;
             if (blockedActions > 0) {
                 learnings.push(`Skipped ${blockedActions} binding(s) blocked by the worker tool policy.`);
+            }
+            if (allowedActions.length > 0) {
+                learnings.push(`Applied ${allowedActions.length} runtime binding(s): ${allowedActions.map((binding) => binding.type).join(', ')}`);
             }
 
             const modifiedFiles = await session.applyBindings(allowedActions);
@@ -1644,6 +2012,7 @@ export class SubAgentRuntime {
 
         try {
             await verifier.create();
+            this.writeWorktreeContext(verifier.worktreeDir, manifest.context);
             if (!target?.diff?.trim()) {
                 return {
                     workerId: manifest.targetWorkerId ?? 'unknown',
@@ -1766,6 +2135,18 @@ export class SubAgentRuntime {
     private evaluatePromotions(run: ExecutionRun, consensusPolicy: MultiTierConsensusPolicy): PromotionDecision[] {
         const verifiedWorkerIds = run.workerResults.filter((result) => result.verified).map((result) => result.workerId);
         const decisions: PromotionDecision[] = [];
+        const reviewGateBlocked = (run.plannerState?.reviewGates ?? []).some((gate) => gate.status !== 'ready');
+
+        if (reviewGateBlocked) {
+            decisions.push({
+                kind: 'backend',
+                target: 'review-gates',
+                scope: 'backend',
+                approved: false,
+                rationale: 'Promotion blocked because one or more runtime review gates remain pending or blocked.',
+            });
+            return decisions;
+        }
 
         if (run.state === 'merged' && verifiedWorkerIds.length > 0) {
             if (run.activeSkills.length > 0) {
@@ -1940,6 +2321,334 @@ export class SubAgentRuntime {
             .map(filePlan => filePlan.file);
     }
 
+    private collectLibraryCounts() {
+        return {
+            skills: this.skillRuntime.listArtifacts().length,
+            workflows: this.workflowRuntime.listArtifacts().length,
+            hooks: this.hookRuntime.listArtifacts().length,
+            automations: this.automationRuntime.listArtifacts().length,
+            specialists: listSpecialists().length,
+            crews: listCrewTemplates().length,
+        };
+    }
+
+    private persistRuntimeSnapshot(patch: Partial<RuntimeRegistrySnapshot>): RuntimeRegistrySnapshot {
+        const nextSnapshot: RuntimeRegistrySnapshot = {
+            ...this.runtimeSnapshot,
+            ...patch,
+            runtimeId: patch.runtimeId ?? this.runtimeSnapshot?.runtimeId ?? this.runtimeId,
+            pid: patch.pid ?? this.runtimeSnapshot?.pid ?? process.pid,
+            cwd: patch.cwd ?? this.runtimeSnapshot?.cwd ?? this.repoRoot,
+            entrypoint: patch.entrypoint ?? this.runtimeSnapshot?.entrypoint ?? 'sub-agent-runtime',
+            startedAt: patch.startedAt ?? this.runtimeSnapshot?.startedAt ?? this.startedAt,
+            lastHeartbeatAt: patch.lastHeartbeatAt ?? Date.now(),
+            lastActivityAt: patch.lastActivityAt ?? Date.now(),
+            libraries: patch.libraries ?? this.runtimeSnapshot?.libraries ?? this.collectLibraryCounts(),
+            usage: {
+                ...createEmptyUsageState(),
+                ...(this.runtimeSnapshot?.usage ?? {}),
+                ...(patch.usage ?? {}),
+            },
+            latestRun: patch.latestRun ?? this.runtimeSnapshot?.latestRun,
+            federation: patch.federation ?? this.runtimeSnapshot?.federation,
+        };
+        this.runtimeSnapshot = this.runtimeRegistry.write(nextSnapshot);
+        return this.runtimeSnapshot;
+    }
+
+    private markUsage(category: RuntimeUsageCategory, patch: {
+        summary?: string;
+        details?: string[];
+        count?: number;
+    } = {}): void {
+        const now = Date.now();
+        const current = this.runtimeSnapshot.usage[category] ?? { status: 'unused' as const };
+        this.persistRuntimeSnapshot({
+            lastHeartbeatAt: now,
+            lastActivityAt: now,
+            libraries: this.collectLibraryCounts(),
+            usage: {
+                ...this.runtimeSnapshot.usage,
+                [category]: {
+                    ...current,
+                    status: 'used',
+                    lastUsedAt: now,
+                    summary: patch.summary ?? current.summary,
+                    details: patch.details ?? current.details,
+                    count: patch.count ?? current.count,
+                },
+            },
+        });
+    }
+
+    private recordFederationUsage(activePeerLinks: number, knownPeers: number, tracesPublished: number, relay: NonNullable<RuntimeRegistrySnapshot['federation']>['relay']): void {
+        const now = Date.now();
+        this.persistRuntimeSnapshot({
+            lastHeartbeatAt: now,
+            lastActivityAt: now,
+            federation: {
+                activePeerLinks,
+                knownPeers,
+                tracesPublished,
+                relay,
+            },
+            usage: {
+                ...this.runtimeSnapshot.usage,
+                federation: {
+                    status: 'used',
+                    lastUsedAt: now,
+                    summary: relay.configured ? `${activePeerLinks} active links` : 'Relay unconfigured',
+                    details: [relay.mode, relay.lastError || 'healthy'],
+                    count: knownPeers,
+                },
+            },
+        });
+    }
+
+    private attachLatestRun(runId: string, goal: string, state: string): void {
+        const now = Date.now();
+        this.persistRuntimeSnapshot({
+            lastHeartbeatAt: now,
+            lastActivityAt: now,
+            latestRun: { runId, goal, state, updatedAt: now },
+            libraries: this.collectLibraryCounts(),
+        });
+    }
+
+    private buildWorkerContext(runId: string, task: ExecutionTask, manifest: Pick<WorkerManifest, 'workerId' | 'role' | 'strategy' | 'specialistId'>, activeSkills: SkillArtifact[], activeWorkflows: WorkflowArtifact[], plannerState?: TaskPlannerState, phasePackets: WorkerPhasePacket[] = []): WorkerContextPacket {
+        const specialist = manifest.specialistId ? getSpecialist(manifest.specialistId) : undefined;
+        return {
+            goal: task.goal,
+            runtimeId: this.runtimeId,
+            runId,
+            workerId: manifest.workerId,
+            role: manifest.role,
+            strategy: manifest.strategy,
+            selectedCrew: plannerState?.selectedCrew,
+            specialist: {
+                specialistId: specialist?.specialistId,
+                name: specialist?.name,
+                authority: specialist?.authority,
+                division: specialist?.division,
+                mission: specialist?.mission,
+                rules: specialist?.rules ?? [],
+                workflow: specialist?.workflow ?? [],
+                deliverables: specialist?.deliverables ?? [],
+            },
+            activeSkills: activeSkills.map((skill) => ({
+                skillId: skill.skillId,
+                name: skill.name,
+                riskClass: skill.riskClass,
+                scope: skill.scope,
+                instructions: skill.instructions,
+                toolBindings: skill.toolBindings,
+            })),
+            activeWorkflows: activeWorkflows.map((workflow) => ({
+                workflowId: workflow.workflowId,
+                name: workflow.name,
+                description: workflow.description,
+                guardrails: workflow.guardrails,
+                expectedOutputs: workflow.expectedOutputs,
+                steps: workflow.steps.map((step) => step.title),
+            })),
+            reviewGates: plannerState?.reviewGates ?? [],
+            continuation: plannerState?.continuation,
+            phasePackets,
+        };
+    }
+
+    private writeManifestContexts(recorder: ArtifactRecorder, manifests: WorkerManifest[]): void {
+        manifests.forEach((manifest) => {
+            recorder.writeJson(path.join('workers', manifest.workerId, 'context.json'), manifest.context);
+            recorder.writeText(path.join('workers', manifest.workerId, 'context.md'), renderWorkerContextMarkdown(manifest.context));
+        });
+    }
+
+    private writeWorktreeContext(worktreeDir: string, context: WorkerContextPacket): void {
+        const runtimeDir = path.join(worktreeDir, '.agent', 'runtime');
+        fs.mkdirSync(runtimeDir, { recursive: true });
+        fs.writeFileSync(path.join(runtimeDir, 'context.json'), JSON.stringify(context, null, 2), 'utf8');
+        fs.writeFileSync(path.join(runtimeDir, 'context.md'), renderWorkerContextMarkdown(context), 'utf8');
+    }
+
+    private gatherSkillBindings(skills: SkillArtifact[], allowMutateSkills: boolean): SkillBinding[] {
+        return skills.flatMap((skill) => {
+            if (skill.riskClass === 'mutate' && !allowMutateSkills) {
+                return [];
+            }
+            return skill.toolBindings;
+        });
+    }
+
+    private applyPhaseHookEffects(
+        runId: string,
+        task: ExecutionTask,
+        trigger: HookTrigger,
+        result: ReturnType<HookRuntime['dispatch']>,
+        run: ExecutionRun,
+        manifests: WorkerManifest[],
+        workflowApplication: { verifyCommands: string[]; actions: SkillBinding[]; events: Array<Record<string, unknown>> }
+    ): { verifyCommands: string[]; actions: SkillBinding[] } {
+        if (result.skillSelectors.length === 0 && result.workflowSelectors.length === 0 && result.toolBindings.length === 0 && result.notes.length === 0) {
+            return {
+                verifyCommands: workflowApplication.verifyCommands,
+                actions: workflowApplication.actions,
+            };
+        }
+
+        const addedSkills = dedupeSkillArtifacts(this.skillRuntime.resolveSkillSelectors(result.skillSelectors, task.goal))
+            .filter((skill) => !run.activeSkills.some((active) => active.skillId === skill.skillId));
+        const addedWorkflows = dedupeWorkflowArtifacts(this.workflowRuntime.resolveWorkflowSelectors(result.workflowSelectors, task.goal))
+            .filter((workflow) => !run.activeWorkflows.some((active) => active.workflowId === workflow.workflowId));
+
+        const nextSkills = dedupeSkillArtifacts([...run.activeSkills, ...addedSkills]);
+        const nextWorkflows = dedupeWorkflowArtifacts([...run.activeWorkflows, ...addedWorkflows]);
+        const nextApplication = this.workflowRuntime.applyToTask(
+            nextWorkflows,
+            workflowApplication.verifyCommands,
+            [
+                ...workflowApplication.actions,
+                ...this.gatherSkillBindings(addedSkills, task.skillPolicy.allowMutateSkills),
+                ...result.toolBindings,
+            ],
+        );
+
+        run.activeSkills = nextSkills;
+        run.activeWorkflows = nextWorkflows;
+        run.skillEvents.push(...addedSkills.map((skill) => ({
+            type: 'skill.selected',
+            skillId: skill.skillId,
+            name: skill.name,
+            scope: skill.scope,
+            riskClass: skill.riskClass,
+            provenance: skill.provenance,
+            trigger,
+        })));
+        run.workflowEvents.push(...nextApplication.events.filter((event) =>
+            !run.workflowEvents.some((existing) => existing.workflowId === event.workflowId && existing.type === event.type)
+        ));
+
+        const phasePacket: WorkerPhasePacket = {
+            trigger,
+            notes: result.notes,
+            addedSkillNames: addedSkills.map((skill) => skill.name),
+            addedWorkflowNames: addedWorkflows.map((workflow) => workflow.name),
+            addedBindings: result.toolBindings.map((binding) => binding.type),
+        };
+
+        manifests.forEach((manifest) => {
+            manifest.inlineSkills = nextSkills;
+            manifest.workflows = nextWorkflows;
+            manifest.actions = manifest.role === 'coder'
+                ? filterBindingsByTools(nextApplication.actions, manifest.allowedTools)
+                : manifest.actions;
+            manifest.verifyCommands = dedupeStrings(nextApplication.verifyCommands);
+            manifest.context = this.buildWorkerContext(runId, task, manifest, nextSkills, nextWorkflows, run.plannerState, [
+                ...(manifest.context?.phasePackets ?? []),
+                phasePacket,
+            ]);
+        });
+
+        if (addedSkills.length > 0) {
+            this.markUsage('skills', {
+                summary: `${trigger} injected ${addedSkills.length} skill(s)`,
+                count: nextSkills.length,
+                details: addedSkills.map((skill) => skill.name),
+            });
+        }
+        if (addedWorkflows.length > 0) {
+            this.markUsage('workflows', {
+                summary: `${trigger} injected ${addedWorkflows.length} workflow(s)`,
+                count: nextWorkflows.length,
+                details: addedWorkflows.map((workflow) => workflow.name),
+            });
+        }
+        if (result.toolBindings.length > 0) {
+            this.markUsage('hooks', {
+                summary: `${trigger} added ${result.toolBindings.length} binding(s)`,
+                count: result.toolBindings.length,
+                details: result.toolBindings.map((binding) => binding.type),
+            });
+        }
+
+        return {
+            verifyCommands: dedupeStrings(nextApplication.verifyCommands),
+            actions: nextApplication.actions,
+        };
+    }
+
+    private evaluateReviewGates(run: ExecutionRun): ReviewGateResult[] {
+        const verified = run.verificationResults.every((result) => result.passed);
+        return (run.plannerState?.reviewGates ?? []).map((gate) => ({
+            ...gate,
+            status: verified ? 'ready' : 'blocked',
+            rationale: verified
+                ? `${gate.rationale} Runtime verification satisfied this gate.`
+                : `${gate.rationale} Runtime verification or hook checks did not complete cleanly.`,
+        }));
+    }
+
+    private async executeAutomationContinuations(
+        run: ExecutionRun,
+        dispatches: Awaited<ReturnType<AutomationRuntime['dispatch']>>,
+        task: Pick<ExecutionTask, 'continuationDepth' | 'sourceAutomationId'>,
+    ): Promise<ExecutionRun[]> {
+        const children: ExecutionRun[] = [];
+        const maxDepth = 1;
+        for (const dispatch of dispatches) {
+            if (!dispatch.queuedRun) continue;
+            if (task.continuationDepth >= maxDepth) {
+                run.continuationChildren.push({
+                    automationId: dispatch.automationId,
+                    status: 'suppressed',
+                    error: 'continuation-depth-limit',
+                });
+                continue;
+            }
+
+            if (task.sourceAutomationId && task.sourceAutomationId === dispatch.automationId) {
+                run.continuationChildren.push({
+                    automationId: dispatch.automationId,
+                    status: 'suppressed',
+                    error: 'source-automation-suppressed',
+                });
+                continue;
+            }
+
+            run.continuationChildren.push({
+                automationId: dispatch.automationId,
+                status: 'queued',
+            });
+
+            try {
+                const childRun = await this.run({
+                    goal: dispatch.queuedRun.goal,
+                    workflowSelectors: dispatch.queuedRun.workflowSelectors,
+                    skillNames: dispatch.queuedRun.skillSelectors,
+                    hookSelectors: dispatch.queuedRun.hookSelectors,
+                    workers: 2,
+                    parentRunId: run.runId,
+                    sourceAutomationId: dispatch.automationId,
+                    continuationDepth: task.continuationDepth + 1,
+                    suppressedAutomationIds: [dispatch.automationId],
+                });
+                run.continuationChildren[run.continuationChildren.length - 1] = {
+                    automationId: dispatch.automationId,
+                    runId: childRun.runId,
+                    status: 'completed',
+                };
+                children.push(childRun);
+            } catch (error) {
+                run.continuationChildren[run.continuationChildren.length - 1] = {
+                    automationId: dispatch.automationId,
+                    status: 'failed',
+                    error: error instanceof Error ? error.message : String(error),
+                };
+            }
+        }
+        return children;
+    }
+
     private resolveCompressionBackend(task: ExecutionTask): CompressionBackend {
         return resolveBackend(this.backendRegistry.compression, task.backendSelectors.compressionBackend, 'deterministic-token-supremacy').selected;
     }
@@ -2072,6 +2781,49 @@ function scopedTools(allowedTools: string[] | undefined, defaults: string[]): st
 function filterBindingsByTools(bindings: SkillBinding[], allowedTools: string[]): SkillBinding[] {
     const allowed = new Set(allowedTools);
     return bindings.filter((binding) => allowed.has(binding.type));
+}
+
+function renderWorkerContextMarkdown(context: WorkerContextPacket): string {
+    return [
+        `# Worker Context`,
+        '',
+        `- Runtime: ${context.runtimeId}`,
+        `- Run: ${context.runId}`,
+        `- Worker: ${context.workerId}`,
+        `- Role: ${context.role}`,
+        `- Strategy: ${context.strategy}`,
+        context.selectedCrew ? `- Crew: ${context.selectedCrew.name}` : '',
+        '',
+        '## Goal',
+        context.goal,
+        '',
+        '## Specialist',
+        context.specialist.name ? `- Name: ${context.specialist.name}` : '- Name: unassigned',
+        context.specialist.mission ? `- Mission: ${context.specialist.mission}` : '',
+        context.specialist.rules.length ? `- Rules: ${context.specialist.rules.join(' | ')}` : '',
+        context.specialist.workflow.length ? `- Workflow: ${context.specialist.workflow.join(' | ')}` : '',
+        context.specialist.deliverables.length ? `- Deliverables: ${context.specialist.deliverables.join(' | ')}` : '',
+        '',
+        '## Active Skills',
+        ...(context.activeSkills.length
+            ? context.activeSkills.map((skill) => `- ${skill.name} (${skill.riskClass})${skill.toolBindings.length ? ` [${skill.toolBindings.map((binding) => binding.type).join(', ')}]` : ''}`)
+            : ['- none']),
+        '',
+        '## Active Workflows',
+        ...(context.activeWorkflows.length
+            ? context.activeWorkflows.map((workflow) => `- ${workflow.name}: ${workflow.description}`)
+            : ['- none']),
+        '',
+        '## Review Gates',
+        ...(context.reviewGates.length
+            ? context.reviewGates.map((gate) => `- ${gate.gate}: ${gate.status} (${gate.owner})`)
+            : ['- none']),
+        '',
+        '## Phase Additions',
+        ...(context.phasePackets.length
+            ? context.phasePackets.map((packet) => `- ${packet.trigger}: skills=${packet.addedSkillNames.join(', ') || 'none'} workflows=${packet.addedWorkflowNames.join(', ') || 'none'} bindings=${packet.addedBindings.join(', ') || 'none'}`)
+            : ['- none']),
+    ].filter(Boolean).join('\n');
 }
 
 function extractRunTimestamp(run: ExecutionRun): number {

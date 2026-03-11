@@ -1138,7 +1138,16 @@
                 <div class="panel" style="margin-top: 1rem; min-height: 16rem;">
                     <div class="panel-header">
                         <div class="entity-header" style="margin:0;">
-                            <h3 id="library-title">Memory Snapshots</h3>
+                            <div style="display:flex; align-items:center; justify-content:space-between; gap:0.8rem; flex-wrap:wrap;">
+                                <h3 id="library-title">Memory Snapshots</h3>
+                                <div class="inline-fields" style="margin:0;">
+                                    <div class="field" style="min-width: 18rem;">
+                                        <label for="runtime-select">Runtime</label>
+                                        <select id="runtime-select"></select>
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="runtime-usage-summary" class="meta">Loading runtime usage.</div>
                             <div id="library-tabs" class="segmented">
                                 <button data-library-mode="memories" class="active">Memories</button>
                                 <button data-library-mode="skills">Skills</button>
@@ -1225,7 +1234,7 @@
                         <div class="inline-fields">
                             <div class="field">
                                 <label for="workers-input">Workers</label>
-                                <input id="workers-input" type="number" min="1" max="7" value="2">
+                                <input id="workers-input" type="number" min="2" max="7" value="2">
                             </div>
                             <div class="field">
                                 <label for="memory-backend">Memory Backend</label>
@@ -1275,7 +1284,7 @@
 
     <script>
         const DASHBOARD_API_VERSION = '3';
-        const REQUIRED_CAPABILITIES = ['runs', 'memory', 'pod', 'clients', 'events', 'stream', 'specialists', 'crews', 'planner'];
+        const REQUIRED_CAPABILITIES = ['runs', 'memory', 'pod', 'clients', 'events', 'stream', 'specialists', 'crews', 'planner', 'hooks', 'automations', 'federation'];
 
         function createResourceState() {
             return { status: 'idle', error: '' };
@@ -1283,6 +1292,9 @@
 
         const state = {
             runs: [],
+            runtimes: [],
+            usage: { health: 'stale', usage: {} },
+            selectedRuntimeId: null,
             skills: [],
             specialists: [],
             crews: [],
@@ -1312,6 +1324,8 @@
                 health: createResourceState(),
                 backends: createResourceState(),
                 runs: createResourceState(),
+                runtimes: createResourceState(),
+                usage: createResourceState(),
                 skills: createResourceState(),
                 specialists: createResourceState(),
                 crews: createResourceState(),
@@ -1335,6 +1349,15 @@
                 url: '/api/runs?limit=20',
                 assign(value) {
                     state.runs = Array.isArray(value) ? value : state.runs;
+                },
+            },
+            runtimes: {
+                url: '/api/runtimes',
+                assign(value) {
+                    state.runtimes = Array.isArray(value) ? value : [];
+                    if (!state.selectedRuntimeId) {
+                        state.selectedRuntimeId = state.runtimes[0]?.runtimeId || null;
+                    }
                 },
             },
             skills: {
@@ -1419,6 +1442,16 @@
                 url: '/api/federation',
                 assign(value) {
                     state.federation = value || state.federation;
+                },
+            },
+            usage: {
+                url: '/api/usage',
+                dynamic: true,
+                assign(value) {
+                    state.usage = value || state.usage;
+                    if (!state.selectedRuntimeId && value?.runtimeId) {
+                        state.selectedRuntimeId = value.runtimeId;
+                    }
                 },
             },
             events: {
@@ -1791,7 +1824,11 @@
             const targets = resourceNames?.length
                 ? resourceNames.filter((name, index, list) => RESOURCE_LOADERS[name] && list.indexOf(name) === index)
                 : Object.keys(RESOURCE_LOADERS);
-            const resources = targets.map((name) => [name, RESOURCE_LOADERS[name]]);
+            const orderedTargets = [
+                ...targets.filter((name) => name === 'runtimes'),
+                ...targets.filter((name) => name !== 'runtimes' && name !== 'usage'),
+            ];
+            const resources = orderedTargets.map((name) => [name, RESOURCE_LOADERS[name]]);
             const results = await Promise.allSettled(resources.map(([, config]) => fetchJson(config.url)));
             let refreshed = false;
 
@@ -1805,6 +1842,20 @@
                     setResourceStatus(name, 'error', normalizeError(result.reason));
                 }
             });
+
+            if (targets.includes('usage') || !resourceNames) {
+                try {
+                    const usageUrl = state.selectedRuntimeId
+                        ? `/api/usage?runtimeId=${encodeURIComponent(state.selectedRuntimeId)}`
+                        : '/api/usage';
+                    const usage = await fetchJson(usageUrl);
+                    RESOURCE_LOADERS.usage.assign(usage);
+                    setResourceStatus('usage', 'ready');
+                    refreshed = true;
+                } catch (error) {
+                    setResourceStatus('usage', 'error', normalizeError(error));
+                }
+            }
 
             if (refreshed) {
                 state.lastRefreshAt = Date.now();
@@ -2366,6 +2417,47 @@
             };
         }
 
+        function getSelectedRuntime() {
+            return state.runtimes.find((runtime) => runtime.runtimeId === state.selectedRuntimeId) || state.runtimes[0] || null;
+        }
+
+        function getUsageEntry(category) {
+            return state.usage?.usage?.[category] || { status: 'unused' };
+        }
+
+        function describeUsage(category) {
+            const runtime = getSelectedRuntime();
+            const usage = getUsageEntry(category);
+            if (!runtime) return 'No runtime registry data yet.';
+            if (runtime.health === 'stale') return 'Stale runtime snapshot.';
+            if (category === 'federation' && state.federation?.relay?.configured === false) return 'Relay unconfigured.';
+            return usage.status === 'used'
+                ? usage.summary || `Used ${formatAgo(usage.lastUsedAt)}`
+                : 'Not used in this runtime yet.';
+        }
+
+        function renderRuntimeSelection() {
+            const select = $('runtime-select');
+            const runtimes = state.runtimes || [];
+            if (!select) return;
+            select.innerHTML = runtimes.length
+                ? runtimes.map((runtime) => `
+                    <option value="${escapeHtml(runtime.runtimeId)}">${escapeHtml(runtime.runtimeId)}${runtime.health === 'stale' ? ' (stale)' : ''}</option>
+                `).join('')
+                : '<option value="">No runtimes</option>';
+            if (state.selectedRuntimeId && runtimes.some((runtime) => runtime.runtimeId === state.selectedRuntimeId)) {
+                select.value = state.selectedRuntimeId;
+            } else if (runtimes[0]) {
+                state.selectedRuntimeId = runtimes[0].runtimeId;
+                select.value = state.selectedRuntimeId;
+            }
+
+            const runtime = getSelectedRuntime();
+            $('runtime-usage-summary').textContent = runtime
+                ? `${runtime.health === 'stale' ? 'Stale' : 'Active'} runtime · last activity ${formatAgo(runtime.lastActivityAt)}`
+                : 'No runtime usage data yet.';
+        }
+
         function renderPlannerLedgerTable(ledger) {
             if (!ledger?.length) {
                 return emptyState('No planning ledger available yet.');
@@ -2399,6 +2491,7 @@
         }
 
         function renderLibrary() {
+            renderRuntimeSelection();
             document.querySelectorAll('#library-tabs button').forEach((button) => {
                 button.classList.toggle('active', button.dataset.libraryMode === state.libraryMode);
             });
@@ -2434,6 +2527,13 @@
                     : emptyState('No memory stored yet.');
             } else if (state.libraryMode === 'skills') {
                 const skillForm = `
+                    <div class="card" style="border-color: rgba(84,255,135,0.14); background: rgba(84,255,135,0.04);">
+                        <div class="card-title">
+                            <strong>Runtime Usage</strong>
+                            <span class="state-chip ${stateClass(getUsageEntry('skills').status === 'used' ? 'active' : getSelectedRuntime()?.health === 'stale' ? 'warn' : 'ready')}">${escapeHtml(getUsageEntry('skills').status === 'used' ? 'Used' : getSelectedRuntime()?.health === 'stale' ? 'Stale' : 'Not used yet')}</span>
+                        </div>
+                        <div class="meta">${escapeHtml(describeUsage('skills'))}</div>
+                    </div>
                     <details class="card" style="border-color: rgba(84,255,135,0.2); background: rgba(84,255,135,0.04);">
                         <summary style="cursor:pointer; font-size:0.82rem; font-weight:600; color:var(--accent);">+ Create Skill</summary>
                         <form id="skill-create-form" class="control-grid" style="margin-top:0.6rem;">
@@ -2492,7 +2592,7 @@
                 container.innerHTML = skillForm + skillList;
                 bindSkillFormHandlers();
             } else if (state.libraryMode === 'specialists') {
-                container.innerHTML = resourceFailed('specialists') && !state.specialists.length
+                container.innerHTML = `<div class="card"><div class="card-title"><strong>Runtime Usage</strong><span class="state-chip ${stateClass(getUsageEntry('roster').status === 'used' ? 'active' : getSelectedRuntime()?.health === 'stale' ? 'warn' : 'ready')}">${escapeHtml(getUsageEntry('roster').status === 'used' ? 'Used' : getSelectedRuntime()?.health === 'stale' ? 'Stale' : 'Not used yet')}</span></div><div class="meta">${escapeHtml(describeUsage('roster'))}</div></div>` + (resourceFailed('specialists') && !state.specialists.length
                     ? emptyState('Specialist roster endpoint unavailable.')
                     : state.specialists.length
                         ? state.specialists.map((specialist) => `
@@ -2507,9 +2607,9 @@
                                 </div>
                             </div>
                         `).join('')
-                        : emptyState('No specialists available.');
+                        : emptyState('No specialists available.'));
             } else if (state.libraryMode === 'crews') {
-                container.innerHTML = resourceFailed('crews') && !state.crews.length
+                container.innerHTML = `<div class="card"><div class="card-title"><strong>Runtime Usage</strong><span class="state-chip ${stateClass(getUsageEntry('crews').status === 'used' ? 'active' : getSelectedRuntime()?.health === 'stale' ? 'warn' : 'ready')}">${escapeHtml(getUsageEntry('crews').status === 'used' ? 'Used' : getSelectedRuntime()?.health === 'stale' ? 'Stale' : 'Not used yet')}</span></div><div class="meta">${escapeHtml(describeUsage('crews'))}</div></div>` + (resourceFailed('crews') && !state.crews.length
                     ? emptyState('Crew endpoint unavailable.')
                     : state.crews.length
                         ? state.crews.map((crew) => `
@@ -2524,11 +2624,18 @@
                                 </div>
                             </div>
                         `).join('')
-                        : emptyState('No crews available.');
+                        : emptyState('No crews available.'));
             } else if (state.libraryMode === 'planning') {
                 const planner = getPlannerViewModel();
                 container.innerHTML = planner
                     ? `
+                        <div class="card">
+                            <div class="card-title">
+                                <strong>Runtime Usage</strong>
+                                <span class="state-chip ${stateClass(getUsageEntry('plan').status === 'used' ? 'active' : getSelectedRuntime()?.health === 'stale' ? 'warn' : 'ready')}">${escapeHtml(getUsageEntry('plan').status === 'used' ? 'Used' : getSelectedRuntime()?.health === 'stale' ? 'Stale' : 'Not used yet')}</span>
+                            </div>
+                            <div class="meta">${escapeHtml(describeUsage('plan'))}</div>
+                        </div>
                         <div class="metrics-grid">
                             <div class="hero-metric">
                                 <label>Chosen Crew</label>
@@ -2594,7 +2701,7 @@
                     `
                     : emptyState('No planner state yet. Use Plan Run or execute a non-trivial task to see the live ledger.');
             } else if (state.libraryMode === 'workflows') {
-                container.innerHTML = resourceFailed('workflows') && !state.workflows.length
+                container.innerHTML = `<div class="card"><div class="card-title"><strong>Runtime Usage</strong><span class="state-chip ${stateClass(getUsageEntry('workflows').status === 'used' ? 'active' : getSelectedRuntime()?.health === 'stale' ? 'warn' : 'ready')}">${escapeHtml(getUsageEntry('workflows').status === 'used' ? 'Used' : getSelectedRuntime()?.health === 'stale' ? 'Stale' : 'Not used yet')}</span></div><div class="meta">${escapeHtml(describeUsage('workflows'))}</div></div>` + (resourceFailed('workflows') && !state.workflows.length
                     ? emptyState('Workflows endpoint unavailable.')
                     : state.workflows.length
                     ? state.workflows.map((workflow) => `
@@ -2607,9 +2714,9 @@
                             <div class="list-inline">${chip(`domain:${workflow.domain}`)}${chip(`verify:${workflow.effectiveness?.verificationPasses || 0}`)}</div>
                         </div>
                     `).join('')
-                    : emptyState('No workflows loaded.');
+                    : emptyState('No workflows loaded.'));
             } else if (state.libraryMode === 'hooks') {
-                container.innerHTML = resourceFailed('hooks') && !state.hooks.length
+                container.innerHTML = `<div class="card"><div class="card-title"><strong>Runtime Usage</strong><span class="state-chip ${stateClass(getUsageEntry('hooks').status === 'used' ? 'active' : getSelectedRuntime()?.health === 'stale' ? 'warn' : 'ready')}">${escapeHtml(getUsageEntry('hooks').status === 'used' ? 'Used' : getSelectedRuntime()?.health === 'stale' ? 'Stale' : 'Not used yet')}</span></div><div class="meta">${escapeHtml(describeUsage('hooks'))}</div></div>` + (resourceFailed('hooks') && !state.hooks.length
                     ? emptyState('Hooks endpoint unavailable.')
                     : state.hooks.length
                     ? state.hooks.map((hook) => `
@@ -2626,9 +2733,9 @@
                             </div>
                         </div>
                     `).join('')
-                    : emptyState('No hooks loaded.');
+                    : emptyState('No hooks loaded.'));
             } else if (state.libraryMode === 'automations') {
-                container.innerHTML = resourceFailed('automations') && !state.automations.length
+                container.innerHTML = `<div class="card"><div class="card-title"><strong>Runtime Usage</strong><span class="state-chip ${stateClass(getUsageEntry('automations').status === 'used' ? 'active' : getSelectedRuntime()?.health === 'stale' ? 'warn' : 'ready')}">${escapeHtml(getUsageEntry('automations').status === 'used' ? 'Used' : getSelectedRuntime()?.health === 'stale' ? 'Stale' : 'Not used yet')}</span></div><div class="meta">${escapeHtml(describeUsage('automations'))}</div></div>` + (resourceFailed('automations') && !state.automations.length
                     ? emptyState('Automations endpoint unavailable.')
                     : state.automations.length
                     ? state.automations.map((automation) => `
@@ -2645,9 +2752,16 @@
                             </div>
                         </div>
                     `).join('')
-                    : emptyState('No automations loaded.');
+                    : emptyState('No automations loaded.'));
             } else if (state.libraryMode === 'governance') {
                 container.innerHTML = `
+                    <div class="card">
+                        <div class="card-title">
+                            <strong>Runtime Usage</strong>
+                            <span class="state-chip ${stateClass(getUsageEntry('governance').status === 'used' ? 'active' : getSelectedRuntime()?.health === 'stale' ? 'warn' : 'ready')}">${escapeHtml(getUsageEntry('governance').status === 'used' ? 'Used' : getSelectedRuntime()?.health === 'stale' ? 'Stale' : 'Not used yet')}</span>
+                        </div>
+                        <div class="meta">${escapeHtml(describeUsage('governance'))}</div>
+                    </div>
                     <div class="metrics-grid">
                         <div class="hero-metric">
                             <label>Audited Memories</label>
@@ -2706,6 +2820,13 @@
             } else if (state.libraryMode === 'federation') {
                 const peers = state.federation.knownPeers || [];
                 container.innerHTML = `
+                    <div class="card">
+                        <div class="card-title">
+                            <strong>Runtime Usage</strong>
+                            <span class="state-chip ${stateClass(getUsageEntry('federation').status === 'used' ? 'active' : getSelectedRuntime()?.health === 'stale' ? 'warn' : 'ready')}">${escapeHtml(getUsageEntry('federation').status === 'used' ? 'Used' : getSelectedRuntime()?.health === 'stale' ? 'Stale' : 'Not used yet')}</span>
+                        </div>
+                        <div class="meta">${escapeHtml(describeUsage('federation'))}</div>
+                    </div>
                     <div class="metrics-grid">
                         <div class="hero-metric">
                             <label>Known Peers</label>
@@ -2726,6 +2847,11 @@
                             <label>Published Traces</label>
                             <strong>${resourceFailed('federation') ? 'n/a' : formatNumber(state.federation.tracesPublished || 0)}</strong>
                             <div class="meta">Execution traces published across the mesh</div>
+                        </div>
+                        <div class="hero-metric">
+                            <label>Relay Mode</label>
+                            <strong>${resourceFailed('federation') ? 'n/a' : escapeHtml(state.federation.relay?.mode || 'degraded')}</strong>
+                            <div class="meta">${escapeHtml(state.federation.relay?.configured ? 'Configured' : 'Relay unconfigured')}</div>
                         </div>
                     </div>
                     <div class="stack" style="margin-top:0.8rem;">
@@ -3448,6 +3574,11 @@
                 } catch (error) {
                     $('control-status').textContent = `Refresh failed: ${error.message}`;
                 }
+            });
+
+            $('runtime-select').addEventListener('change', async (event) => {
+                state.selectedRuntimeId = event.target.value || null;
+                await refreshAll(['usage']);
             });
 
             $('execute-form').addEventListener('submit', async (event) => {

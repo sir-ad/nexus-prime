@@ -2,6 +2,27 @@
 
 All notable changes to Nexus Prime will be documented in this file.
 
+## [3.7.0] - 2026-03-11
+
+### Added
+- **Shared Runtime Registry**: Added a filesystem-backed per-runtime snapshot registry so active Nexus runtimes can publish their own usage truth across process boundaries.
+- **Runtime Usage APIs**: Added dashboard-facing `/api/runtimes` and `/api/usage` surfaces for per-runtime visibility into memories, skills, roster, crews, planning, workflows, hooks, automations, governance, and federation.
+- **Worker Context Packets**: Added canonical worker context payloads plus `context.json` and `context.md` artifacts under worker outputs and `.agent/runtime/` worktrees.
+- **Local Override Conventions**: Added project-local `.agent/hooks` and `.agent/automations` directories plus a convention note for runtime handoff context.
+
+### Changed
+- **Runtime Consumption**: Active skills, workflows, specialist profile excerpts, review gates, and hook-added phase context now flow into worker manifests and deterministic execution instead of remaining mostly metadata.
+- **Dashboard Truth Model**: The shared dashboard can now reuse a host process without conflating that host's in-memory state with another runtime's activity, and the UI exposes runtime selection with explicit used/stale/not-used states.
+- **Automation Lifecycle**: Queued automation follow-up runs now execute through a bounded continuation path with parent/source tracking and loop suppression.
+- **Federation Status Surface**: Federation snapshots now include explicit relay configuration and degradation details instead of implying that NexusNet relay operations are live.
+- **Agent Protocol Docs**: Updated AGENTS guidance to reflect planner surfaces, enforced two-coder minimums, and `.agent/runtime` worker context handoff.
+
+### Fixed
+- **Hook Propagation Gaps**: `before-mutate` and `before-verify` hook outputs now patch live manifests, actions, verify commands, and context artifacts instead of being recorded without effect.
+- **Memory Dispatch Truthfulness**: Nexus-owned memory stores now route through runtime dispatch so `memory.stored` hooks and automations fire exactly once.
+- **POD Minimum Enforcement**: Runtime worker selection now clamps coder counts to a minimum of two, matching the documented protocol.
+- **Shared Dashboard Misreporting**: Reused dashboard hosts no longer make a newer runtime look idle just because the host process did not own that activity.
+
 ## [3.6.0] - 2026-03-11
 
 ### Added

@@ -313,7 +313,15 @@ nexus-prime setup status
 ---
 
 ## 📜 Changelog
-### c3.5.0 "Runtime Intel"
+### v3.7.0 "Runtime Truth"
+- **Shared runtime registry with `/api/runtimes` and `/api/usage` so the dashboard reports each live runtime truthfully**
+- **Worker context handoff artifacts under `.agent/runtime/context.json` and `.agent/runtime/context.md`**
+- **Skills, workflows, specialist profile excerpts, review gates, and phase hook effects now feed real worker execution paths**
+- **Queued automation follow-up runs now execute with bounded continuation depth and loop suppression**
+- **Explicit federation relay status for configured vs degraded NexusNet mode**
+- **AGENTS and `.agent` conventions updated to match planner surfaces, runtime handoff, and the enforced 2-coder minimum**
+
+### v3.5.0 "Runtime Intel"
 - **Broader built-in skill/workflow packs for PDLC, GTM, writing, deep-tech, API, data, Python, Django, TypeScript, Node, React, AI, security, and economics**
 - **First-class HookArtifact runtime with lifecycle checkpoint triggers**
 - **First-class AutomationArtifact runtime with bounded follow-up execution and connector delivery records**

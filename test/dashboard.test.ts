@@ -109,6 +109,9 @@ function assertHealthContract(health: any, address: string): void {
   assert.strictEqual(health.capabilities.specialists, true, 'specialists capability should be advertised');
   assert.strictEqual(health.capabilities.crews, true, 'crews capability should be advertised');
   assert.strictEqual(health.capabilities.planner, true, 'planner capability should be advertised');
+  assert.strictEqual(health.capabilities.hooks, true, 'hooks capability should be advertised');
+  assert.strictEqual(health.capabilities.automations, true, 'automations capability should be advertised');
+  assert.strictEqual(health.capabilities.federation, true, 'federation capability should be advertised');
 }
 
 async function test() {
@@ -139,7 +142,8 @@ async function test() {
   memory.store('Dashboard smoke child snapshot linked to workflow_dashboard_demo', 0.82, ['#dashboard', '#timeline'], rootMemoryId, 1);
   podNetwork.publish('worker-dashboard', 'Dashboard smoke pod signal', 0.88, ['#dashboard', '#pod']);
 
-  const runtime = createSubAgentRuntime({ repoRoot, memory, artifactsRoot: path.join(stateDir, 'runs') });
+  const runtime = createSubAgentRuntime({ repoRoot, memory, artifactsRoot: path.join(stateDir, 'runs-primary') });
+  const runtimeTwo = createSubAgentRuntime({ repoRoot, memory, artifactsRoot: path.join(stateDir, 'runs-secondary') });
   await runtime.run({
     goal: 'Create dashboard smoke artifacts',
     files: ['README.md', 'package.json'],
@@ -154,9 +158,16 @@ async function test() {
       }
     ]
   });
+  await runtimeTwo.planExecution({
+    goal: 'Prepare a secondary runtime planning ledger',
+    files: ['README.md'],
+    crewSelectors: ['crew_implementation'],
+    optimizationProfile: 'max',
+  });
+  await runtimeTwo.storeMemoryAndDispatch('Dashboard secondary runtime memory store', 0.91, ['#dashboard', '#runtime-two']);
 
-  const makeServer = () => new DashboardServer({
-    runtimeProvider: () => runtime,
+  const makeServer = (runtimeProvider: any) => new DashboardServer({
+    runtimeProvider,
     memoryProvider: () => memory,
     adaptersProvider: () => [],
     clientRegistryProvider: () => clientRegistry,
@@ -166,7 +177,7 @@ async function test() {
   const occupied = await startIncompatibleServer(port);
 
   try {
-    const fallbackServer = makeServer();
+    const fallbackServer = makeServer(() => runtime);
     fallbackServer.start();
     const fallbackAddress = await waitForAddress(fallbackServer);
     assert.notStrictEqual(fallbackAddress, `http://127.0.0.1:${port}`, 'server should move to a new port when default port is occupied by an incompatible listener');
@@ -180,8 +191,8 @@ async function test() {
     await closeHttpServer(occupied);
   }
 
-  const primaryServer = makeServer();
-  const reuseServer = makeServer();
+  const primaryServer = makeServer(() => runtime);
+  const reuseServer = makeServer(() => runtimeTwo);
   primaryServer.start();
 
   try {
@@ -199,6 +210,9 @@ async function test() {
       workflowsRes,
       hooksRes,
       automationsRes,
+      runtimesRes,
+      usagePrimaryRes,
+      usageSecondaryRes,
       specialistsRes,
       crewsRes,
       backendsRes,
@@ -218,6 +232,9 @@ async function test() {
       fetch(`${primaryAddress}/api/workflows`),
       fetch(`${primaryAddress}/api/hooks`),
       fetch(`${primaryAddress}/api/automations`),
+      fetch(`${primaryAddress}/api/runtimes`),
+      fetch(`${primaryAddress}/api/usage?runtimeId=${encodeURIComponent(runtime.getRuntimeId())}`),
+      fetch(`${primaryAddress}/api/usage?runtimeId=${encodeURIComponent(runtimeTwo.getRuntimeId())}`),
       fetch(`${primaryAddress}/api/specialists`),
       fetch(`${primaryAddress}/api/crews`),
       fetch(`${primaryAddress}/api/backends`),
@@ -238,6 +255,9 @@ async function test() {
     const workflows = await workflowsRes.json();
     const hooks = await hooksRes.json();
     const automations = await automationsRes.json();
+    const runtimes = await runtimesRes.json();
+    const usagePrimary = await usagePrimaryRes.json();
+    const usageSecondary = await usageSecondaryRes.json();
     const specialists = await specialistsRes.json();
     const crews = await crewsRes.json();
     const backends = await backendsRes.json();
@@ -262,6 +282,8 @@ async function test() {
     assert.ok(html.includes('data-library-mode="planning"'), 'dashboard HTML should expose planner mode');
     assert.ok(html.includes('data-library-mode="governance"'), 'dashboard HTML should expose governance library mode');
     assert.ok(html.includes('data-library-mode="federation"'), 'dashboard HTML should expose federation library mode');
+    assert.ok(html.includes('id="runtime-select"'), 'dashboard HTML should expose a runtime selector');
+    assert.ok(html.includes('runtime-usage-summary'), 'dashboard HTML should expose runtime usage summary shell');
     assert.ok(html.includes('id="plan-button"'), 'dashboard HTML should expose planner preview action');
     assert.ok(html.includes('data-event-filter="hooks"'), 'dashboard HTML should expose hooks event filter');
     assert.ok(html.includes('data-event-filter="automations"'), 'dashboard HTML should expose automations event filter');
@@ -276,10 +298,17 @@ async function test() {
     assert.ok(Array.isArray(workflows) && workflows.length > 0, 'workflows API should return artifacts');
     assert.ok(Array.isArray(hooks) && hooks.length > 0, 'hooks API should return artifacts');
     assert.ok(Array.isArray(automations) && automations.length > 0, 'automations API should return artifacts');
+    assert.ok(Array.isArray(runtimes) && runtimes.length >= 2, 'runtime registry API should return multiple live runtimes');
+    assert.strictEqual(usagePrimary.runtimeId, runtime.getRuntimeId(), 'usage API should resolve the primary runtime');
+    assert.strictEqual(usageSecondary.runtimeId, runtimeTwo.getRuntimeId(), 'usage API should resolve the secondary runtime');
+    assert.strictEqual(usagePrimary.usage.skills.status, 'used', 'primary runtime usage should record skill usage');
+    assert.strictEqual(usageSecondary.usage.plan.status, 'used', 'secondary runtime usage should record planning usage');
+    assert.strictEqual(usageSecondary.usage.memories.status, 'used', 'secondary runtime usage should record memory usage');
     assert.ok(Array.isArray(specialists) && specialists.length > 20, 'specialists API should return the imported roster');
     assert.ok(Array.isArray(crews) && crews.length > 0, 'crews API should return crew templates');
     assert.ok(backends.memory && backends.compression && backends.dsl, 'backends API should return grouped catalogs');
     assertHealthContract(health, primaryAddress);
+    assert.ok((health.runtime?.runtimeCount || 0) >= 2, 'health API should include runtime registry count');
     assert.strictEqual(health.docs.pagesWorkflowValid, true, 'health API should report fixed Pages workflow syntax');
     assert.ok(Array.isArray(memories) && memories.length >= 2, 'memory API should return snapshots');
     assert.ok(typeof memoryAudit.scanned === 'number', 'memory audit API should return a scan count');
@@ -289,6 +318,7 @@ async function test() {
     assert.ok(Array.isArray(pod.messages) && pod.messages.length > 0, 'pod API should return messages');
     assert.ok(Array.isArray(clients) && clients.some((client: any) => client.clientId === 'codex' && client.state === 'active'), 'client API should surface explicit heartbeat clients');
     assert.ok(Array.isArray(federation.knownPeers), 'federation API should return peer inventory');
+    assert.ok(federation.relay && typeof federation.relay.configured === 'boolean', 'federation API should expose relay status');
     assert.ok(Array.isArray(hooks) && hooks.some((hook: any) => hook.trigger), 'hooks API should expose trigger metadata');
     assert.ok(Array.isArray(automations) && automations.some((automation: any) => automation.triggerMode), 'automations API should expose trigger metadata');
     assert.ok(Array.isArray(events) && events.length > 0, 'events API should return normalized event cards');
@@ -368,6 +398,15 @@ async function test() {
     assert.ok(Array.isArray(planned.ledger) && planned.ledger.length > 0, 'runtime plan should expose live ledger rows');
 
     console.log('✅ Dashboard compatibility, APIs, topology shell, and control plane are healthy\n');
+
+    const registryDir = path.join(stateDir, 'runtime-registry');
+    const primarySnapshotPath = path.join(registryDir, `${runtime.getRuntimeId()}.json`);
+    const snapshot = JSON.parse(fs.readFileSync(primarySnapshotPath, 'utf8'));
+    snapshot.lastHeartbeatAt = Date.now() - (5 * 60 * 1000);
+    fs.writeFileSync(primarySnapshotPath, JSON.stringify(snapshot, null, 2), 'utf8');
+    const staleRuntimes = await fetchJson(`${primaryAddress}/api/runtimes`);
+    const stalePrimary = staleRuntimes.find((entry: any) => entry.runtimeId === runtime.getRuntimeId());
+    assert.strictEqual(stalePrimary.health, 'stale', 'runtime registry should mark stale snapshots explicitly');
   } finally {
     reuseServer.stop();
     primaryServer.stop();

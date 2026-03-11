@@ -4,6 +4,8 @@ import * as path from 'path';
 import { randomUUID } from 'crypto';
 import { nexusEventBus } from './event-bus.js';
 import { MemoryEngine } from './memory.js';
+import { nexusNetRelay, type NexusNetRelayStatus } from './nexusnet-relay.js';
+import { resolveNexusStateDir } from './runtime-registry.js';
 
 export interface TraceEntry {
     taskId: string;
@@ -42,6 +44,7 @@ export interface FederationSnapshot {
     activePeerLinks: number;
     relayLearnings: FederationLearning[];
     tracesPublished: number;
+    relay: NexusNetRelayStatus;
 }
 
 interface FederationState {
@@ -51,7 +54,9 @@ interface FederationState {
     traces: TraceEntry[];
 }
 
-const FEDERATION_PATH = path.join(os.homedir(), '.nexus-prime', 'federation.json');
+const FEDERATION_PATH = path.join(process.env.NEXUS_STATE_DIR
+    ? path.resolve(process.env.NEXUS_STATE_DIR)
+    : path.join(os.homedir(), '.nexus-prime'), 'federation.json');
 
 export class FederationEngine {
     private memory: MemoryEngine;
@@ -151,6 +156,7 @@ export class FederationEngine {
             activePeerLinks: this.state.peers.filter((peer) => peer.health === 'active').length,
             relayLearnings: this.state.learnings.slice(0, 30),
             tracesPublished: this.state.traces.length,
+            relay: nexusNetRelay.getStatus(),
         };
     }
 
@@ -191,6 +197,7 @@ export class FederationEngine {
     }
 
     private persist(): void {
+        fs.mkdirSync(resolveNexusStateDir(), { recursive: true });
         fs.mkdirSync(path.dirname(FEDERATION_PATH), { recursive: true });
         fs.writeFileSync(FEDERATION_PATH, JSON.stringify(this.state, null, 2), 'utf8');
     }

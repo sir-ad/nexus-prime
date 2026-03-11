@@ -43,6 +43,7 @@ async function test() {
   process.env.NEXUS_DASHBOARD_DISABLED = '1';
   process.env.NEXUS_MEMORY_DB_PATH = path.join(repoRoot, '.nexus-prime-test.db');
   process.env.NEXUS_POD_PATH = path.join(repoRoot, '.nexus-prime-pod.json');
+  process.env.NEXUS_STATE_DIR = path.join(repoRoot, '.nexus-state');
 
   process.chdir(repoRoot);
 
@@ -75,12 +76,13 @@ async function test() {
 
     const result = await nexus.execute(coder.id, 'Apply a real runtime patch to the fixture repo', {
       files: ['README.md', 'package.json'],
-      workers: 2,
+      workers: 1,
       verifyCommands: ['npm run build'],
-      skillNames: ['backend-playbook', 'orchestration-playbook'],
+      skillNames: ['node-builder', 'orchestration-playbook'],
       workflowSelectors: ['backend-execution-loop'],
       hookSelectors: ['run-created-brief', 'before-verify-approval'],
       automationSelectors: ['verified-followup-automation'],
+      skillPolicy: { mode: 'guarded-hot', allowMutateSkills: true },
       backendSelectors: {
         memoryBackend: 'temporal-hyperbolic-memory',
         compressionBackend: 'meta-compression',
@@ -125,11 +127,16 @@ async function test() {
     assert.ok((result.execution.plannerResult?.selectedSpecialists?.length || 0) > 0, 'planner result should include selected specialists');
     assert.ok((result.execution.plannerResult?.ledger?.length || 0) > 0, 'planner result should include planning ledger rows');
     const plannerManifest = result.execution.workerManifests.find((manifest) => manifest.role === 'planner');
-    const coderManifest = result.execution.workerManifests.find((manifest) => manifest.role === 'coder');
+    const coderManifests = result.execution.workerManifests.filter((manifest) => manifest.role === 'coder');
+    const coderManifest = coderManifests[0];
     assert.ok(plannerManifest, 'planner worker manifest should exist');
     assert.ok(coderManifest, 'coder worker manifest should exist');
+    assert.ok(coderManifests.length >= 2, 'runtime should clamp to at least two coder workers');
     assert.ok(!plannerManifest?.allowedTools.includes('write_file'), 'planner worker should stay read scoped even when the run mutates files');
     assert.ok(coderManifest?.allowedTools.includes('write_file'), 'coder worker should retain write tools required for explicit actions');
+    assert.ok(coderManifest?.context?.specialist?.mission, 'coder worker context should include specialist mission');
+    assert.ok((coderManifest?.context?.activeWorkflows?.length || 0) > 0, 'coder worker context should include active workflows');
+    assert.ok(Array.isArray(coderManifest?.context?.reviewGates), 'coder worker context should include review gates');
     assert.ok(result.execution.verificationResults.length > 0, 'verifier results should be present');
     assert.ok(result.execution.activeSkills.length > 0, 'skills should be active');
     assert.ok(result.execution.activeWorkflows.length > 0, 'workflows should be active');
@@ -142,9 +149,41 @@ async function test() {
     assert.ok(result.execution.shieldDecisions.length > 0, 'shield decisions should be recorded');
     assert.ok(result.execution.memoryChecks.length > 0, 'memory checks should be recorded');
     assert.ok(result.execution.federationState, 'federation state should be recorded');
+    assert.ok((result.execution.federationState as any)?.relay, 'federation state should include relay status');
     assert.ok(result.execution.hookEvents.length > 0, 'hook events should be recorded');
     assert.ok(result.execution.automationEvents.length > 0, 'automation events should be recorded');
+    assert.ok(result.execution.continuationChildren.length > 0, 'automation continuations should be recorded');
+    assert.ok(result.execution.continuationChildren.some((child) => child.status === 'completed'), 'at least one automation continuation should complete');
     assert.ok((runtime.auditMemory()?.scanned ?? 0) > 0, 'memory audit should be available after execution');
+    assert.ok(runtime.listRuns().length > 1, 'bounded automation continuation should create a follow-up run');
+
+    const coderContextPath = path.join(result.execution.artifactsPath, 'workers', coderManifest?.workerId || 'coder-1', 'context.json');
+    assert.ok(fs.existsSync(coderContextPath), 'worker context artifact should be persisted');
+    const coderContext = JSON.parse(fs.readFileSync(coderContextPath, 'utf8'));
+    assert.ok(coderContext.specialist?.mission, 'persisted worker context should include specialist mission');
+    assert.ok(Array.isArray(coderContext.activeSkills) && coderContext.activeSkills.length > 0, 'persisted worker context should include active skills');
+
+    const workersRoot = path.join(result.execution.artifactsPath, 'workers');
+    const commandArtifacts = fs.readdirSync(workersRoot)
+      .flatMap((entry) => {
+        const target = path.join(workersRoot, entry);
+        return fs.statSync(target).isDirectory()
+          ? fs.readdirSync(target).map((child) => path.join(target, child))
+          : [];
+      })
+      .filter((filePath) => filePath.endsWith('.json') && !filePath.endsWith('context.json'))
+      .map((filePath) => JSON.parse(fs.readFileSync(filePath, 'utf8')))
+      .filter((record) => typeof record.command === 'string');
+    assert.ok(commandArtifacts.some((record) => record.command.includes('process.exit(0)')), 'active skill tool bindings should execute runtime commands');
+
+    const memoryDispatch = await runtime.storeMemoryAndDispatch('High priority memory escalation', 0.95, ['#security', '#runtime-test']);
+    assert.ok(memoryDispatch.hookEvents.some((event) => event.name === 'memory-shield-escalation'), 'explicit memory stores should dispatch memory hooks');
+    assert.ok(memoryDispatch.automationDispatches.some((dispatch) => dispatch.name === 'memory-governance-automation'), 'explicit memory stores should dispatch memory automations');
+
+    const usageSnapshot = runtime.getUsageSnapshot();
+    assert.strictEqual(usageSnapshot.usage.skills.status, 'used', 'runtime usage should mark skills as used');
+    assert.strictEqual(usageSnapshot.usage.plan.status, 'used', 'runtime usage should mark plan as used');
+    assert.strictEqual(usageSnapshot.usage.federation.status, 'used', 'runtime usage should mark federation as used');
 
     await nexus.stop();
     console.log('✅ Stopped\n');
@@ -153,6 +192,7 @@ async function test() {
     delete process.env.NEXUS_DASHBOARD_DISABLED;
     delete process.env.NEXUS_MEMORY_DB_PATH;
     delete process.env.NEXUS_POD_PATH;
+    delete process.env.NEXUS_STATE_DIR;
     process.chdir(originalCwd);
   }
 }

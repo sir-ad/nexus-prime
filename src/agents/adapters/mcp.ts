@@ -34,7 +34,7 @@ import { AttentionScorer } from '../../engines/attention-stream.js';
 import { SkillCardRegistry, type SkillCard } from '../../engines/skill-card.js';
 import type { HookTrigger } from '../../engines/runtime-assets.js';
 import { DarwinLoop } from '../../engines/darwin-loop.js';
-import { NexusNetRelay } from '../../engines/nexusnet-relay.js';
+import { nexusNetRelay } from '../../engines/nexusnet-relay.js';
 import {
     entanglementEngine,
     ContinuousAttentionStream,
@@ -47,7 +47,6 @@ import { FederationEngine, type TraceEntry } from '../../engines/federation.js';
 const tokenEngine = new TokenSupremacyEngine();
 const guardrailEngine = new GuardrailEngine();
 const darwinLoop = new DarwinLoop();
-const nexusNet = new NexusNetRelay();
 const casEngine = new ContinuousAttentionStream();
 const kvBridge = createKVBridge({ agents: 3 });
 const orchestrator = new OrchestratorEngine();
@@ -894,7 +893,6 @@ export class MCPAdapter implements Adapter {
                 }
 
                 const id = this.nexusRef.storeMemory(content, priority, tags);
-                nexusEventBus.emit('memory.store', { id, priority, tags, tier: priority > 0.8 ? 'cortex' : 'hippocampus' });
                 this.telemetry.recordStore();
                 this.sessionDNA.recordMemoryStore();
                 const memStats = this.nexusRef.getMemoryStats();
@@ -905,9 +903,11 @@ export class MCPAdapter implements Adapter {
                 let autoGistNote = '';
                 if (priority >= 0.8) {
                     try {
-                        const publishResult = await nexusNet.publish('knowledge', { content, tags });
+                        const publishResult = await nexusNetRelay.publish('knowledge', { content, tags });
                         nexusEventBus.emit('nexusnet.publish', { type: 'knowledge', byteSize: publishResult.bytes });
-                        autoGistNote = `\n🌐 Auto-Published to NexusNet Relay (ID: ${publishResult.id})`;
+                        autoGistNote = publishResult.configured
+                            ? `\n🌐 Auto-Published to NexusNet Relay (ID: ${publishResult.id})`
+                            : `\n⚠️ NexusNet relay unconfigured. Auto-publish skipped.`;
                     } catch (e: any) {
                         autoGistNote = `\n⚠️ Auto-Publish to NexusNet failed: ${e.message}`;
                     }
@@ -1838,12 +1838,14 @@ export class MCPAdapter implements Adapter {
                 }
 
                 try {
-                    const result = await nexusNet.publish(type, { content, tags });
+                    const result = await nexusNetRelay.publish(type, { content, tags });
                     nexusEventBus.emit('nexusnet.publish', { type, byteSize: result.bytes });
                     return {
                         content: [{
                             type: 'text',
-                            text: `🌐 Published to NexusNet successfully.\nMessage ID: ${result.id}\nBytes: ${result.bytes}`,
+                            text: result.configured
+                                ? `🌐 Published to NexusNet successfully.\nMessage ID: ${result.id}\nBytes: ${result.bytes}`
+                                : `⚠️ NexusNet relay unconfigured.\nBuffered message ID: ${result.id}\nBytes: ${result.bytes}\nMode: ${result.mode}`,
                         }],
                     };
                 } catch (err: any) {
@@ -1855,7 +1857,7 @@ export class MCPAdapter implements Adapter {
 
             case 'nexus_net_sync': {
                 try {
-                    const messages = await nexusNet.sync();
+                    const messages = await nexusNetRelay.sync();
                     nexusEventBus.emit('nexusnet.sync', { newItemsCount: messages.length });
 
                     let text = `🌐 Synced with NexusNet. Found ${messages.length} new messages from other agents.\n`;

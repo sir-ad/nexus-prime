@@ -22,6 +22,9 @@ Nexus Prime is a **meta-framework** running as an MCP server. It gives you:
 
 2. nexus_memory_stats()
    → If cortex > 20, you have rich context. Use it.
+
+3. nexus_plan_execution(goal="<today's task>", files=[...])
+   → Use when you need the live crew/specialist/skill/workflow ledger before running the task.
 ```
 
 ---
@@ -100,6 +103,9 @@ Use risk areas as a checklist before making changes.
 ## 🔚 Session End (MANDATORY)
 
 ```
+nexus_session_dna(action="generate")
+  → Capture files accessed, decisions made, and recommended next steps.
+
 nexus_store_memory(
   content="Session YYYY-MM-DD: <1-3 sentences: what changed, files modified, decisions made>",
   priority=0.85,
@@ -125,6 +131,10 @@ When a task is too large for one agent or benefits from parallel exploration:
 
 **Key rule:** Sub-agents operate in isolated git worktrees.  
 Changes don't reach main until MergeOracle approves.
+
+**POD minimum:** Runtime execution always clamps to at least 2 coder workers. Do not request `workers: 1` and expect a single-coder run.
+
+**Worker handoff:** Each worker writes `.agent/runtime/context.json` and `.agent/runtime/context.md` inside its worktree. Use these as the canonical selected context for crew, specialist, skills, workflows, review gates, and hook-added instructions.
 
 ---
 
@@ -155,7 +165,7 @@ Changes don't reach main until MergeOracle approves.
 
 ---
 
-## 🔧 Available MCP Tools (20)
+## 🔧 Available MCP Tools (44 total — key tools below)
 
 | Tool | Purpose |
 |------|---------|
@@ -166,9 +176,12 @@ Changes don't reach main until MergeOracle approves.
 | `nexus_hypertune_max` | Greedy knapsack optimization |
 | `nexus_ghost_pass` | Pre-flight task risk analysis |
 | `nexus_spawn_workers` | Parallel git worktree sub-agents |
+| `nexus_plan_execution` | Planner-only crew/specialist/skill/workflow ledger |
 | `nexus_mindkit_check` | Guardrail checks (safety) |
 | `nexus_graph_query` | Traverse the Zettelkasten graph |
 | `nexus_session_dna` | State snapshots for handover |
+| `nexus_list_specialists` | List the specialist roster |
+| `nexus_list_crews` | List built-in crew templates |
 | `nexus_darwin_propose` | Self-improvement cycles |
 | `nexus_net_publish` | Knowledge sharing across relays |
 | `nexus_entangle` | Entangled state measurements |

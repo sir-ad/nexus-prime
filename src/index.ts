@@ -274,7 +274,9 @@ export class NexusPrime {
    * Store in memory
    */
   storeMemory(content: string, priority: number = 1.0, tags: string[] = [], parentId?: string, depth?: number): string {
-    return this.memoryEngine.store(content, priority, tags, parentId, depth);
+    const id = this.memoryEngine.store(content, priority, tags, parentId, depth);
+    void this.runtime.dispatchStoredMemory(id, content, priority, tags);
+    return id;
   }
 
   /**

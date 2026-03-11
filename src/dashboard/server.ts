@@ -9,6 +9,7 @@ import type { MemoryEngine } from '../engines/memory.js';
 import { podNetwork } from '../engines/pod-network.js';
 import { ClientRegistry } from '../engines/client-registry.js';
 import type { SubAgentRuntime } from '../phantom/runtime.js';
+import { RuntimeRegistry } from '../engines/runtime-registry.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -112,6 +113,7 @@ export class DashboardServer {
     private adaptersProvider?: () => Adapter[];
     private clientRegistryProvider?: () => ClientRegistry | undefined;
     private repoRoot: string;
+    private runtimeRegistry: RuntimeRegistry;
     private dashboardUrl: string | null = null;
     private dashboardMode: 'idle' | 'bound' | 'reused' = 'idle';
     private activePort: number | null = null;
@@ -124,6 +126,7 @@ export class DashboardServer {
         this.adaptersProvider = options.adaptersProvider;
         this.clientRegistryProvider = options.clientRegistryProvider;
         this.repoRoot = options.repoRoot ?? process.cwd();
+        this.runtimeRegistry = new RuntimeRegistry();
         this.server = http.createServer((req, res) => {
             void this.requestHandler(req, res);
         });
@@ -229,6 +232,26 @@ export class DashboardServer {
         if (req.method === 'GET' && url.pathname === '/api/runs') {
             const limit = parseInt(url.searchParams.get('limit') || '20', 10);
             this.respondJson(res, this.getRuntime()?.listRuns(limit) ?? []);
+            return;
+        }
+
+        if (req.method === 'GET' && url.pathname === '/api/runtimes') {
+            this.respondJson(res, this.runtimeRegistry.list());
+            return;
+        }
+
+        if (req.method === 'GET' && url.pathname === '/api/usage') {
+            const runtimes = this.runtimeRegistry.list();
+            const requestedRuntimeId = url.searchParams.get('runtimeId') || this.getRuntime()?.getRuntimeId() || runtimes[0]?.runtimeId;
+            const selected = requestedRuntimeId
+                ? runtimes.find((runtime) => runtime.runtimeId === requestedRuntimeId) ?? this.runtimeRegistry.read(requestedRuntimeId)
+                : undefined;
+            this.respondJson(res, selected ?? {
+                runtimeId: requestedRuntimeId ?? null,
+                health: 'stale',
+                usage: {},
+                libraries: {},
+            });
             return;
         }
 
@@ -835,6 +858,7 @@ export class DashboardServer {
         const memory = this.getMemory();
         const clientRegistry = this.getClientRegistry();
         const podSnapshot = podNetwork.getDashboardSnapshot(20);
+        const runtimes = this.runtimeRegistry.list();
 
         let packageVersion = 'unknown';
         // Try nexus-prime's own package.json first (works when installed as npm package)
@@ -872,7 +896,11 @@ export class DashboardServer {
                 stream: this.clients.size > 0 ? 'connected' : 'idle',
                 subscribers: this.clients.size,
             },
-            runtime: runtime?.getHealth() ?? { runtime: 'unavailable' },
+            runtime: {
+                ...(runtime?.getHealth() ?? { runtime: 'unavailable' }),
+                runtimeCount: runtimes.length,
+                selectedRuntimeId: runtime?.getRuntimeId() ?? runtimes[0]?.runtimeId ?? null,
+            },
             memory: memory?.getStats() ?? { prefrontal: 0, hippocampus: 0, cortex: 0, totalLinks: 0, oldestEntry: null, topTags: [] },
             pod: {
                 workers: podSnapshot.activeWorkers.length,

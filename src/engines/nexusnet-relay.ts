@@ -26,12 +26,24 @@ export interface NexusNetMessage {
     ttl: number;            // seconds
 }
 
+export interface NexusNetRelayStatus {
+    configured: boolean;
+    mode: 'live' | 'degraded';
+    gistId?: string;
+    lastError?: string;
+    lastSyncAt?: number;
+    lastPublishAt?: number;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // NexusNet Relay
 // ─────────────────────────────────────────────────────────────────────────────
 
 export class NexusNetRelay {
     private readonly sourceId: string;
+    private lastError?: string;
+    private lastSyncAt?: number;
+    private lastPublishAt?: number;
 
     constructor() {
         // In a real system this would persist or be tied to install ID
@@ -42,14 +54,25 @@ export class NexusNetRelay {
         const token = process.env.GITHUB_TOKEN;
         const gistId = process.env.NEXUSNET_GIST_ID;
 
-        // For MVP, if missing, we drop to a local mock mode
         return { token, gistId, authReady: !!(token && gistId) };
+    }
+
+    getStatus(): NexusNetRelayStatus {
+        const config = this.getConfig();
+        return {
+            configured: config.authReady,
+            mode: config.authReady ? 'live' : 'degraded',
+            gistId: config.gistId,
+            lastError: this.lastError,
+            lastSyncAt: this.lastSyncAt,
+            lastPublishAt: this.lastPublishAt,
+        };
     }
 
     /**
      * Publish a message to the shared Gist network.
      */
-    async publish(type: NexusNetMessage['type'], payload: NexusNetMessage['payload'], ttl: number = 86400): Promise<{ id: string; bytes: number }> {
+    async publish(type: NexusNetMessage['type'], payload: NexusNetMessage['payload'], ttl: number = 86400): Promise<{ id: string; bytes: number; configured: boolean; mode: NexusNetRelayStatus['mode'] }> {
         const message: NexusNetMessage = {
             id: randomUUID(),
             type,
@@ -64,8 +87,8 @@ export class NexusNetRelay {
         const bytes = Buffer.byteLength(jsonString, 'utf8');
 
         if (!config.authReady) {
-            console.error('[NexusNet] GITHUB_TOKEN or NEXUSNET_GIST_ID missing. Mock publishing.');
-            return { id: message.id, bytes };
+            this.lastError = 'GITHUB_TOKEN or NEXUSNET_GIST_ID missing';
+            return { id: message.id, bytes, configured: false, mode: 'degraded' };
         }
 
         try {
@@ -107,9 +130,11 @@ export class NexusNetRelay {
 
             if (!updateResponse.ok) throw new Error(`Update failed: ${updateResponse.statusText}`);
 
-            return { id: message.id, bytes };
+            this.lastError = undefined;
+            this.lastPublishAt = Date.now();
+            return { id: message.id, bytes, configured: true, mode: 'live' };
         } catch (error: any) {
-            console.error(`[NexusNet] Publish Failed:`, error.message);
+            this.lastError = String(error?.message ?? error);
             throw new Error(`Failed to publish to NexusNet: ${error.message}`);
         }
     }
@@ -121,7 +146,7 @@ export class NexusNetRelay {
         const config = this.getConfig();
 
         if (!config.authReady) {
-            console.error('[NexusNet] GITHUB_TOKEN or NEXUSNET_GIST_ID missing. Mock syncing.');
+            this.lastError = 'GITHUB_TOKEN or NEXUSNET_GIST_ID missing';
             return [];
         }
 
@@ -142,10 +167,14 @@ export class NexusNetRelay {
 
             // Filter out our own messages and expired ones
             const now = Date.now();
+            this.lastError = undefined;
+            this.lastSyncAt = now;
             return messages.filter(m => m.sourceId !== this.sourceId && (now - m.timestamp < m.ttl * 1000));
         } catch (error: any) {
-            console.error(`[NexusNet] Sync Failed:`, error.message);
+            this.lastError = String(error?.message ?? error);
             throw new Error(`Failed to sync from NexusNet: ${error.message}`);
         }
     }
 }
+
+export const nexusNetRelay = new NexusNetRelay();
