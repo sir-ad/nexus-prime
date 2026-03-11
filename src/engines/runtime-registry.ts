@@ -53,6 +53,73 @@ export interface RuntimeLatestRunSnapshot {
     updatedAt: number;
 }
 
+export interface RuntimeTokenRunSnapshot {
+    runId: string;
+    goal: string;
+    timestamp: number;
+    grossInputTokens: number;
+    compressedTokens: number;
+    savedTokens: number;
+    forwardedTokens: number;
+    compressionPct: number;
+    byPhase: Record<string, number>;
+    bySubsystem: Record<string, number>;
+}
+
+export interface RuntimeTokenSummarySnapshot {
+    grossInputTokens: number;
+    compressedTokens: number;
+    savedTokens: number;
+    forwardedTokens: number;
+    compressionPct: number;
+    totalRuns: number;
+    totalEvents: number;
+    byPhase: Record<string, number>;
+    bySubsystem: Record<string, number>;
+    timeline: RuntimeTokenRunSnapshot[];
+    lastUpdatedAt?: number;
+}
+
+export interface RuntimeOrchestrationSnapshot {
+    sessionId: string;
+    lastPrompt: string;
+    taskType: string;
+    riskClass: string;
+    mode: 'single-pass' | 'bounded-swarm' | 'continuation-capable';
+    phases: string[];
+    objectiveHistory: string[];
+    selectedCrew?: string;
+    selectedSpecialists: string[];
+    selectedSkills: string[];
+    selectedWorkflows: string[];
+    selectedHooks: string[];
+    selectedAutomations: string[];
+    repeatedFailures: number;
+    continuationDepth: number;
+    latestSessionDNA?: {
+        sessionId: string;
+        timestamp: number;
+        handoverScore: number;
+    };
+    lastUpdatedAt: number;
+}
+
+export interface RuntimePrimaryClientSnapshot {
+    clientId: string;
+    displayName: string;
+    state: 'primaryActive' | 'active' | 'idle' | 'installed' | 'offline';
+    source: string;
+    confidence: number;
+    evidence: string[];
+    lastSeen?: number;
+}
+
+export interface RuntimeClientsSnapshot {
+    primary?: RuntimePrimaryClientSnapshot;
+    detected: RuntimePrimaryClientSnapshot[];
+    lastUpdatedAt: number;
+}
+
 export interface RuntimeRegistrySnapshot {
     runtimeId: string;
     pid: number;
@@ -65,6 +132,9 @@ export interface RuntimeRegistrySnapshot {
     usage: Record<RuntimeUsageCategory, RuntimeUsageEntry>;
     latestRun?: RuntimeLatestRunSnapshot;
     federation?: RuntimeFederationUsageSnapshot;
+    tokens?: RuntimeTokenSummarySnapshot;
+    orchestration?: RuntimeOrchestrationSnapshot;
+    clients?: RuntimeClientsSnapshot;
 }
 
 export interface ListedRuntimeSnapshot extends RuntimeRegistrySnapshot {
@@ -86,6 +156,21 @@ export function createEmptyUsageState(): Record<RuntimeUsageCategory, RuntimeUsa
         automations: { status: 'unused' },
         governance: { status: 'unused' },
         federation: { status: 'unused' },
+    };
+}
+
+export function createEmptyTokenSummary(): RuntimeTokenSummarySnapshot {
+    return {
+        grossInputTokens: 0,
+        compressedTokens: 0,
+        savedTokens: 0,
+        forwardedTokens: 0,
+        compressionPct: 0,
+        totalRuns: 0,
+        totalEvents: 0,
+        byPhase: {},
+        bySubsystem: {},
+        timeline: [],
     };
 }
 
@@ -127,6 +212,7 @@ export class RuntimeRegistry {
             return {
                 ...parsed,
                 usage: { ...createEmptyUsageState(), ...(parsed.usage ?? {}) },
+                tokens: { ...createEmptyTokenSummary(), ...(parsed.tokens ?? {}) },
             };
         } catch {
             return undefined;
@@ -137,6 +223,7 @@ export class RuntimeRegistry {
         const normalized: RuntimeRegistrySnapshot = {
             ...snapshot,
             usage: { ...createEmptyUsageState(), ...(snapshot.usage ?? {}) },
+            tokens: { ...createEmptyTokenSummary(), ...(snapshot.tokens ?? {}) },
         };
         fs.writeFileSync(this.snapshotPath(snapshot.runtimeId), JSON.stringify(normalized, null, 2), 'utf8');
         return normalized;

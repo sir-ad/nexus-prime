@@ -112,6 +112,9 @@ function assertHealthContract(health: any, address: string): void {
   assert.strictEqual(health.capabilities.hooks, true, 'hooks capability should be advertised');
   assert.strictEqual(health.capabilities.automations, true, 'automations capability should be advertised');
   assert.strictEqual(health.capabilities.federation, true, 'federation capability should be advertised');
+  assert.strictEqual(health.capabilities.orchestration, true, 'orchestration capability should be advertised');
+  assert.strictEqual(health.capabilities.tokens, true, 'tokens capability should be advertised');
+  assert.strictEqual(health.capabilities.clientPrimary, true, 'primary client capability should be advertised');
 }
 
 async function test() {
@@ -126,17 +129,21 @@ async function test() {
   process.env.NEXUS_DASHBOARD_DISABLED = '0';
   process.env.NEXUS_STATE_DIR = stateDir;
   process.env.NEXUS_MEMORY_DB_PATH = memoryDbPath;
+  process.env.CODEX_HOME = path.join(stateDir, '.codex');
+  fs.mkdirSync(process.env.CODEX_HOME, { recursive: true });
 
   const { createSubAgentRuntime } = await import('../dist/phantom/index.js');
   const { createMemoryEngine } = await import('../dist/engines/memory.js');
   const { podNetwork } = await import('../dist/engines/pod-network.js');
   const { ClientRegistry } = await import('../dist/engines/client-registry.js');
+  const { createOrchestrator } = await import('../dist/engines/orchestrator.js');
+  const { SessionDNAManager } = await import('../dist/engines/session-dna.js');
   const { DashboardServer } = await import('../dist/dashboard/server.js');
 
   const memory = createMemoryEngine(memoryDbPath);
   const clientRegistry = new ClientRegistry();
   clientRegistry.recordHeartbeat('codex', { source: 'manual' });
-  clientRegistry.recordHeartbeat('claude-code', { source: 'manual' });
+  clientRegistry.recordDisconnect('claude-code', { source: 'manual' });
 
   const rootMemoryId = memory.store('Dashboard smoke memory root linked to exec_dashboard_run', 0.93, ['#dashboard', '#memory']);
   memory.store('Dashboard smoke child snapshot linked to workflow_dashboard_demo', 0.82, ['#dashboard', '#timeline'], rootMemoryId, 1);
@@ -144,6 +151,8 @@ async function test() {
 
   const runtime = createSubAgentRuntime({ repoRoot, memory, artifactsRoot: path.join(stateDir, 'runs-primary') });
   const runtimeTwo = createSubAgentRuntime({ repoRoot, memory, artifactsRoot: path.join(stateDir, 'runs-secondary') });
+  const orchestrator = createOrchestrator(memory, runtime, clientRegistry, new SessionDNAManager('dashboard-session-primary', path.join(stateDir, 'sessions')), repoRoot);
+  const orchestratorTwo = createOrchestrator(memory, runtimeTwo, clientRegistry, new SessionDNAManager('dashboard-session-secondary', path.join(stateDir, 'sessions')), repoRoot);
   await runtime.run({
     goal: 'Create dashboard smoke artifacts',
     files: ['README.md', 'package.json'],
@@ -166,8 +175,9 @@ async function test() {
   });
   await runtimeTwo.storeMemoryAndDispatch('Dashboard secondary runtime memory store', 0.91, ['#dashboard', '#runtime-two']);
 
-  const makeServer = (runtimeProvider: any) => new DashboardServer({
+  const makeServer = (runtimeProvider: any, orchestratorProvider: any) => new DashboardServer({
     runtimeProvider,
+    orchestratorProvider,
     memoryProvider: () => memory,
     adaptersProvider: () => [],
     clientRegistryProvider: () => clientRegistry,
@@ -177,7 +187,7 @@ async function test() {
   const occupied = await startIncompatibleServer(port);
 
   try {
-    const fallbackServer = makeServer(() => runtime);
+    const fallbackServer = makeServer(() => runtime, () => orchestrator);
     fallbackServer.start();
     const fallbackAddress = await waitForAddress(fallbackServer);
     assert.notStrictEqual(fallbackAddress, `http://127.0.0.1:${port}`, 'server should move to a new port when default port is occupied by an incompatible listener');
@@ -191,8 +201,8 @@ async function test() {
     await closeHttpServer(occupied);
   }
 
-  const primaryServer = makeServer(() => runtime);
-  const reuseServer = makeServer(() => runtimeTwo);
+  const primaryServer = makeServer(() => runtime, () => orchestrator);
+  const reuseServer = makeServer(() => runtimeTwo, () => orchestratorTwo);
   primaryServer.start();
 
   try {
@@ -213,6 +223,10 @@ async function test() {
       runtimesRes,
       usagePrimaryRes,
       usageSecondaryRes,
+      orchestrationRes,
+      tokenSummaryRes,
+      tokenTimelineRes,
+      primaryClientRes,
       specialistsRes,
       crewsRes,
       backendsRes,
@@ -235,6 +249,10 @@ async function test() {
       fetch(`${primaryAddress}/api/runtimes`),
       fetch(`${primaryAddress}/api/usage?runtimeId=${encodeURIComponent(runtime.getRuntimeId())}`),
       fetch(`${primaryAddress}/api/usage?runtimeId=${encodeURIComponent(runtimeTwo.getRuntimeId())}`),
+      fetch(`${primaryAddress}/api/orchestration/session`),
+      fetch(`${primaryAddress}/api/tokens/summary`),
+      fetch(`${primaryAddress}/api/tokens/timeline?limit=5`),
+      fetch(`${primaryAddress}/api/clients/primary`),
       fetch(`${primaryAddress}/api/specialists`),
       fetch(`${primaryAddress}/api/crews`),
       fetch(`${primaryAddress}/api/backends`),
@@ -258,6 +276,10 @@ async function test() {
     const runtimes = await runtimesRes.json();
     const usagePrimary = await usagePrimaryRes.json();
     const usageSecondary = await usageSecondaryRes.json();
+    const orchestration = await orchestrationRes.json();
+    const tokenSummary = await tokenSummaryRes.json();
+    const tokenTimeline = await tokenTimelineRes.json();
+    const primaryClient = await primaryClientRes.json();
     const specialists = await specialistsRes.json();
     const crews = await crewsRes.json();
     const backends = await backendsRes.json();
@@ -304,6 +326,11 @@ async function test() {
     assert.strictEqual(usagePrimary.usage.skills.status, 'used', 'primary runtime usage should record skill usage');
     assert.strictEqual(usageSecondary.usage.plan.status, 'used', 'secondary runtime usage should record planning usage');
     assert.strictEqual(usageSecondary.usage.memories.status, 'used', 'secondary runtime usage should record memory usage');
+    assert.ok(orchestration.sessionId, 'orchestration session API should expose a session id');
+    assert.ok(tokenSummary.totalRuns > 0, 'tokens summary API should expose persisted run telemetry');
+    assert.ok(Array.isArray(tokenTimeline) && tokenTimeline.length > 0, 'tokens timeline API should expose recent runs');
+    assert.strictEqual(primaryClient.clientId, 'codex', 'primary client API should prefer Codex when CODEX env is active');
+    assert.strictEqual(primaryClient.state, 'primaryActive', 'primary client API should expose primary-active status');
     assert.ok(Array.isArray(specialists) && specialists.length > 20, 'specialists API should return the imported roster');
     assert.ok(Array.isArray(crews) && crews.length > 0, 'crews API should return crew templates');
     assert.ok(backends.memory && backends.compression && backends.dsl, 'backends API should return grouped catalogs');
@@ -316,7 +343,8 @@ async function test() {
     assert.ok(memoryAudit.findings.length > 0, 'memory audit API should expose governance findings');
     assert.ok(Array.isArray(memoryNetwork.nodes) && memoryNetwork.nodes.length > 0, 'memory network API should return graph nodes');
     assert.ok(Array.isArray(pod.messages) && pod.messages.length > 0, 'pod API should return messages');
-    assert.ok(Array.isArray(clients) && clients.some((client: any) => client.clientId === 'codex' && client.state === 'active'), 'client API should surface explicit heartbeat clients');
+    assert.ok(Array.isArray(clients) && clients.some((client: any) => client.clientId === 'codex' && client.state === 'primaryActive'), 'client API should mark Codex as the primary active client');
+    assert.ok(Array.isArray(clients) && clients.some((client: any) => client.clientId === 'claude-code' && client.state === 'idle'), 'client API should keep stale Claude presence below the active Codex session');
     assert.ok(Array.isArray(federation.knownPeers), 'federation API should return peer inventory');
     assert.ok(federation.relay && typeof federation.relay.configured === 'boolean', 'federation API should expose relay status');
     assert.ok(Array.isArray(hooks) && hooks.some((hook: any) => hook.trigger), 'hooks API should expose trigger metadata');
@@ -382,6 +410,7 @@ async function test() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({}),
     });
+    const tokenRun = await fetch(`${primaryAddress}/api/tokens/runs/${encodeURIComponent(runs[0].runId)}`);
 
     assert.strictEqual(deploySkill.status, 200, 'skill deploy route should succeed');
     assert.strictEqual(deployWorkflow.status, 200, 'workflow deploy route should succeed');
@@ -391,11 +420,16 @@ async function test() {
     assert.strictEqual(executeRun.status, 201, 'runtime execute route should create a run');
     assert.strictEqual(runAutomation.status, 201, 'automation run route should create a run');
     assert.strictEqual(reconnectClient.status, 200, 'client reconnect route should succeed');
+    assert.strictEqual(tokenRun.status, 200, 'token run drilldown route should resolve persisted per-run telemetry');
 
     const planned = await planRun.json();
+    const executed = await executeRun.json();
+    const tokenRunPayload = await tokenRun.json();
     assert.ok(planned.selectedCrew?.crewId, 'runtime plan should expose selected crew');
     assert.ok(Array.isArray(planned.selectedSpecialists), 'runtime plan should expose specialists');
     assert.ok(Array.isArray(planned.ledger) && planned.ledger.length > 0, 'runtime plan should expose live ledger rows');
+    assert.ok(executed.plannerState?.selectedCrew?.crewId, 'dashboard execute should route through the orchestrator and return planner state');
+    assert.strictEqual(tokenRunPayload.runId, runs[0].runId, 'token run drilldown should match the requested run');
 
     console.log('✅ Dashboard compatibility, APIs, topology shell, and control plane are healthy\n');
 
@@ -415,6 +449,7 @@ async function test() {
     delete process.env.NEXUS_DASHBOARD_DISABLED;
     delete process.env.NEXUS_STATE_DIR;
     delete process.env.NEXUS_MEMORY_DB_PATH;
+    delete process.env.CODEX_HOME;
   }
 }
 

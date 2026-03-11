@@ -5,12 +5,12 @@ import { execSync } from 'child_process';
 import type { Adapter } from '../core/types.js';
 import { nexusEventBus } from './event-bus.js';
 
-export type ClientStatus = 'active' | 'ready' | 'standby' | 'inferred' | 'offline';
-export type ClientSource = 'adapter-heartbeat' | 'manual' | 'heuristic' | 'none';
+export type ClientStatus = 'primaryActive' | 'active' | 'idle' | 'installed' | 'offline';
+export type ClientSource = 'adapter-heartbeat' | 'manual' | 'env' | 'process' | 'recent-session' | 'heuristic' | 'none';
 
 export interface ClientHeartbeatInput {
     displayName?: string;
-    source?: Exclude<ClientSource, 'heuristic' | 'none'>;
+    source?: 'adapter-heartbeat' | 'manual';
     metadata?: Record<string, unknown>;
 }
 
@@ -39,7 +39,7 @@ interface ClientDescriptor {
 
 interface ClientHeartbeatState {
     displayName: string;
-    source: Exclude<ClientSource, 'heuristic' | 'none'>;
+    source: 'adapter-heartbeat' | 'manual';
     metadata: Record<string, unknown>;
     lastHeartbeat?: number;
     lastDisconnect?: number;
@@ -97,7 +97,7 @@ export class ClientRegistry {
     recordHeartbeat(clientKey: string, input: ClientHeartbeatInput = {}): ClientRecord {
         const descriptor = this.resolveDescriptor(clientKey);
         const clientId = descriptor.clientId;
-        const previous = this.resolveState(this.heartbeats.get(clientId));
+        const previous = this.resolveExplicitState(this.heartbeats.get(clientId));
         const current = this.heartbeats.get(clientId);
         const nextState: ClientHeartbeatState = {
             displayName: input.displayName ?? descriptor.displayName,
@@ -134,7 +134,7 @@ export class ClientRegistry {
         const descriptor = this.resolveDescriptor(clientKey);
         const clientId = descriptor.clientId;
         const current = this.heartbeats.get(clientId);
-        const previous = this.resolveState(current);
+        const previous = this.resolveExplicitState(current);
 
         this.heartbeats.set(clientId, {
             displayName: input.displayName ?? current?.displayName ?? descriptor.displayName,
@@ -203,26 +203,36 @@ export class ClientRegistry {
             }
         }
 
-        return records.sort((a, b) => {
-            const rank = (state: ClientStatus) => ({ active: 0, ready: 1, standby: 2, inferred: 3, offline: 4 }[state]);
-            return rank(a.state) - rank(b.state) || a.displayName.localeCompare(b.displayName);
-        });
+        const primary = this.getPrimaryCandidate(records);
+        const normalized = records.map((record) => (
+            primary && record.clientId === primary.clientId && record.state !== 'offline'
+                ? { ...record, state: 'primaryActive' as const }
+                : record
+        ));
+
+        return normalized.sort((a, b) => this.rankState(a.state) - this.rankState(b.state)
+            || this.rankSource(a.source) - this.rankSource(b.source)
+            || (b.lastSeen ?? 0) - (a.lastSeen ?? 0)
+            || a.displayName.localeCompare(b.displayName));
     }
 
     getClient(clientKey: string, adapters: Adapter[] = []): ClientRecord {
-        if (adapters.length) {
-            this.syncAdapters(adapters);
-        }
-        const descriptor = this.resolveDescriptor(clientKey);
-        return this.buildRecord(descriptor);
+        const requested = this.resolveDescriptor(clientKey).clientId;
+        return this.listClients(adapters).find((record) => record.clientId === requested) ?? this.buildRecord(this.resolveDescriptor(clientKey));
+    }
+
+    getPrimaryClient(adapters: Adapter[] = []): ClientRecord | undefined {
+        const records = this.listClients(adapters);
+        return records.find((record) => record.state === 'primaryActive')
+            ?? records.find((record) => record.state !== 'offline');
     }
 
     private buildRecord(descriptor: ClientDescriptor): ClientRecord {
         const heartbeat = this.heartbeats.get(descriptor.clientId);
-        const explicitState = this.resolveState(heartbeat);
+        const explicitState = this.resolveExplicitState(heartbeat);
         const heuristic = this.detectHeuristic(descriptor);
 
-        if (explicitState === 'active' || explicitState === 'ready' || explicitState === 'standby') {
+        if (explicitState === 'active' || explicitState === 'idle') {
             return {
                 clientId: descriptor.clientId,
                 displayName: heartbeat?.displayName ?? descriptor.displayName,
@@ -234,7 +244,7 @@ export class ClientRegistry {
                 lastExplicitState: heartbeat?.lastDisconnect && (!heartbeat.lastHeartbeat || heartbeat.lastDisconnect > heartbeat.lastHeartbeat)
                     ? 'disconnected'
                     : 'connected',
-                confidence: explicitState === 'active' ? 1 : explicitState === 'ready' ? 0.9 : 0.7,
+                confidence: explicitState === 'active' ? 1 : 0.78,
                 evidence: heuristic.evidence,
                 metadata: { ...(heartbeat?.metadata ?? {}), heuristic: heuristic.evidence },
             };
@@ -244,7 +254,7 @@ export class ClientRegistry {
             clientId: descriptor.clientId,
             displayName: descriptor.displayName,
             state: heuristic.state,
-            source: heuristic.state === 'offline' ? 'none' : 'heuristic',
+            source: heuristic.source,
             inferred: heuristic.state !== 'offline',
             lastHeartbeat: heartbeat?.lastHeartbeat,
             lastSeen: heuristic.lastSeen,
@@ -258,24 +268,23 @@ export class ClientRegistry {
         };
     }
 
-    private resolveState(heartbeat?: ClientHeartbeatState): ClientStatus {
+    private resolveExplicitState(heartbeat?: ClientHeartbeatState): Exclude<ClientStatus, 'primaryActive' | 'installed'> | 'offline' {
         if (!heartbeat) return 'offline';
         const now = Date.now();
         if (heartbeat.lastDisconnect && (!heartbeat.lastHeartbeat || heartbeat.lastDisconnect > heartbeat.lastHeartbeat)) {
             const sinceDisconnect = now - heartbeat.lastDisconnect;
-            if (sinceDisconnect < 30 * 60 * 1000) return 'standby';
-            return 'offline';
+            return sinceDisconnect < 6 * 60 * 60 * 1000 ? 'idle' : 'offline';
         }
         if (!heartbeat.lastHeartbeat) return 'offline';
         const age = now - heartbeat.lastHeartbeat;
         if (age < 3 * 60 * 1000) return 'active';
-        if (age < 30 * 60 * 1000) return 'ready';
-        if (age < 6 * 60 * 60 * 1000) return 'standby';
+        if (age < 6 * 60 * 60 * 1000) return 'idle';
         return 'offline';
     }
 
     private detectHeuristic(descriptor: ClientDescriptor): {
-        state: ClientStatus;
+        state: Exclude<ClientStatus, 'primaryActive'>;
+        source: ClientSource;
         confidence: number;
         evidence: string[];
         lastSeen?: number;
@@ -283,15 +292,9 @@ export class ClientRegistry {
         const evidence: string[] = [];
         let lastSeen = 0;
 
-        // Check environment variables for direct signals
-        if (descriptor.clientId === 'claude-code' && (process.env.CLAUDE_CODE || process.env.CLAUDE_SESSION_ID || process.env.CLAUDE_PROJECT_DIR)) {
-            evidence.push('env:CLAUDE detected');
-        }
-        if (descriptor.clientId === 'codex' && (process.env.CODEX_HOME || process.env.CODEX_SESSION)) {
-            evidence.push('env:CODEX detected');
-        }
-        if (descriptor.clientId === 'opencode' && process.env.OPENCODE_HOME) {
-            evidence.push('env:OPENCODE detected');
+        const envSignal = this.detectEnvSignal(descriptor.clientId);
+        if (envSignal) {
+            evidence.push(envSignal);
         }
 
         const processOutput = this.readProcessSnapshot();
@@ -299,31 +302,117 @@ export class ClientRegistry {
             evidence.push('process marker detected');
         }
 
+        let configPresent = false;
         for (const configPath of descriptor.configPaths) {
             if (fs.existsSync(configPath)) {
+                configPresent = true;
                 evidence.push(`config:${path.basename(configPath)}`);
                 lastSeen = Math.max(lastSeen, this.safeMtime(configPath));
             }
         }
 
+        let recentSession = false;
         for (const recentPath of descriptor.recentPaths) {
             if (fs.existsSync(recentPath)) {
-                evidence.push(`recent:${path.basename(recentPath)}`);
-                lastSeen = Math.max(lastSeen, this.walkRecentMtime(recentPath));
+                const recentMtime = this.walkRecentMtime(recentPath);
+                if (recentMtime > 0) {
+                    recentSession = true;
+                    evidence.push(`recent:${path.basename(recentPath)}`);
+                    lastSeen = Math.max(lastSeen, recentMtime);
+                }
             }
         }
 
-        if (!evidence.length) {
-            return { state: 'offline', confidence: 0, evidence: [] };
+        if (envSignal) {
+            return {
+                state: 'active',
+                source: 'env',
+                confidence: 0.96,
+                evidence,
+                lastSeen: Date.now(),
+            };
         }
 
-        const hasEnvSignal = evidence.some((e) => e.startsWith('env:'));
-        return {
-            state: 'inferred',
-            confidence: hasEnvSignal ? 0.88 : evidence.includes('process marker detected') ? 0.76 : 0.52,
-            evidence,
-            lastSeen: lastSeen || undefined,
-        };
+        if (evidence.includes('process marker detected')) {
+            return {
+                state: 'idle',
+                source: 'process',
+                confidence: 0.74,
+                evidence,
+                lastSeen: Date.now(),
+            };
+        }
+
+        if (recentSession) {
+            return {
+                state: 'idle',
+                source: 'recent-session',
+                confidence: 0.63,
+                evidence,
+                lastSeen: lastSeen || undefined,
+            };
+        }
+
+        if (configPresent) {
+            return {
+                state: 'installed',
+                source: 'heuristic',
+                confidence: 0.42,
+                evidence,
+                lastSeen: lastSeen || undefined,
+            };
+        }
+
+        return { state: 'offline', source: 'none', confidence: 0, evidence: [] };
+    }
+
+    private getPrimaryCandidate(records: ClientRecord[]): ClientRecord | undefined {
+        const preferredClientId = this.detectCurrentClientId();
+        const visible = records.filter((record) => record.state !== 'offline');
+        if (preferredClientId) {
+            const preferred = visible.find((record) => record.clientId === preferredClientId);
+            if (preferred) return preferred;
+        }
+        return [...visible].sort((a, b) => this.rankState(a.state) - this.rankState(b.state)
+            || this.rankSource(a.source) - this.rankSource(b.source)
+            || (b.lastSeen ?? 0) - (a.lastSeen ?? 0)
+            || a.displayName.localeCompare(b.displayName))[0];
+    }
+
+    private detectCurrentClientId(): string | undefined {
+        if (process.env.CODEX_HOME || process.env.CODEX_SESSION) return 'codex';
+        if (process.env.CLAUDE_CODE || process.env.CLAUDE_SESSION_ID || process.env.CLAUDE_PROJECT_DIR) return 'claude-code';
+        if (process.env.OPENCODE_HOME) return 'opencode';
+        if (process.env.OPENCLAW_HOME || process.env.ANTIGRAVITY_HOME) return 'antigravity';
+        if (process.env.MCP_CLIENT_NAME) {
+            return this.resolveDescriptor(process.env.MCP_CLIENT_NAME).clientId;
+        }
+        try {
+            const ps = execSync(`ps -p ${process.ppid} -o comm=`, { encoding: 'utf8', timeout: 400 }).trim().toLowerCase();
+            if (ps.includes('codex')) return 'codex';
+            if (ps.includes('claude')) return 'claude-code';
+            if (ps.includes('opencode')) return 'opencode';
+            if (ps.includes('antigravity') || ps.includes('openclaw')) return 'antigravity';
+        } catch {
+            // ignore
+        }
+        return undefined;
+    }
+
+    private detectEnvSignal(clientId: string): string | undefined {
+        if (clientId === 'codex' && (process.env.CODEX_HOME || process.env.CODEX_SESSION)) {
+            return 'env:CODEX detected';
+        }
+        if (clientId === 'claude-code' && (process.env.CLAUDE_CODE || process.env.CLAUDE_SESSION_ID || process.env.CLAUDE_PROJECT_DIR)) {
+            return 'env:CLAUDE detected';
+        }
+        if (clientId === 'opencode' && process.env.OPENCODE_HOME) {
+            return 'env:OPENCODE detected';
+        }
+        if (clientId === 'antigravity' && (process.env.OPENCLAW_HOME || process.env.ANTIGRAVITY_HOME)) {
+            return 'env:ANTIGRAVITY detected';
+        }
+        return undefined;
     }
 
     private readProcessSnapshot(): string {
@@ -384,6 +473,28 @@ export class ClientRegistry {
         } catch {
             return 0;
         }
+    }
+
+    private rankState(state: ClientStatus): number {
+        return {
+            primaryActive: 0,
+            active: 1,
+            idle: 2,
+            installed: 3,
+            offline: 4,
+        }[state];
+    }
+
+    private rankSource(source: ClientSource): number {
+        return {
+            manual: 0,
+            'adapter-heartbeat': 1,
+            env: 2,
+            process: 3,
+            'recent-session': 4,
+            heuristic: 5,
+            none: 6,
+        }[source];
     }
 }
 

@@ -62,7 +62,18 @@ export interface NexusEventPayloads {
     'memory.store': { id: string; priority: number; tags: string[]; tier: string };
     'memory.recall': { query: string; count: number };
     'pod.signal': { workerId: string; type: string; content: string; confidence?: number; tags?: string[] };
-    'tokens.optimized': { savings: number; pct: number; files: number };
+    'tokens.optimized': {
+        savings: number;
+        pct: number;
+        files: number;
+        inputTokens?: number;
+        outputTokens?: number;
+        compressionRatio?: number;
+        runId?: string;
+        sessionId?: string;
+        phase?: string;
+        subsystem?: string;
+    };
     'phantom.worker.start': { workerId: string; approach: string; goal: string };
     'phantom.worker.complete': { workerId: string; confidence: number };
     'phantom.merge.complete': { workerId: string; confidence: number };

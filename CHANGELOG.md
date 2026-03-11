@@ -2,6 +2,26 @@
 
 All notable changes to Nexus Prime will be documented in this file.
 
+## [3.8.0] - 2026-03-11
+
+### Added
+- **Autonomy Orchestrator**: Added an orchestrator-first control plane that classifies raw prompts, loads memory/session context, decomposes work, selects crews/specialists/skills/workflows/hooks/automations, and prepares the runtime package before execution.
+- **Primary MCP Entry Point**: Added `nexus_orchestrate` for bounded autonomous raw-prompt execution, plus read-only discovery APIs for `nexus_list_skills`, `nexus_list_workflows`, `nexus_list_hooks`, and `nexus_list_automations`.
+- **Persisted Orchestration Telemetry**: Added per-runtime orchestration snapshots, session state, token summaries, token timelines, and per-run token drilldowns in the runtime registry.
+- **Dashboard Control-Plane APIs**: Added `/api/orchestration/session`, `/api/tokens/summary`, `/api/tokens/timeline`, `/api/tokens/runs/:runId`, and `/api/clients/primary`.
+- **Release Notes Artifact**: Added release notes for this version under `releases/v3.8.0.md`.
+
+### Changed
+- **High-Level Execution Routing**: `NexusPrime.execute`, dashboard runtime execution, and orchestrator-backed flows now enter through the orchestrator instead of bypassing it straight into `runtime.run()`.
+- **Token Console Behavior**: The dashboard token meter now shows lifetime persisted compression totals immediately after restart and exposes a token analyzer drawer with subsystem, phase, and run breakdowns.
+- **Client Presence Model**: Connected ecosystem detection now uses explicit precedence so active Codex sessions outrank stale Claude footprints, while installed-but-idle clients remain visible.
+- **Agent Protocol Docs**: Rewrote `AGENTS.md` as an orchestrator-first operating manual with context-acquisition order, subsystem trigger guidance, task recipes, and worker context handoff rules.
+
+### Fixed
+- **Dashboard Truth Drift**: Shared dashboard hosts now resolve orchestration, token, and client state per selected runtime instead of leaking host-process truth across reused sessions.
+- **Token Event Type Drift**: Expanded the event-bus token payload contract so richer token telemetry no longer depends on untyped runtime/orchestrator emissions.
+- **Session Identity Access**: Added direct session-id access in Session DNA so orchestrator session state stays aligned with the active runtime handoff.
+
 ## [3.7.0] - 2026-03-11
 
 ### Added

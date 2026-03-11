@@ -167,19 +167,19 @@
         }
 
         .status-pill.live .dot,
+        .client-dot.primaryActive,
         .client-dot.active {
             background: var(--accent);
             box-shadow: 0 0 12px rgba(84, 255, 135, 0.55);
         }
 
         .status-pill.warn .dot,
-        .client-dot.ready {
+        .client-dot.idle {
             background: var(--amber);
             box-shadow: 0 0 10px rgba(255, 209, 77, 0.4);
         }
 
-        .client-dot.standby,
-        .client-dot.inferred {
+        .client-dot.installed {
             background: var(--blue);
             box-shadow: 0 0 10px rgba(61, 161, 255, 0.35);
         }
@@ -1052,17 +1052,17 @@
                         <div class="hero-metric">
                             <label>Gross Tokens</label>
                             <strong id="gross-tokens">0</strong>
-                            <div class="meta">Observed from token and CAS events</div>
+                            <div class="meta">Lifetime gross input from persisted run telemetry</div>
                         </div>
                         <div class="hero-metric">
                             <label>Tokens Saved</label>
                             <strong id="saved-tokens">0</strong>
-                            <div class="meta">Optimizer and CAS compression savings</div>
+                            <div class="meta">Saved by compression, recall, and selective reads</div>
                         </div>
                         <div class="hero-metric">
                             <label>Net Forwarded</label>
                             <strong id="net-tokens">0</strong>
-                            <div class="meta">Estimated after compression</div>
+                            <div class="meta">Forwarded into runtime + workers across all runs</div>
                         </div>
                         <div class="hero-metric">
                             <label>Memory Nodes</label>
@@ -1284,7 +1284,7 @@
 
     <script>
         const DASHBOARD_API_VERSION = '3';
-        const REQUIRED_CAPABILITIES = ['runs', 'memory', 'pod', 'clients', 'events', 'stream', 'specialists', 'crews', 'planner', 'hooks', 'automations', 'federation'];
+        const REQUIRED_CAPABILITIES = ['runs', 'memory', 'pod', 'clients', 'events', 'stream', 'specialists', 'crews', 'planner', 'hooks', 'automations', 'federation', 'orchestration', 'tokens', 'clientPrimary'];
 
         function createResourceState() {
             return { status: 'idle', error: '' };
@@ -1295,6 +1295,10 @@
             runtimes: [],
             usage: { health: 'stale', usage: {} },
             selectedRuntimeId: null,
+            orchestrationSession: null,
+            tokensSummary: null,
+            tokensTimeline: [],
+            primaryClient: null,
             skills: [],
             specialists: [],
             crews: [],
@@ -1326,6 +1330,9 @@
                 runs: createResourceState(),
                 runtimes: createResourceState(),
                 usage: createResourceState(),
+                orchestrationSession: createResourceState(),
+                tokensSummary: createResourceState(),
+                tokensTimeline: createResourceState(),
                 skills: createResourceState(),
                 specialists: createResourceState(),
                 crews: createResourceState(),
@@ -1337,6 +1344,7 @@
                 memoryQuarantine: createResourceState(),
                 pod: createResourceState(),
                 clients: createResourceState(),
+                primaryClient: createResourceState(),
                 federation: createResourceState(),
                 events: createResourceState(),
                 memoryDetail: createResourceState(),
@@ -1364,6 +1372,27 @@
                 url: '/api/skills',
                 assign(value) {
                     state.skills = Array.isArray(value) ? value : state.skills;
+                },
+            },
+            orchestrationSession: {
+                url: '/api/orchestration/session',
+                dynamic: true,
+                assign(value) {
+                    state.orchestrationSession = value || null;
+                },
+            },
+            tokensSummary: {
+                url: '/api/tokens/summary',
+                dynamic: true,
+                assign(value) {
+                    state.tokensSummary = value || null;
+                },
+            },
+            tokensTimeline: {
+                url: '/api/tokens/timeline?limit=20',
+                dynamic: true,
+                assign(value) {
+                    state.tokensTimeline = Array.isArray(value) ? value : [];
                 },
             },
             specialists: {
@@ -1434,8 +1463,16 @@
             },
             clients: {
                 url: '/api/clients',
+                dynamic: true,
                 assign(value) {
                     state.clients = Array.isArray(value) ? value : state.clients;
+                },
+            },
+            primaryClient: {
+                url: '/api/clients/primary',
+                dynamic: true,
+                assign(value) {
+                    state.primaryClient = value && Object.keys(value).length ? value : null;
                 },
             },
             federation: {
@@ -1470,14 +1507,14 @@
 
         const CATEGORY_RESOURCE_MAP = {
             memory: ['memory', 'memoryAudit', 'memoryQuarantine'],
-            tokens: ['events'],
+            tokens: ['tokensSummary', 'tokensTimeline', 'events'],
             runtime: ['runs', 'pod'],
             pod: ['pod'],
             skills: ['skills'],
             specialists: ['specialists'],
             crews: ['crews'],
             workflows: ['workflows'],
-            clients: ['clients'],
+            clients: ['clients', 'primaryClient'],
             hooks: ['hooks'],
             automations: ['automations'],
             shield: ['memoryAudit', 'memoryQuarantine'],
@@ -1531,8 +1568,8 @@
         }
 
         function stateClass(status) {
-            if (['merged', 'healthy', 'active', 'promoted', 'hot', 'connected', 'validated'].includes(status)) return 'good';
-            if (['ready', 'standby', 'rolled_back', 'inferred', 'staged', 'idle'].includes(status)) return 'warn';
+            if (['merged', 'healthy', 'primaryActive', 'active', 'promoted', 'hot', 'connected', 'validated'].includes(status)) return 'good';
+            if (['ready', 'standby', 'rolled_back', 'inferred', 'staged', 'idle', 'installed'].includes(status)) return 'warn';
             if (['revoked', 'failed', 'rejected', 'offline'].includes(status)) return 'bad';
             return 'info';
         }
@@ -1809,6 +1846,11 @@
                 automation: state.automations.find((item) => item.automationId === id),
                 client: state.clients.find((item) => item.clientId === id),
                 'federation-peer': state.federation.knownPeers?.find((item) => item.peerId === id),
+                'token-summary': {
+                    summary: state.tokensSummary,
+                    timeline: state.tokensTimeline,
+                    orchestration: state.orchestrationSession,
+                },
             };
 
             if (kind === 'pod-worker') return;
@@ -1824,12 +1866,13 @@
             const targets = resourceNames?.length
                 ? resourceNames.filter((name, index, list) => RESOURCE_LOADERS[name] && list.indexOf(name) === index)
                 : Object.keys(RESOURCE_LOADERS);
-            const orderedTargets = [
+            const staticTargets = [
                 ...targets.filter((name) => name === 'runtimes'),
-                ...targets.filter((name) => name !== 'runtimes' && name !== 'usage'),
+                ...targets.filter((name) => name !== 'runtimes' && !RESOURCE_LOADERS[name].dynamic),
             ];
-            const resources = orderedTargets.map((name) => [name, RESOURCE_LOADERS[name]]);
-            const results = await Promise.allSettled(resources.map(([, config]) => fetchJson(config.url)));
+            const dynamicTargets = targets.filter((name) => RESOURCE_LOADERS[name].dynamic);
+            const resources = staticTargets.map((name) => [name, RESOURCE_LOADERS[name]]);
+            const results = await Promise.allSettled(resources.map(([name, config]) => fetchJson(buildLoaderUrl(name, config))));
             let refreshed = false;
 
             results.forEach((result, index) => {
@@ -1843,17 +1886,14 @@
                 }
             });
 
-            if (targets.includes('usage') || !resourceNames) {
+            for (const name of dynamicTargets) {
                 try {
-                    const usageUrl = state.selectedRuntimeId
-                        ? `/api/usage?runtimeId=${encodeURIComponent(state.selectedRuntimeId)}`
-                        : '/api/usage';
-                    const usage = await fetchJson(usageUrl);
-                    RESOURCE_LOADERS.usage.assign(usage);
-                    setResourceStatus('usage', 'ready');
+                    const value = await fetchJson(buildLoaderUrl(name, RESOURCE_LOADERS[name]));
+                    RESOURCE_LOADERS[name].assign(value);
+                    setResourceStatus(name, 'ready');
                     refreshed = true;
                 } catch (error) {
-                    setResourceStatus('usage', 'error', normalizeError(error));
+                    setResourceStatus(name, 'error', normalizeError(error));
                 }
             }
 
@@ -1887,6 +1927,14 @@
             bar.classList.add('done');
             setTimeout(() => bar.classList.remove('done'), 600);
             render();
+        }
+
+        function buildLoaderUrl(name, config) {
+            if (!config?.dynamic || !state.selectedRuntimeId) {
+                return config.url;
+            }
+            const separator = config.url.includes('?') ? '&' : '?';
+            return `${config.url}${separator}runtimeId=${encodeURIComponent(state.selectedRuntimeId)}`;
         }
 
         let _refreshTimer = null;
@@ -1973,21 +2021,28 @@
         }
 
         function computeTokenMetrics() {
+            const summary = state.tokensSummary || {};
             const tokenEvents = state.events.filter((event) => event.category === 'tokens');
-            let gross = 0;
-            let saved = 0;
-            let forwarded = 0;
+            let gross = Number(summary.grossInputTokens || 0);
+            let saved = Number(summary.savedTokens || 0);
+            let forwarded = Number(summary.forwardedTokens || 0);
             const ratios = [];
 
-            for (const event of tokenEvents) {
-                const payload = event.payload || {};
-                if (typeof payload.inputTokens === 'number') gross += payload.inputTokens;
-                if (typeof payload.outputTokens === 'number') forwarded += payload.outputTokens;
-                if (typeof payload.savings === 'number') saved += payload.savings;
-                if (typeof payload.compressionRatio === 'number' && payload.compressionRatio > 0) {
-                    ratios.push(Math.min(99, Math.max(1, Math.round((1 - (1 / payload.compressionRatio)) * 100))));
+            if (typeof summary.compressionPct === 'number' && summary.compressionPct > 0) {
+                ratios.push(summary.compressionPct);
+            }
+
+            if (!gross && !saved && !forwarded) {
+                for (const event of tokenEvents) {
+                    const payload = event.payload || {};
+                    if (typeof payload.inputTokens === 'number') gross += payload.inputTokens;
+                    if (typeof payload.outputTokens === 'number') forwarded += payload.outputTokens;
+                    if (typeof payload.savings === 'number') saved += payload.savings;
+                    if (typeof payload.compressionRatio === 'number' && payload.compressionRatio > 0) {
+                        ratios.push(Math.min(99, Math.max(1, Math.round((1 - (1 / payload.compressionRatio)) * 100))));
+                    }
+                    if (typeof payload.pct === 'number') ratios.push(payload.pct);
                 }
-                if (typeof payload.pct === 'number') ratios.push(payload.pct);
             }
 
             return {
@@ -1995,40 +2050,34 @@
                 saved,
                 forwarded,
                 ratio: ratios.length ? Math.round(ratios.reduce((sum, value) => sum + value, 0) / ratios.length) : 0,
-                events: tokenEvents.length,
+                events: Number(summary.totalEvents || tokenEvents.length || 0),
+                totalRuns: Number(summary.totalRuns || state.tokensTimeline.length || 0),
             };
         }
 
         function computeSpendData() {
-            const tokenEvents = state.events.filter((e) => e.category === 'tokens');
-            let totalTokens = 0;
-            const categoryMap = {};
-            const sessions = new Set();
-
-            for (const event of tokenEvents) {
-                const p = event.payload || {};
-                const tokens = (p.inputTokens || 0) + (p.outputTokens || 0) + (p.savings || 0);
-                totalTokens += tokens;
-                const cat = event.type || 'unknown';
-                categoryMap[cat] = (categoryMap[cat] || 0) + tokens;
-                if (p.sessionId) sessions.add(p.sessionId);
-            }
-
-            const byCategory = Object.entries(categoryMap)
-                .map(([category, tokens]) => ({ category, tokens, pct: totalTokens ? Math.round((tokens / totalTokens) * 100) : 0 }))
-                .sort((a, b) => b.tokens - a.tokens)
+            const summary = state.tokensSummary || {};
+            const timeline = Array.isArray(state.tokensTimeline) ? state.tokensTimeline : [];
+            const totalTokens = Number(summary.grossInputTokens || 0);
+            const byCategory = Object.entries(summary.bySubsystem || {})
+                .map(([category, tokens]) => ({ category, tokens, pct: totalTokens ? Math.round((Number(tokens || 0) / totalTokens) * 100) : 0 }))
+                .sort((a, b) => Number(b.tokens) - Number(a.tokens))
                 .slice(0, 8);
-
-            const recentEvents = tokenEvents.slice(0, 10).map((e) => ({
-                title: e.title,
-                tokens: (e.payload?.inputTokens || 0) + (e.payload?.outputTokens || 0),
-                time: e.time,
+            const recentEvents = timeline.slice(0, 10).map((entry) => ({
+                title: entry.goal || entry.runId,
+                tokens: Number(entry.forwardedTokens || entry.compressedTokens || 0),
+                time: entry.timestamp,
             }));
 
-            // Rough cost estimate: ~$3 per 1M input, ~$15 per 1M output (blended ~$8/1M)
             const estimatedCost = (totalTokens / 1000000 * 8).toFixed(4);
 
-            return { totalTokens, estimatedCost, sessionCount: sessions.size || 1, byCategory, recentEvents };
+            return {
+                totalTokens,
+                estimatedCost,
+                sessionCount: state.orchestrationSession?.sessionId ? 1 : 0,
+                byCategory,
+                recentEvents,
+            };
         }
 
         function bindSkillFormHandlers() {
@@ -2112,7 +2161,11 @@
         }
 
         function renderLeftRail() {
-            $('clients-summary').textContent = resourceFailed('clients') ? 'unavailable' : `${state.clients.length} visible`;
+            $('clients-summary').textContent = resourceFailed('clients') && !state.clients.length
+                ? 'unavailable'
+                : state.primaryClient?.displayName
+                    ? `${state.primaryClient.displayName} primary · ${state.clients.length} visible`
+                    : `${state.clients.length} visible`;
             $('clients-list').innerHTML = resourceFailed('clients') && !state.clients.length
                 ? emptyState('Clients endpoint unavailable.')
                 : state.clients.length
@@ -2139,8 +2192,8 @@
             const tokenMetrics = computeTokenMetrics();
             const dialEl = $('dial-progress');
             const circumference = 2 * Math.PI * 70;
-            if (tokenMetrics.events === 0) {
-                $('token-summary').textContent = resourceFailed('events') ? 'events unavailable' : 'awaiting data';
+            if (tokenMetrics.events === 0 && tokenMetrics.totalRuns === 0 && !tokenMetrics.gross && !tokenMetrics.saved && !tokenMetrics.forwarded) {
+                $('token-summary').textContent = resourceFailed('tokensSummary') ? 'telemetry unavailable' : 'awaiting data';
                 $('gross-tokens').textContent = '--';
                 $('saved-tokens').textContent = '--';
                 $('net-tokens').textContent = '--';
@@ -2148,7 +2201,9 @@
                 dialEl.classList.add('awaiting');
                 dialEl.style.strokeDashoffset = '0';
             } else {
-                $('token-summary').textContent = resourceFailed('events') ? 'events unavailable' : `${tokenMetrics.events} events`;
+                $('token-summary').textContent = resourceFailed('tokensSummary')
+                    ? 'telemetry degraded'
+                    : `${tokenMetrics.totalRuns || 0} runs · ${tokenMetrics.events || 0} samples`;
                 $('gross-tokens').textContent = formatNumber(tokenMetrics.gross);
                 $('saved-tokens').textContent = formatNumber(tokenMetrics.saved);
                 $('net-tokens').textContent = formatNumber(tokenMetrics.forwarded);
@@ -2454,7 +2509,7 @@
 
             const runtime = getSelectedRuntime();
             $('runtime-usage-summary').textContent = runtime
-                ? `${runtime.health === 'stale' ? 'Stale' : 'Active'} runtime · last activity ${formatAgo(runtime.lastActivityAt)}`
+                ? `${runtime.health === 'stale' ? 'Stale' : 'Active'} runtime · ${state.orchestrationSession?.mode || runtime.orchestration?.mode || 'single-pass'} · last activity ${formatAgo(runtime.lastActivityAt)}`
                 : 'No runtime usage data yet.';
         }
 
@@ -2923,7 +2978,7 @@
                     ? emptyState('Events endpoint unavailable. Live stream may still populate this panel.')
                     : emptyState(
                         state.eventFilter === 'memory' ? 'No memory events yet. Events appear when you store or recall memories.'
-                        : state.eventFilter === 'tokens' ? 'No token events yet. Events appear when nexus_optimize_tokens runs.'
+                        : state.eventFilter === 'tokens' ? 'No live token events yet. Persisted run telemetry still appears in the token analyzer.'
                         : state.eventFilter === 'skills' ? 'No skill events yet. Create or seed skills from the library tab.'
                         : state.eventFilter === 'workflows' ? 'No workflow events yet. Deploy or run a workflow to see activity.'
                         : state.eventFilter === 'hooks' ? 'No hook events yet. Hook activity appears at runtime checkpoints.'
@@ -2970,6 +3025,7 @@
             if (kind === 'pod-worker') return data.workerId || 'POD Worker';
             if (kind === 'client') return data.displayName || 'Client';
             if (kind === 'federation-peer') return data.displayName || data.peerId || 'Peer';
+            if (kind === 'token-summary') return 'Token Analyzer';
             return 'Inspector';
         }
 
@@ -2985,10 +3041,51 @@
             if (kind === 'pod-worker') return `${data.messageCount || data.messages?.length || 0} messages`;
             if (kind === 'client') return `${data.clientId} · ${data.state}`;
             if (kind === 'federation-peer') return `${data.peerId} · ${data.health || 'unknown'}`;
+            if (kind === 'token-summary') return `${formatNumber(data?.summary?.totalRuns || 0)} runs · ${formatNumber(data?.summary?.totalEvents || 0)} samples`;
             return '';
         }
 
         function renderDrawerSections(kind, data) {
+            if (kind === 'token-summary') {
+                const summary = data.summary || {};
+                const timeline = Array.isArray(data.timeline) ? data.timeline : [];
+                const subsystemRows = Object.entries(summary.bySubsystem || {})
+                    .sort((left, right) => Number(right[1]) - Number(left[1]))
+                    .map(([name, value]) => ({ label: name, meta: `${formatNumber(value)} tokens` }));
+                const phaseRows = Object.entries(summary.byPhase || {})
+                    .sort((left, right) => Number(right[1]) - Number(left[1]))
+                    .map(([name, value]) => ({ label: name, meta: `${formatNumber(value)} tokens` }));
+
+                return `
+                    <section class="drawer-section">
+                        <h4>Lifetime Compression</h4>
+                        <div class="list-inline">
+                            ${chip(`gross:${formatNumber(summary.grossInputTokens || 0)}`)}
+                            ${chip(`saved:${formatNumber(summary.savedTokens || 0)}`)}
+                            ${chip(`forwarded:${formatNumber(summary.forwardedTokens || 0)}`)}
+                            ${chip(`compression:${Number(summary.compressionPct || 0)}%`)}
+                        </div>
+                        <div class="meta">${escapeHtml(data?.orchestration?.sessionId ? `Session ${data.orchestration.sessionId}` : 'Persisted token telemetry across runs.')}</div>
+                    </section>
+                    <section class="drawer-section">
+                        <h4>By Subsystem</h4>
+                        ${renderSmallList(subsystemRows)}
+                    </section>
+                    <section class="drawer-section">
+                        <h4>By Phase</h4>
+                        ${renderSmallList(phaseRows)}
+                    </section>
+                    <section class="drawer-section">
+                        <h4>Recent Runs</h4>
+                        ${renderSmallList(timeline.map((entry) => ({
+                            label: entry.goal || entry.runId,
+                            meta: `${formatDate(entry.timestamp)} · ${formatNumber(entry.savedTokens || 0)} saved · ${Number(entry.compressionPct || 0)}%`,
+                            action: `run:${entry.runId}`,
+                        })))}
+                    </section>
+                `;
+            }
+
             if (kind === 'memory') {
                 return `
                     <section class="drawer-section">
@@ -3484,6 +3581,16 @@
                     const client = state.clients.find((item) => item.clientId === id);
                     if (!client) return;
                     state.selected = { kind: 'client', id, data: client };
+                } else if (kind === 'token-summary') {
+                    state.selected = {
+                        kind: 'token-summary',
+                        id,
+                        data: {
+                            summary: state.tokensSummary,
+                            timeline: state.tokensTimeline,
+                            orchestration: state.orchestrationSession,
+                        },
+                    };
                 } else if (kind === 'federation-peer') {
                     const peer = state.federation.knownPeers?.find((item) => item.peerId === id);
                     if (!peer) return;
@@ -3566,6 +3673,19 @@
         }
 
         function attachStaticHandlers() {
+            document.querySelector('.token-dial-wrap')?.addEventListener('click', () => {
+                state.selected = {
+                    kind: 'token-summary',
+                    id: 'all-time',
+                    data: {
+                        summary: state.tokensSummary,
+                        timeline: state.tokensTimeline,
+                        orchestration: state.orchestrationSession,
+                    },
+                };
+                render();
+            });
+
             $('refresh-button').addEventListener('click', async () => {
                 try {
                     $('control-status').textContent = 'Refreshing runtime surfaces...';
@@ -3578,7 +3698,7 @@
 
             $('runtime-select').addEventListener('change', async (event) => {
                 state.selectedRuntimeId = event.target.value || null;
-                await refreshAll(['usage']);
+                await refreshAll(['usage', 'orchestrationSession', 'tokensSummary', 'tokensTimeline', 'clients', 'primaryClient']);
             });
 
             $('execute-form').addEventListener('submit', async (event) => {

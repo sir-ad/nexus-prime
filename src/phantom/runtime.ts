@@ -75,7 +75,12 @@ import { nexusEventBus } from '../engines/event-bus.js';
 import {
     RuntimeRegistry,
     createEmptyUsageState,
+    createEmptyTokenSummary,
     type RuntimeRegistrySnapshot,
+    type RuntimeOrchestrationSnapshot,
+    type RuntimePrimaryClientSnapshot,
+    type RuntimeTokenRunSnapshot,
+    type RuntimeTokenSummarySnapshot,
     type RuntimeUsageCategory,
 } from '../engines/runtime-registry.js';
 import { MergeOracle } from './merge-oracle.js';
@@ -346,6 +351,7 @@ export interface ExecutionRun {
     result: string;
     plannerState?: TaskPlannerState;
     continuationChildren: Array<{ automationId: string; runId?: string; status: 'queued' | 'completed' | 'suppressed' | 'failed'; error?: string }>;
+    tokenTelemetry?: RuntimeTokenRunSnapshot;
 }
 
 export interface SubAgentRuntimeOptions {
@@ -769,6 +775,22 @@ export class SubAgentRuntime {
         run.backendEvidence.memory = await (backends.memory.selected.shadowRecall?.(task.goal, 6) ?? Promise.resolve({ recalled: memoryMatches }));
         run.backendEvidence.compression = await backends.compression.selected.shadow(task.goal, fileRefs);
         run.backendEvidence.notes.push(...planResult.notes);
+        nexusEventBus.emit('tokens.optimized', {
+            savings: plan.savings,
+            pct: plan.totalEstimatedTokens + plan.savings > 0
+                ? Math.round((plan.savings / (plan.totalEstimatedTokens + plan.savings)) * 100)
+                : 0,
+            files: plan.files.length,
+            inputTokens: plan.totalEstimatedTokens + plan.savings,
+            outputTokens: plan.totalEstimatedTokens,
+            compressionRatio: plan.totalEstimatedTokens > 0
+                ? (plan.totalEstimatedTokens + plan.savings) / plan.totalEstimatedTokens
+                : 0,
+            runId,
+            sessionId: this.runtimeSnapshot.orchestration?.sessionId,
+            phase: 'runtime-bootstrap',
+            subsystem: 'compression',
+        });
         recorder.writeJson('reading-plan.json', plan);
         recorder.writeJson('memory-evidence.json', run.backendEvidence.memory);
         recorder.writeJson('compression-evidence.json', run.backendEvidence.compression);
@@ -1167,6 +1189,9 @@ export class SubAgentRuntime {
                 count: audit.quarantined.length,
             });
         }
+        run.tokenTelemetry = this.buildRunTokenTelemetry(run, plan, memoryMatches);
+        this.recordRunTokenTelemetry(run.tokenTelemetry);
+        recorder.writeJson('token-telemetry.json', run.tokenTelemetry);
         recorder.writeJson('planner-state.json', run.plannerState);
         recorder.writeJson('planner-result.json', run.plannerResult);
         recorder.writeJson('manifests.json', run.workerManifests);
@@ -1235,6 +1260,39 @@ export class SubAgentRuntime {
 
     getUsageSnapshot(): RuntimeRegistrySnapshot {
         return this.runtimeSnapshot;
+    }
+
+    getTokenTelemetrySummary(): RuntimeTokenSummarySnapshot {
+        return this.runtimeSnapshot.tokens ?? createEmptyTokenSummary();
+    }
+
+    getTokenTelemetryTimeline(limit: number = 20): RuntimeTokenRunSnapshot[] {
+        return (this.runtimeSnapshot.tokens?.timeline ?? []).slice(0, Math.max(1, limit));
+    }
+
+    getTokenTelemetryForRun(runId: string): RuntimeTokenRunSnapshot | undefined {
+        return this.getRun(runId)?.tokenTelemetry
+            ?? (this.runtimeSnapshot.tokens?.timeline ?? []).find((entry) => entry.runId === runId);
+    }
+
+    recordOrchestrationSnapshot(snapshot: RuntimeOrchestrationSnapshot): RuntimeRegistrySnapshot {
+        return this.persistRuntimeSnapshot({
+            orchestration: snapshot,
+            lastHeartbeatAt: Date.now(),
+            lastActivityAt: Date.now(),
+        });
+    }
+
+    recordPrimaryClient(snapshot: RuntimePrimaryClientSnapshot | undefined, detected: RuntimePrimaryClientSnapshot[] = []): RuntimeRegistrySnapshot {
+        return this.persistRuntimeSnapshot({
+            clients: {
+                primary: snapshot,
+                detected,
+                lastUpdatedAt: Date.now(),
+            },
+            lastHeartbeatAt: Date.now(),
+            lastActivityAt: Date.now(),
+        });
     }
 
     listSkills(): SkillArtifact[] {
@@ -1578,6 +1636,9 @@ export class SubAgentRuntime {
             shield: 'balanced',
             federation: this.federation.getSnapshot(),
             usage: this.runtimeSnapshot.usage,
+            tokens: this.runtimeSnapshot.tokens ?? createEmptyTokenSummary(),
+            orchestration: this.runtimeSnapshot.orchestration,
+            clients: this.runtimeSnapshot.clients,
             artifactsRoot: this.resolveArtifactsRoot(),
         };
     }
@@ -2351,6 +2412,9 @@ export class SubAgentRuntime {
             },
             latestRun: patch.latestRun ?? this.runtimeSnapshot?.latestRun,
             federation: patch.federation ?? this.runtimeSnapshot?.federation,
+            tokens: patch.tokens ?? this.runtimeSnapshot?.tokens ?? createEmptyTokenSummary(),
+            orchestration: patch.orchestration ?? this.runtimeSnapshot?.orchestration,
+            clients: patch.clients ?? this.runtimeSnapshot?.clients,
         };
         this.runtimeSnapshot = this.runtimeRegistry.write(nextSnapshot);
         return this.runtimeSnapshot;
@@ -2413,6 +2477,106 @@ export class SubAgentRuntime {
             latestRun: { runId, goal, state, updatedAt: now },
             libraries: this.collectLibraryCounts(),
         });
+    }
+
+    private recordRunTokenTelemetry(telemetry: RuntimeTokenRunSnapshot): RuntimeTokenSummarySnapshot {
+        const current = this.runtimeSnapshot.tokens ?? createEmptyTokenSummary();
+        const previous = current.timeline.find((entry) => entry.runId === telemetry.runId);
+        const timeline = [telemetry, ...current.timeline.filter((entry) => entry.runId !== telemetry.runId)].slice(0, 40);
+        const byPhase = this.mergeTokenBreakdown(current.byPhase, telemetry.byPhase, previous?.byPhase);
+        const bySubsystem = this.mergeTokenBreakdown(current.bySubsystem, telemetry.bySubsystem, previous?.bySubsystem);
+        const grossInputTokens = Math.max(0, current.grossInputTokens - (previous?.grossInputTokens ?? 0) + telemetry.grossInputTokens);
+        const compressedTokens = Math.max(0, current.compressedTokens - (previous?.compressedTokens ?? 0) + telemetry.compressedTokens);
+        const savedTokens = Math.max(0, current.savedTokens - (previous?.savedTokens ?? 0) + telemetry.savedTokens);
+        const forwardedTokens = Math.max(0, current.forwardedTokens - (previous?.forwardedTokens ?? 0) + telemetry.forwardedTokens);
+        const totalRuns = previous ? current.totalRuns : current.totalRuns + 1;
+        const totalEvents = Math.max(0, current.totalEvents - (previous ? Object.keys(previous.byPhase).length : 0) + Object.keys(telemetry.byPhase).length);
+        const tokens: RuntimeTokenSummarySnapshot = {
+            grossInputTokens,
+            compressedTokens,
+            savedTokens,
+            forwardedTokens,
+            compressionPct: grossInputTokens > 0 ? Math.round((savedTokens / grossInputTokens) * 100) : 0,
+            totalRuns,
+            totalEvents,
+            byPhase,
+            bySubsystem,
+            timeline,
+            lastUpdatedAt: Date.now(),
+        };
+        this.persistRuntimeSnapshot({
+            tokens,
+            lastHeartbeatAt: Date.now(),
+            lastActivityAt: Date.now(),
+        });
+        return tokens;
+    }
+
+    private mergeTokenBreakdown(base: Record<string, number>, next: Record<string, number>, previous?: Record<string, number>): Record<string, number> {
+        const merged: Record<string, number> = { ...(base ?? {}) };
+        for (const [key, value] of Object.entries(previous ?? {})) {
+            merged[key] = Math.max(0, (merged[key] ?? 0) - Number(value || 0));
+            if (merged[key] === 0) delete merged[key];
+        }
+        for (const [key, value] of Object.entries(next ?? {})) {
+            merged[key] = (merged[key] ?? 0) + Number(value || 0);
+        }
+        return merged;
+    }
+
+    private buildRunTokenTelemetry(run: ExecutionRun, plan: ReadingPlan, memoryMatches: string[]): RuntimeTokenRunSnapshot {
+        const plannerTokens = estimateTokenCount(JSON.stringify(run.plannerState ?? run.plannerResult ?? {}));
+        const memoryTokens = memoryMatches.reduce((sum, match) => sum + estimateTokenCount(match), 0);
+        const grossPlanTokens = Math.max(0, Number(plan.totalEstimatedTokens || 0) + Number(plan.savings || 0));
+        const compressedPlanTokens = Math.max(0, Number(plan.totalEstimatedTokens || 0));
+        const contextTokens = run.workerManifests.reduce((sum, manifest) => sum + estimateTokenCount(renderWorkerContextMarkdown(manifest.context)), 0);
+        const verificationTokens = run.verificationResults.reduce((sum, verification) => sum + verification.commands.reduce((commandSum, command) => (
+            commandSum
+            + estimateTokenCount(command.command)
+            + estimateTokenCount(command.stdout)
+            + estimateTokenCount(command.stderr)
+        ), 0), 0);
+        const continuationTokens = run.continuationChildren.reduce((sum, child) => sum + estimateTokenCount(`${child.automationId}:${child.status}:${child.runId ?? ''}:${child.error ?? ''}`), 0);
+
+        const byPhase: Record<string, number> = {
+            planner: plannerTokens,
+            'memory-recall': memoryTokens,
+            'token-optimization': compressedPlanTokens,
+            'worker-handoff': contextTokens,
+            verification: verificationTokens,
+        };
+        if (continuationTokens > 0) {
+            byPhase.continuation = continuationTokens;
+        }
+
+        const bySubsystem: Record<string, number> = {
+            planner: plannerTokens,
+            memory: memoryTokens,
+            compression: compressedPlanTokens,
+            runtime: contextTokens,
+            verification: verificationTokens,
+        };
+        if (continuationTokens > 0) {
+            bySubsystem.automations = continuationTokens;
+        }
+
+        const grossInputTokens = plannerTokens + memoryTokens + grossPlanTokens + contextTokens + verificationTokens + continuationTokens;
+        const compressedTokens = plannerTokens + memoryTokens + compressedPlanTokens + contextTokens + verificationTokens + continuationTokens;
+        const savedTokens = Math.max(0, grossPlanTokens - compressedPlanTokens);
+        const forwardedTokens = compressedTokens;
+
+        return {
+            runId: run.runId,
+            goal: run.goal,
+            timestamp: Date.now(),
+            grossInputTokens,
+            compressedTokens,
+            savedTokens,
+            forwardedTokens,
+            compressionPct: grossInputTokens > 0 ? Math.round((savedTokens / grossInputTokens) * 100) : 0,
+            byPhase,
+            bySubsystem,
+        };
     }
 
     private buildWorkerContext(runId: string, task: ExecutionTask, manifest: Pick<WorkerManifest, 'workerId' | 'role' | 'strategy' | 'specialistId'>, activeSkills: SkillArtifact[], activeWorkflows: WorkflowArtifact[], plannerState?: TaskPlannerState, phasePackets: WorkerPhasePacket[] = []): WorkerContextPacket {
@@ -2824,6 +2988,17 @@ function renderWorkerContextMarkdown(context: WorkerContextPacket): string {
             ? context.phasePackets.map((packet) => `- ${packet.trigger}: skills=${packet.addedSkillNames.join(', ') || 'none'} workflows=${packet.addedWorkflowNames.join(', ') || 'none'} bindings=${packet.addedBindings.join(', ') || 'none'}`)
             : ['- none']),
     ].filter(Boolean).join('\n');
+}
+
+function estimateTokenCount(value: unknown): number {
+    if (typeof value !== 'string') {
+        try {
+            return Math.ceil(JSON.stringify(value ?? '').length / 4);
+        } catch {
+            return 0;
+        }
+    }
+    return Math.ceil(value.length / 4);
 }
 
 function extractRunTimestamp(run: ExecutionRun): number {

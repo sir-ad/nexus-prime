@@ -44,6 +44,8 @@ async function test() {
   process.env.NEXUS_MEMORY_DB_PATH = path.join(repoRoot, '.nexus-prime-test.db');
   process.env.NEXUS_POD_PATH = path.join(repoRoot, '.nexus-prime-pod.json');
   process.env.NEXUS_STATE_DIR = path.join(repoRoot, '.nexus-state');
+  process.env.CODEX_HOME = path.join(repoRoot, '.codex');
+  fs.mkdirSync(process.env.CODEX_HOME, { recursive: true });
 
   process.chdir(repoRoot);
 
@@ -54,6 +56,7 @@ async function test() {
     console.log('✅ Started\n');
 
     const runtime = nexus.getRuntime();
+    const orchestrator = nexus.getOrchestrator();
     assert.ok(runtime.listSkills().some((skill) => skill.name === 'django-builder'), 'expanded bundled skills should include django-builder');
     assert.ok(runtime.listWorkflows().some((workflow) => workflow.name === 'gtm-approval-loop'), 'expanded bundled workflows should include gtm-approval-loop');
     assert.ok(runtime.listHooks().some((hook) => hook.name === 'run-created-brief'), 'bundled hooks should be available');
@@ -184,6 +187,13 @@ async function test() {
     assert.strictEqual(usageSnapshot.usage.skills.status, 'used', 'runtime usage should mark skills as used');
     assert.strictEqual(usageSnapshot.usage.plan.status, 'used', 'runtime usage should mark plan as used');
     assert.strictEqual(usageSnapshot.usage.federation.status, 'used', 'runtime usage should mark federation as used');
+    assert.ok(result.execution.tokenTelemetry, 'execution should persist token telemetry');
+    assert.ok(runtime.getTokenTelemetrySummary().totalRuns > 0, 'runtime should aggregate token telemetry across runs');
+    assert.ok(runtime.getTokenTelemetryForRun(result.execution.runId), 'runtime should expose per-run token telemetry');
+    assert.strictEqual(orchestrator.getSessionState().lastRunId, result.execution.runId, 'orchestrator session state should track the last run');
+    assert.ok(orchestrator.getSessionState().selectedSkills.length > 0, 'orchestrator should record selected skills');
+    assert.ok(['single-pass', 'bounded-swarm', 'continuation-capable'].includes(orchestrator.getSessionState().mode), 'orchestrator should record an execution mode for the run');
+    assert.strictEqual(runtime.getUsageSnapshot().clients?.primary?.clientId, 'codex', 'runtime snapshot should record Codex as the primary client when CODEX env is active');
 
     await nexus.stop();
     console.log('✅ Stopped\n');
@@ -193,6 +203,7 @@ async function test() {
     delete process.env.NEXUS_MEMORY_DB_PATH;
     delete process.env.NEXUS_POD_PATH;
     delete process.env.NEXUS_STATE_DIR;
+    delete process.env.CODEX_HOME;
     process.chdir(originalCwd);
   }
 }

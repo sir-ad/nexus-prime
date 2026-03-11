@@ -233,16 +233,6 @@ export class MCPAdapter implements Adapter {
             // ignore — ps may not be available
         }
 
-        // Check if ~/.claude exists (strong signal for Claude Code)
-        try {
-            const claudeDir = path.join(process.env.HOME || process.env.USERPROFILE || '', '.claude');
-            statSync(claudeDir);
-            // If we got here via MCP and .claude exists, very likely Claude Code
-            return 'claude-code';
-        } catch {
-            // no .claude dir
-        }
-
         return 'mcp';
     }
 
@@ -260,6 +250,13 @@ export class MCPAdapter implements Adapter {
         }
 
         return this.runtime;
+    }
+
+    private getOrchestrator(): OrchestratorEngine {
+        if (this.nexusRef && typeof this.nexusRef.getOrchestrator === 'function') {
+            return this.nexusRef.getOrchestrator();
+        }
+        return orchestrator;
     }
 
     private setupToolHandlers() {
@@ -297,6 +294,26 @@ export class MCPAdapter implements Adapter {
                     inputSchema: { type: 'object', properties: {}, required: [] },
                 },
                 // ── Token optimization ────────────────────────────────────────────
+                {
+                    name: 'nexus_orchestrate',
+                    description: 'Primary raw-prompt entrypoint. Let Nexus Prime classify intent, recall memory, plan, choose crews/specialists/skills/workflows/hooks/automations, optimize tokens, and execute a bounded autonomous run.',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {
+                            prompt: { type: 'string', description: 'Raw prompt or objective to orchestrate end-to-end' },
+                            files: { type: 'array', items: { type: 'string' }, description: 'Optional hard constraints for candidate files' },
+                            workers: { type: 'number', description: 'Optional worker override' },
+                            skills: { type: 'array', items: { type: 'string' }, description: 'Optional hard skill selectors' },
+                            workflows: { type: 'array', items: { type: 'string' }, description: 'Optional hard workflow selectors' },
+                            hooks: { type: 'array', items: { type: 'string' }, description: 'Optional hard hook selectors' },
+                            automations: { type: 'array', items: { type: 'string' }, description: 'Optional hard automation selectors' },
+                            crews: { type: 'array', items: { type: 'string' }, description: 'Optional hard crew selectors' },
+                            specialists: { type: 'array', items: { type: 'string' }, description: 'Optional hard specialist selectors' },
+                            optimizationProfile: { type: 'string', enum: ['standard', 'max'], description: 'Planner optimization profile override' }
+                        },
+                        required: ['prompt'],
+                    },
+                },
                 {
                     name: 'nexus_optimize_tokens',
                     description: 'Generate a token-efficient file reading plan BEFORE reading files. MANDATORY when reading 3+ files. Returns which files to read fully, outline-only, or skip. Typically saves 50-90% tokens per session.',
@@ -444,6 +461,11 @@ export class MCPAdapter implements Adapter {
                 },
                 // ── Skill Cards ──────────────────────────────────────────────────
                 {
+                    name: 'nexus_list_skills',
+                    description: 'List runtime skills available to the orchestrator and planner, including scope, status, and concise instructions.',
+                    inputSchema: { type: 'object', properties: {}, required: [] },
+                },
+                {
                     name: 'nexus_skill_register',
                     description: 'Register a declarative Skill Card into the Graph Knowledge Engine. Skill cards define contextual triggers and reusable tool execution templates without using arbitrary eval().',
                     inputSchema: {
@@ -495,6 +517,11 @@ export class MCPAdapter implements Adapter {
                     },
                 },
                 {
+                    name: 'nexus_list_workflows',
+                    description: 'List runtime workflows available to the orchestrator and planner, including scope, status, and intended domain.',
+                    inputSchema: { type: 'object', properties: {}, required: [] },
+                },
+                {
                     name: 'nexus_workflow_generate',
                     description: 'Generate a workflow artifact that can be deployed to runs or promoted through runtime evidence.',
                     inputSchema: {
@@ -533,6 +560,11 @@ export class MCPAdapter implements Adapter {
                     },
                 },
                 {
+                    name: 'nexus_list_hooks',
+                    description: 'List runtime hooks available to the orchestrator, including trigger, scope, rollout state, and effect summary.',
+                    inputSchema: { type: 'object', properties: {}, required: [] },
+                },
+                {
                     name: 'nexus_hook_generate',
                     description: 'Generate a runtime hook artifact for checkpoint and system-event execution.',
                     inputSchema: {
@@ -569,6 +601,11 @@ export class MCPAdapter implements Adapter {
                         },
                         required: ['hookId'],
                     },
+                },
+                {
+                    name: 'nexus_list_automations',
+                    description: 'List runtime automations available to the orchestrator, including trigger mode, scope, rollout state, and queued-run behavior.',
+                    inputSchema: { type: 'object', properties: {}, required: [] },
                 },
                 {
                     name: 'nexus_automation_generate',
@@ -858,7 +895,7 @@ export class MCPAdapter implements Adapter {
         }
 
         const args = request.params.arguments ?? {};
-        const goal = String(args.goal ?? args.task ?? '');
+        const goal = String(args.goal ?? args.task ?? args.prompt ?? '');
 
         // v1.5 Mandatory Induction Interceptor
         if (goal && goal.length > 50 && request.params.name !== 'nexus_execute_nxl') {
@@ -867,11 +904,89 @@ export class MCPAdapter implements Adapter {
                 `Result: Specialized agent army induced by default.`,
                 `Status: Multi-agent PDLC active.`
             ], '33');
-            const swarm = await orchestrator.induce(goal);
+            const swarm = await this.getOrchestrator().induce(goal);
             nexusEventBus.emit('nexusnet.sync', { newItemsCount: swarm.length });
         }
 
         switch (request.params.name) {
+
+            case 'nexus_orchestrate': {
+                const prompt = String(request.params.arguments?.prompt ?? request.params.arguments?.goal ?? '');
+                const files = Array.isArray(request.params.arguments?.files)
+                    ? (request.params.arguments.files as unknown[]).map(String)
+                    : undefined;
+                const workers = request.params.arguments?.workers == null
+                    ? undefined
+                    : Number(request.params.arguments.workers);
+                const skills = Array.isArray(request.params.arguments?.skills)
+                    ? (request.params.arguments.skills as unknown[]).map(String)
+                    : undefined;
+                const workflows = Array.isArray(request.params.arguments?.workflows)
+                    ? (request.params.arguments.workflows as unknown[]).map(String)
+                    : undefined;
+                const hooks = Array.isArray(request.params.arguments?.hooks)
+                    ? (request.params.arguments.hooks as unknown[]).map(String)
+                    : undefined;
+                const automations = Array.isArray(request.params.arguments?.automations)
+                    ? (request.params.arguments.automations as unknown[]).map(String)
+                    : undefined;
+                const crews = Array.isArray(request.params.arguments?.crews)
+                    ? (request.params.arguments.crews as unknown[]).map(String)
+                    : undefined;
+                const specialists = Array.isArray(request.params.arguments?.specialists)
+                    ? (request.params.arguments.specialists as unknown[]).map(String)
+                    : undefined;
+                const optimizationProfile = request.params.arguments?.optimizationProfile
+                    ? String(request.params.arguments.optimizationProfile) as 'standard' | 'max'
+                    : undefined;
+
+                const execution = await this.nexusRef.orchestrate(prompt, {
+                    files,
+                    workers,
+                    skillNames: skills,
+                    workflowSelectors: workflows,
+                    hookSelectors: hooks,
+                    automationSelectors: automations,
+                    crewSelectors: crews,
+                    specialistSelectors: specialists,
+                    optimizationProfile,
+                });
+                const verifiedWorkers = execution.workerResults.filter((worker) => worker.verified).length;
+                execution.activeSkills.forEach((skill) => this.sessionDNA.recordSkill(skill.name));
+                execution.workerResults.forEach((result) => {
+                    result.modifiedFiles.forEach((file) => this.sessionDNA.recordFileModified(file));
+                });
+                this.sessionDNA.recordDecision(
+                    'Orchestrated autonomous run completed',
+                    execution.result || summarizeExecution(execution),
+                    execution.state === 'merged' ? 0.95 : execution.state === 'rolled_back' ? 0.55 : 0.3
+                );
+
+                return {
+                    content: [{
+                        type: 'text',
+                        text: JSON.stringify({
+                            runId: execution.runId,
+                            state: execution.state,
+                            result: execution.result,
+                            summary: summarizeExecution(execution),
+                            artifactsPath: execution.artifactsPath,
+                            planner: execution.plannerState
+                                ? {
+                                    selectedCrew: execution.plannerState.selectedCrew?.name,
+                                    selectedSpecialists: execution.plannerState.selectedSpecialists.map((specialist) => specialist.name),
+                                    selectedSkills: execution.plannerState.selectedSkills,
+                                    selectedWorkflows: execution.plannerState.selectedWorkflows,
+                                    reviewGates: execution.plannerState.reviewGates.map((gate) => `${gate.gate}:${gate.status}`),
+                                }
+                                : undefined,
+                            tokens: execution.tokenTelemetry,
+                            verifiedWorkers,
+                            continuationChildren: execution.continuationChildren,
+                        }, null, 2),
+                    }],
+                };
+            }
 
             case 'nexus_store_memory': {
                 const content = String(request.params.arguments?.content ?? '');
@@ -1711,6 +1826,26 @@ export class MCPAdapter implements Adapter {
                 };
             }
 
+            case 'nexus_list_skills': {
+                const skills = this.getRuntime().listSkills();
+                return {
+                    content: [{
+                        type: 'text',
+                        text: JSON.stringify({
+                            total: skills.length,
+                            skills: skills.map((skill) => ({
+                                skillId: skill.skillId,
+                                name: skill.name,
+                                scope: skill.scope,
+                                rolloutStatus: skill.rolloutStatus,
+                                riskClass: skill.riskClass,
+                                summary: skill.instructions.slice(0, 220),
+                            })),
+                        }, null, 2),
+                    }],
+                };
+            }
+
             case 'nexus_list_specialists': {
                 const specialists = this.getRuntime().listSpecialists();
                 return {
@@ -1740,6 +1875,68 @@ export class MCPAdapter implements Adapter {
                         text: JSON.stringify({
                             total: crews.length,
                             crews,
+                        }, null, 2),
+                    }],
+                };
+            }
+
+            case 'nexus_list_workflows': {
+                const workflows = this.getRuntime().listWorkflows();
+                return {
+                    content: [{
+                        type: 'text',
+                        text: JSON.stringify({
+                            total: workflows.length,
+                            workflows: workflows.map((workflow) => ({
+                                workflowId: workflow.workflowId,
+                                name: workflow.name,
+                                scope: workflow.scope,
+                                rolloutStatus: workflow.rolloutStatus,
+                                domain: workflow.domain,
+                                summary: workflow.description,
+                            })),
+                        }, null, 2),
+                    }],
+                };
+            }
+
+            case 'nexus_list_hooks': {
+                const hooks = this.getRuntime().listHooks();
+                return {
+                    content: [{
+                        type: 'text',
+                        text: JSON.stringify({
+                            total: hooks.length,
+                            hooks: hooks.map((hook) => ({
+                                hookId: hook.hookId,
+                                name: hook.name,
+                                trigger: hook.trigger,
+                                scope: hook.scope,
+                                rolloutStatus: hook.rolloutStatus,
+                                riskClass: hook.riskClass,
+                                summary: hook.description,
+                            })),
+                        }, null, 2),
+                    }],
+                };
+            }
+
+            case 'nexus_list_automations': {
+                const automations = this.getRuntime().listAutomations();
+                return {
+                    content: [{
+                        type: 'text',
+                        text: JSON.stringify({
+                            total: automations.length,
+                            automations: automations.map((automation) => ({
+                                automationId: automation.automationId,
+                                name: automation.name,
+                                triggerMode: automation.triggerMode,
+                                eventTrigger: automation.eventTrigger,
+                                scope: automation.scope,
+                                rolloutStatus: automation.rolloutStatus,
+                                summary: automation.description,
+                            })),
                         }, null, 2),
                     }],
                 };

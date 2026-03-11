@@ -18,6 +18,7 @@ function test() {
   const integrationsHtml = readDoc('integrations.html');
   const architectureHtml = readDoc('architecture-diagrams.html');
   const readme = fs.readFileSync(path.join(process.cwd(), 'README.md'), 'utf8');
+  const agents = fs.readFileSync(path.join(process.cwd(), 'AGENTS.md'), 'utf8');
   const packageJson = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'package.json'), 'utf8'));
 
   expectIncludes(indexHtml, 'href="#documentation"', 'landing page should link to the documentation section');
@@ -34,6 +35,13 @@ function test() {
   expectIncludes(architectureHtml, 'Diagram Index', 'architecture page should render the diagram sidebar');
   expectIncludes(readme, 'https://sir-ad.github.io/nexus-prime/', 'README should point to the public website');
   expectIncludes(readme, 'https://sir-ad.github.io/nexus-prime/knowledge-base.html', 'README should point to the public docs');
+  expectIncludes(agents, 'nexus_orchestrate', 'AGENTS should document the orchestrator-first entrypoint');
+  expectIncludes(agents, 'nexus_list_skills', 'AGENTS should document skill discovery');
+  expectIncludes(agents, 'nexus_list_workflows', 'AGENTS should document workflow discovery');
+  expectIncludes(agents, 'nexus_list_hooks', 'AGENTS should document hook discovery');
+  expectIncludes(agents, 'nexus_list_automations', 'AGENTS should document automation discovery');
+  expectIncludes(agents, '.agent/runtime/context.json', 'AGENTS should document worker runtime context handoff');
+  assert.ok(!agents.includes('Available MCP Tools (44 total'), 'AGENTS should avoid stale hardcoded tool totals');
   assert.strictEqual(packageJson.homepage, 'https://sir-ad.github.io/nexus-prime/', 'package homepage should point to GitHub Pages');
 
   console.log('✅ Docs website navigation and metadata are wired correctly\n');

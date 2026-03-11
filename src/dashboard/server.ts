@@ -10,6 +10,7 @@ import { podNetwork } from '../engines/pod-network.js';
 import { ClientRegistry } from '../engines/client-registry.js';
 import type { SubAgentRuntime } from '../phantom/runtime.js';
 import { RuntimeRegistry } from '../engines/runtime-registry.js';
+import type { OrchestratorEngine } from '../engines/orchestrator.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -31,6 +32,9 @@ const REQUIRED_CAPABILITIES = {
     specialists: true,
     crews: true,
     planner: true,
+    orchestration: true,
+    tokens: true,
+    clientPrimary: true,
 } as const;
 
 const DEFAULT_SKILLS: Array<{ name: string; instructions: string; riskClass: 'read' | 'orchestrate' | 'mutate'; scope: 'session' | 'worker' | 'global' }> = [
@@ -58,6 +62,7 @@ const DEFAULT_WORKFLOWS: Array<{ name: string; description: string; domain?: str
 
 interface DashboardServerOptions {
     runtimeProvider?: () => SubAgentRuntime | undefined;
+    orchestratorProvider?: () => OrchestratorEngine | undefined;
     memoryProvider?: () => MemoryEngine | undefined;
     adaptersProvider?: () => Adapter[];
     clientRegistryProvider?: () => ClientRegistry | undefined;
@@ -109,6 +114,7 @@ export class DashboardServer {
     private clients: Set<http.ServerResponse> = new Set();
     private unsubscribeBus: (() => void) | null = null;
     private runtimeProvider?: () => SubAgentRuntime | undefined;
+    private orchestratorProvider?: () => OrchestratorEngine | undefined;
     private memoryProvider?: () => MemoryEngine | undefined;
     private adaptersProvider?: () => Adapter[];
     private clientRegistryProvider?: () => ClientRegistry | undefined;
@@ -122,6 +128,7 @@ export class DashboardServer {
 
     constructor(options: DashboardServerOptions = {}) {
         this.runtimeProvider = options.runtimeProvider;
+        this.orchestratorProvider = options.orchestratorProvider;
         this.memoryProvider = options.memoryProvider;
         this.adaptersProvider = options.adaptersProvider;
         this.clientRegistryProvider = options.clientRegistryProvider;
@@ -255,6 +262,37 @@ export class DashboardServer {
             return;
         }
 
+        if (req.method === 'GET' && url.pathname === '/api/orchestration/session') {
+            const snapshot = this.resolveRuntimeSnapshot(url);
+            const orchestrator = this.getOrchestrator();
+            this.respondJson(res, snapshot?.orchestration ?? orchestrator?.getSessionState() ?? {});
+            return;
+        }
+
+        if (req.method === 'GET' && url.pathname === '/api/tokens/summary') {
+            const snapshot = this.resolveRuntimeSnapshot(url);
+            this.respondJson(res, snapshot?.tokens ?? this.getRuntime()?.getTokenTelemetrySummary() ?? {});
+            return;
+        }
+
+        if (req.method === 'GET' && url.pathname === '/api/tokens/timeline') {
+            const limit = parseInt(url.searchParams.get('limit') || '20', 10);
+            const snapshot = this.resolveRuntimeSnapshot(url);
+            const timeline = snapshot?.tokens?.timeline ?? this.getRuntime()?.getTokenTelemetryTimeline(limit) ?? [];
+            this.respondJson(res, timeline.slice(0, Math.max(1, limit)));
+            return;
+        }
+
+        if (req.method === 'GET' && url.pathname.startsWith('/api/tokens/runs/')) {
+            const runId = decodeURIComponent(url.pathname.replace('/api/tokens/runs/', ''));
+            const snapshot = this.resolveRuntimeSnapshot(url);
+            const entry = this.getRuntime()?.getRuntimeId() === snapshot?.runtimeId
+                ? this.getRuntime()?.getTokenTelemetryForRun(runId)
+                : snapshot?.tokens?.timeline?.find((item) => item.runId === runId);
+            this.respondJson(res, entry ?? { error: 'run-token-telemetry-not-found', runId }, entry ? 200 : 404);
+            return;
+        }
+
         if (req.method === 'GET' && url.pathname.startsWith('/api/runs/')) {
             const runId = decodeURIComponent(url.pathname.replace('/api/runs/', ''));
             const run = this.getRuntime()?.getRun(runId);
@@ -377,7 +415,16 @@ export class DashboardServer {
         }
 
         if (req.method === 'GET' && url.pathname === '/api/clients') {
-            this.respondJson(res, this.getClientRegistry()?.listClients(this.getAdapters()) ?? []);
+            const snapshot = this.resolveRuntimeSnapshot(url);
+            this.respondJson(res, snapshot?.clients?.detected?.length
+                ? snapshot.clients.detected
+                : this.getClientRegistry()?.listClients(this.getAdapters()) ?? []);
+            return;
+        }
+
+        if (req.method === 'GET' && url.pathname === '/api/clients/primary') {
+            const snapshot = this.resolveRuntimeSnapshot(url);
+            this.respondJson(res, snapshot?.clients?.primary ?? this.getClientRegistry()?.getPrimaryClient(this.getAdapters()) ?? {});
             return;
         }
 
@@ -558,16 +605,16 @@ export class DashboardServer {
 
         if (req.method === 'POST' && url.pathname === '/api/runtime/execute') {
             const body = await this.readJsonBody(req);
-            const runtime = this.getRuntime();
-            if (!runtime) {
-                this.respondJson(res, { error: 'runtime-unavailable' }, 503);
+            const orchestrator = this.getOrchestrator();
+            if (!orchestrator) {
+                this.respondJson(res, { error: 'orchestrator-unavailable' }, 503);
                 return;
             }
             if (!body.goal || typeof body.goal !== 'string') {
                 this.respondJson(res, { error: 'goal-required' }, 400);
                 return;
             }
-            const run = await runtime.run(body as Parameters<SubAgentRuntime['run']>[0]);
+            const run = await orchestrator.orchestrate(String(body.goal), body as Parameters<SubAgentRuntime['run']>[0]);
             nexusEventBus.emit('dashboard.action', {
                 action: 'runtime.execute',
                 status: run.state,
@@ -817,6 +864,19 @@ export class DashboardServer {
         return this.runtimeProvider?.();
     }
 
+    private resolveRuntimeSnapshot(url: URL) {
+        const runtimes = this.runtimeRegistry.list();
+        const runtimeId = url.searchParams.get('runtimeId')
+            || this.getRuntime()?.getRuntimeId()
+            || runtimes[0]?.runtimeId;
+        if (!runtimeId) return undefined;
+        return runtimes.find((runtime) => runtime.runtimeId === runtimeId) ?? this.runtimeRegistry.read(runtimeId);
+    }
+
+    private getOrchestrator(): OrchestratorEngine | undefined {
+        return this.orchestratorProvider?.();
+    }
+
     private getMemory(): MemoryEngine | undefined {
         return this.memoryProvider?.();
     }
@@ -886,6 +946,7 @@ export class DashboardServer {
         }
 
         const clients = clientRegistry?.listClients(this.getAdapters()) ?? [];
+        const primaryClient = clientRegistry?.getPrimaryClient(this.getAdapters());
 
         return {
             dashboardApiVersion: DASHBOARD_API_VERSION,
@@ -909,8 +970,14 @@ export class DashboardServer {
             },
             clients: {
                 total: clients.length,
-                active: clients.filter((client) => client.state === 'active').length,
-                inferred: clients.filter((client) => client.state === 'inferred').length,
+                active: clients.filter((client) => client.state === 'primaryActive' || client.state === 'active').length,
+                installed: clients.filter((client) => client.state === 'installed').length,
+                primary: primaryClient ? {
+                    clientId: primaryClient.clientId,
+                    displayName: primaryClient.displayName,
+                    state: primaryClient.state,
+                    source: primaryClient.source,
+                } : null,
             },
             release: {
                 packageVersion,

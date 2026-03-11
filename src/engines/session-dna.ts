@@ -81,6 +81,10 @@ export class SessionDNAManager {
         fs.mkdirSync(this.sessionsDir, { recursive: true });
     }
 
+    getSessionId(): string {
+        return this.sessionId;
+    }
+
     // ── Accumulation API ───────────────────────────────────────────────────
 
     /** Record a file being read/accessed */

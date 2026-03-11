@@ -18,7 +18,8 @@ import {
   createTokenOptimizer,
   createContextEngine,
   createMemoryEngine,
-  createOrchestrator
+  createOrchestrator,
+  type OrchestratorEngine,
 } from './engines/index.js';
 import { SessionDNAManager } from './engines/session-dna.js';
 import { DashboardServer } from './dashboard/server.js';
@@ -42,7 +43,7 @@ export class NexusPrime {
   private tokenOptimizer: any;
   private contextEngine: any;
   private memoryEngine: any;
-  private orchestrator: any;
+  private orchestrator: OrchestratorEngine;
   private runtime: SubAgentRuntime;
   private learner: AgentLearner;
   private sessionDNA: SessionDNAManager;
@@ -105,10 +106,17 @@ export class NexusPrime {
       memory: this.memoryEngine,
       sessionDNA: this.sessionDNA,
     });
-    this.orchestrator = createOrchestrator(this.memoryEngine, this.runtime);
+    this.orchestrator = createOrchestrator(
+      this.memoryEngine,
+      this.runtime,
+      this.clientRegistry,
+      this.sessionDNA,
+      process.cwd(),
+    );
     this.learner = new AgentLearner(this.memoryEngine);
     this.dashboardServer = new DashboardServer({
       runtimeProvider: () => this.runtime,
+      orchestratorProvider: () => this.orchestrator,
       memoryProvider: () => this.memoryEngine,
       adaptersProvider: () => this.getAdapters(),
       clientRegistryProvider: () => this.clientRegistry,
@@ -119,12 +127,20 @@ export class NexusPrime {
   async start(): Promise<void> {
     console.error('🧬 Nexus Prime (Enhanced) starting...');
 
+    const currentClient = detectCurrentClient();
+    if (currentClient) {
+      this.clientRegistry.recordHeartbeat(currentClient.clientId, {
+        source: 'manual',
+        metadata: { origin: 'nexus-process-bootstrap', detectedBy: currentClient.source },
+      });
+    }
+
     for (const adapterType of this.config.adapters) {
       await this.addAdapter(adapterType as AdapterType);
     }
 
     this.dashboardServer.start();
-    nexusEventBus.emit('system.boot', { version: '3.2.0', toolsCount: 32 });
+    nexusEventBus.emit('system.boot', { version: '3.8.0', toolsCount: 32 });
 
     this.running = true;
     console.error('✅ Nexus Prime running with engines!');
@@ -304,7 +320,7 @@ export class NexusPrime {
    * Execute via orchestrator
    */
   async orchestrate(task: string, options?: Partial<ExecutionTask>): Promise<ExecutionRun> {
-    return this.orchestrator.executeSwarm(task, options);
+    return this.orchestrator.orchestrate(task, options);
   }
 
 
@@ -327,10 +343,7 @@ export class NexusPrime {
     agent.state.current = 'working';
     agent.state.history.push(task);
 
-    const execution = await this.runtime.run({
-      goal: task,
-      ...options,
-    });
+    const execution = await this.orchestrator.orchestrate(task, options);
     const result = execution.result || summarizeExecution(execution);
     const value = execution.state === 'merged'
       ? 1
@@ -392,6 +405,14 @@ export class NexusPrime {
     return this.runtime;
   }
 
+  getOrchestrator(): OrchestratorEngine {
+    return this.orchestrator;
+  }
+
+  getClientRegistry(): ClientRegistry {
+    return this.clientRegistry;
+  }
+
   evolve(): void {
     const health = { coherence: 0.8, stagnation: 0.2 };
     this.evolution.govern(health);
@@ -447,3 +468,19 @@ export class NexusPrime {
 
 export const createNexusPrime = (config?: Partial<NexusConfig>) =>
   new NexusPrime(config);
+
+function detectCurrentClient(): { clientId: string; source: string } | null {
+  if (process.env.CODEX_HOME || process.env.CODEX_SESSION) {
+    return { clientId: 'codex', source: 'env' };
+  }
+  if (process.env.CLAUDE_CODE || process.env.CLAUDE_SESSION_ID || process.env.CLAUDE_PROJECT_DIR) {
+    return { clientId: 'claude-code', source: 'env' };
+  }
+  if (process.env.OPENCODE_HOME) {
+    return { clientId: 'opencode', source: 'env' };
+  }
+  if (process.env.OPENCLAW_HOME || process.env.ANTIGRAVITY_HOME) {
+    return { clientId: 'antigravity', source: 'env' };
+  }
+  return null;
+}

@@ -313,6 +313,13 @@ nexus-prime setup status
 ---
 
 ## 📜 Changelog
+### v3.8.0 "Orchestrator Control Plane"
+- **New `nexus_orchestrate` raw-prompt entrypoint plus discovery APIs for skills, workflows, hooks, and automations**
+- **Orchestrator-first execution path now owns intent analysis, context loading, token planning, artifact selection, and bounded autonomous runtime preparation**
+- **Persisted orchestration and token telemetry with `/api/orchestration/session`, `/api/tokens/*`, and a dashboard token analyzer**
+- **Primary-client precedence now correctly shows active Codex sessions ahead of stale Claude footprints while preserving installed/idle visibility**
+- **AGENTS rewritten as an orchestrator-first operating manual with subsystem trigger guidance and worker context handoff rules**
+
 ### v3.7.0 "Runtime Truth"
 - **Shared runtime registry with `/api/runtimes` and `/api/usage` so the dashboard reports each live runtime truthfully**
 - **Worker context handoff artifacts under `.agent/runtime/context.json` and `.agent/runtime/context.md`**

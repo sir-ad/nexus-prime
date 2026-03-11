@@ -1,193 +1,262 @@
-# 🧬 AGENTS.md — Nexus Prime Agent Protocol
+# AGENTS.md
 
-> One-pager for any AI model (Gemini, Claude, GPT-4, etc.) operating inside a Nexus Prime project.
+Nexus Prime is orchestrator-first. Treat it as a control plane, not just a bag of optional tools.
 
----
+## Default Operating Rule
 
-## What Is Nexus Prime?
+For any non-trivial task, start with `nexus_orchestrate`.
 
-Nexus Prime is a **meta-framework** running as an MCP server. It gives you:
-- **Cross-session memory** — store findings, recall them later
-- **Token optimization** — pre-flight reading plans before touching files
-- **Guardrails** — machine-checked rules before risky operations
-- **Phantom Workers** — parallel git worktree sub-agents for big tasks
+Use raw prompts when possible:
 
----
-
-## 🚦 Session Start (MANDATORY — do this first, always)
-
-```
-1. nexus_recall_memory(query="<today's task in 10 words>", k=8)
-   → Trust the results. Skip re-reading files it tells you about.
-
-2. nexus_memory_stats()
-   → If cortex > 20, you have rich context. Use it.
-
-3. nexus_plan_execution(goal="<today's task>", files=[...])
-   → Use when you need the live crew/specialist/skill/workflow ledger before running the task.
-```
-
----
-
-## ⚡ Before Reading Files (3+ files = MANDATORY)
-
-```
-nexus_optimize_tokens(
-  task="<what you're doing>",
-  files=["src/foo.ts", "src/bar.ts", ...]
+```txt
+nexus_orchestrate(
+  prompt="<the user request in plain language>",
+  files=[optional hard constraints],
+  skills=[optional hard constraints],
+  workflows=[optional hard constraints],
+  hooks=[optional hard constraints],
+  automations=[optional hard constraints],
+  crews=[optional hard constraints],
+  specialists=[optional hard constraints]
 )
 ```
 
-**Follow the plan exactly:**
-- `✅ Read fully` → `view_file`
-- `✂️ Read partially` → `view_file` with line range
-- `🔍 Outline only` → `view_file_outline`
-- `⏭️ Skip` → do NOT read
+If the caller does not explicitly constrain Nexus, let Nexus choose the crew, specialists, skills, workflows, hooks, automations, worker count, and token strategy by itself.
 
----
+## Context Acquisition Order
 
-## 🛡️ Before Risky Operations
+Run this order unless the user explicitly asks for a low-level tool:
 
+1. `nexus_recall_memory(query="<task in 10 words>", k=8)`
+2. `nexus_memory_stats()`
+3. `nexus_plan_execution(goal="<task>", files=[...])` for planning-only inspection
+4. `nexus_list_skills()`, `nexus_list_workflows()`, `nexus_list_specialists()`, `nexus_list_crews()` when you need catalog awareness before execution
+5. `nexus_list_hooks()` and `nexus_list_automations()` only when changing operating behavior, retries, follow-up runs, or recurring execution logic
+6. `nexus_optimize_tokens(...)` before reading 3+ files
+7. `nexus_mindkit_check(...)` before risky mutation
+
+Do not start with broad repo exploration if memory, planner, or catalog data can narrow the problem first.
+
+## Subsystem Trigger Matrix
+
+### Memories
+- Use for prior learnings, bug roots, architecture history, and session handoff.
+- Call `nexus_recall_memory` before re-researching.
+- Call `nexus_store_memory` when you find a root cause, durable pattern, or non-obvious decision.
+
+### Skills
+- Use for reusable execution guidance and tool bindings.
+- Discover with `nexus_list_skills`.
+- Runtime-selected skills are written into worker context under `.agent/runtime/context.json` and `.agent/runtime/context.md`.
+- Do not invent a skill choice blindly if the catalog already contains a relevant one.
+
+### Roster
+- Use when specialist authority, mission, workflow, and deliverables matter.
+- Discover with `nexus_list_specialists`.
+- Specialist context is injected into worker manifests and worker context packets.
+
+### Crews
+- Use when task shape matters more than a single specialist.
+- Discover with `nexus_list_crews`.
+- Crew choice influences review gates, specialist mixes, fallback paths, and swarm shape.
+
+### Plan
+- Use for a live ledger of what Nexus would choose before mutation.
+- Call `nexus_plan_execution` when you need to inspect the current crew, specialist, skill, workflow, tool, and review-gate selection without executing.
+
+### Workflows
+- Use for reusable execution flows, verification patterns, and tool/action bundles.
+- Discover with `nexus_list_workflows`.
+- Workflows are not just verifier commands; they also shape worker context and expected outputs.
+
+### Hooks
+- Use for runtime checkpoint behavior at `run.created`, `before-read`, `before-mutate`, `before-verify`, failure, verification, promotion, memory store, and shield block.
+- Discover with `nexus_list_hooks`.
+- Hooks are an operating-layer tool, not a default task entrypoint.
+
+### Automations
+- Use for bounded follow-up runs, event-triggered actions, or connector delivery.
+- Discover with `nexus_list_automations`.
+- Automations are for continuation and operating behavior, not for replacing normal execution planning.
+
+### Governance
+- Use before risky mutation and when auditing memory quality or promotion safety.
+- `nexus_mindkit_check` is mandatory before destructive or ambiguous operations.
+- Treat failed governance results as blockers, not suggestions.
+
+### Federation
+- Use when prior learnings from peer nodes or relay state might materially improve execution.
+- Call `nexus_federation_status` for current mesh and relay status.
+- If relay is unconfigured, treat federation as degraded, not absent.
+
+## Runtime Contract
+
+- The orchestrator decides intent, decomposition, artifact selection, swarm shape, continuation, and learning.
+- The runtime executes manifests, worktrees, hooks, workflows, verification, merge/apply, and governance.
+- Dashboard truth comes from persisted runtime snapshots, not whichever process happened to host the UI.
+- Token telemetry is persisted. The dashboard token dial should show lifetime totals even after restart.
+- Runtime execution clamps to at least 2 coder workers. Do not assume `workers: 1` will produce a single-coder POD.
+
+## Worker Context
+
+Each worker writes:
+
+- `.agent/runtime/context.json`
+- `.agent/runtime/context.md`
+
+Treat these as the canonical handoff for:
+
+- selected crew
+- specialist profile excerpts
+- active skills
+- active workflows
+- review gates
+- continuation data
+- phase hook additions
+
+## Session Protocol
+
+### Start
+
+```txt
+nexus_recall_memory(query="<today's task in 10 words>", k=8)
+nexus_memory_stats()
 ```
+
+If the task is non-trivial, either:
+
+- call `nexus_orchestrate(...)`, or
+- call `nexus_plan_execution(...)` first when you explicitly want to inspect the ledger before running
+
+### During Work
+
+Call:
+
+```txt
+nexus_store_memory(
+  content="<specific durable learning>",
+  priority=0.8,
+  tags=["#bug", "#architecture", "#decision"]
+)
+```
+
+Store memories for:
+
+- root causes
+- architecture decisions
+- patterns worth reusing
+- repeated failure modes
+- task-specific file maps
+
+### End
+
+```txt
+nexus_session_dna(action="generate")
+nexus_store_memory(
+  content="Session YYYY-MM-DD: <what changed, why, and what remains>",
+  priority=0.85,
+  tags=["#session-summary"]
+)
+```
+
+## Before Reading Files
+
+For 3+ files:
+
+```txt
+nexus_optimize_tokens(
+  task="<what you're doing>",
+  files=["src/foo.ts", "src/bar.ts", "..."]
+)
+```
+
+Follow the plan:
+
+- `read` or `full` means read fully
+- `partial` means read only the proposed range or chunk
+- `outline` means inspect structure only
+- `skip` means skip
+
+Do not ignore the optimizer and then bulk-read the repo anyway.
+
+## Before Risky Operations
+
+```txt
 nexus_mindkit_check(
-  action="<describe what you're about to do>",
+  action="<what you're about to do>",
   tokenCount=<estimate>,
   filesToModify=["path/to/file"],
   isDestructive=false
 )
 ```
 
-If it returns `passed: false` → stop and address the violations first.
+If `passed` is false, stop and resolve the violation first.
 
-**Auto-triggered on:**
-- Token count > 70k (warn) / 100k (block)
-- `isDestructive: true` without confirmation
-- Writing to system paths (`/etc`, `/usr`, `/bin`)
+## Operating Recipes
 
----
+### Bug Fix
+- `nexus_recall_memory`
+- `nexus_plan_execution`
+- `nexus_optimize_tokens`
+- `nexus_orchestrate`
+- `nexus_store_memory` with root cause
 
-## 💾 Store Key Findings (during work)
+### Multi-file Feature
+- `nexus_recall_memory`
+- `nexus_plan_execution`
+- `nexus_list_skills`
+- `nexus_list_workflows`
+- `nexus_optimize_tokens`
+- `nexus_orchestrate`
 
-```
-nexus_store_memory(
-  content="<specific, actionable finding>",
-  priority=0.8,
-  tags=["#bug", "#architecture", "#decision"]
-)
-```
+### Refactor
+- `nexus_recall_memory`
+- `nexus_ghost_pass`
+- `nexus_plan_execution`
+- `nexus_mindkit_check`
+- `nexus_orchestrate`
 
-**Store when you find:**
-- Root cause of a bug
-- Why a design decision was made
-- A pattern that works (or doesn't)
-- Any key file for a task type
+### Release Prep
+- `nexus_recall_memory`
+- `nexus_plan_execution`
+- `nexus_list_workflows`
+- `nexus_list_automations`
+- `nexus_orchestrate`
 
-**Priority guide:** `1.0` = critical · `0.8` = important · `0.5` = routine
+### Operating-layer Change
+- `nexus_plan_execution`
+- `nexus_list_hooks`
+- `nexus_list_automations`
+- `nexus_mindkit_check`
+- mutate only after you know whether the behavior belongs in a hook, automation, workflow, or skill
 
----
+## Anti-Patterns
 
-## 🔮 Before Large Rewrites (RECOMMENDED)
+- Do not skip `nexus_orchestrate` and manually wire every subsystem unless the task is explicitly low-level or diagnostic.
+- Do not read 10+ files before `nexus_optimize_tokens`.
+- Do not treat populated catalogs as proof that a subsystem was used in this runtime.
+- Do not use hooks or automations as generic replacements for planning.
+- Do not store vague memories like "fixed a bug"; store the exact cause and effect.
+- Do not hardcode tool counts in docs or prompts; the surface evolves.
 
-```
-nexus_ghost_pass(
-  goal="<what you want to accomplish>",
-  files=["affected/file1.ts", "affected/file2.ts"]
-)
-```
+## Key MCP Surfaces
 
-Returns: risk areas, reading plan, worker approaches.
-Use risk areas as a checklist before making changes.
+- `nexus_orchestrate`
+- `nexus_recall_memory`
+- `nexus_memory_stats`
+- `nexus_store_memory`
+- `nexus_plan_execution`
+- `nexus_optimize_tokens`
+- `nexus_mindkit_check`
+- `nexus_ghost_pass`
+- `nexus_spawn_workers`
+- `nexus_session_dna`
+- `nexus_list_skills`
+- `nexus_list_workflows`
+- `nexus_list_hooks`
+- `nexus_list_automations`
+- `nexus_list_specialists`
+- `nexus_list_crews`
+- `nexus_federation_status`
 
----
-
-## 🔚 Session End (MANDATORY)
-
-```
-nexus_session_dna(action="generate")
-  → Capture files accessed, decisions made, and recommended next steps.
-
-nexus_store_memory(
-  content="Session YYYY-MM-DD: <1-3 sentences: what changed, files modified, decisions made>",
-  priority=0.85,
-  tags=["#session-summary"]
-)
-```
-
----
-
-## 🤖 Sub-Agent Protocol (Phantom Workers)
-
-When a task is too large for one agent or benefits from parallel exploration:
-
-```
-1. nexus_ghost_pass() → get task analysis + risk areas
-2. Spawn 2 approaches as sub-agents in parallel:
-   - Worker A: "minimal" — conservative, safe approach
-   - Worker B: "full" — ambitious, complete approach
-3. Each worker produces: { learnings, confidence, diff }
-4. MergeOracle picks winner based on confidence + outcome
-5. Apply winning approach, run build verification
-```
-
-**Key rule:** Sub-agents operate in isolated git worktrees.  
-Changes don't reach main until MergeOracle approves.
-
-**POD minimum:** Runtime execution always clamps to at least 2 coder workers. Do not request `workers: 1` and expect a single-coder run.
-
-**Worker handoff:** Each worker writes `.agent/runtime/context.json` and `.agent/runtime/context.md` inside its worktree. Use these as the canonical selected context for crew, specialist, skills, workflows, review gates, and hook-added instructions.
-
----
-
-## 📋 Tag Taxonomy
-
-| Tag | Use for |
-|-----|---------|
-| `#bug` | Bug found or fixed |
-| `#architecture` | Structural decisions |
-| `#decision` | Non-obvious choices |
-| `#session-summary` | End-of-session wrap-up |
-| `#token-plan` | File reading strategies |
-| `#ghost-pass` | Pre-flight analysis |
-| `#guardrail` | Guardrail violations |
-| `#phantom` | Phantom Worker learnings |
-
----
-
-## ❌ Anti-Patterns
-
-| Don't | Do instead |
-|-------|-----------|
-| Read 10+ files without a plan | `nexus_optimize_tokens` first |
-| Research something you might know | `nexus_recall_memory` first |
-| Store "fixed a bug" | Store "Fixed SQLite flush bug in memory.ts — flush() now on SIGINT" |
-| Skip session-end memory | Always store a session summary |
-| Modify files outside your worktree | Stay in your worktree until MergeOracle approves |
-
----
-
-## 🔧 Available MCP Tools (44 total — key tools below)
-
-| Tool | Purpose |
-|------|---------|
-| `nexus_store_memory` | Store knowledge & insights |
-| `nexus_recall_memory` | Recall by semantic query |
-| `nexus_memory_stats` | Check memory health & links |
-| `nexus_optimize_tokens` | Pre-flight reading plan |
-| `nexus_hypertune_max` | Greedy knapsack optimization |
-| `nexus_ghost_pass` | Pre-flight task risk analysis |
-| `nexus_spawn_workers` | Parallel git worktree sub-agents |
-| `nexus_plan_execution` | Planner-only crew/specialist/skill/workflow ledger |
-| `nexus_mindkit_check` | Guardrail checks (safety) |
-| `nexus_graph_query` | Traverse the Zettelkasten graph |
-| `nexus_session_dna` | State snapshots for handover |
-| `nexus_list_specialists` | List the specialist roster |
-| `nexus_list_crews` | List built-in crew templates |
-| `nexus_darwin_propose` | Self-improvement cycles |
-| `nexus_net_publish` | Knowledge sharing across relays |
-| `nexus_entangle` | Entangled state measurements |
-| `nexus_cas_compress` | Continuous Attention compression |
-
----
-
-*MCP server starts with: `node /path/to/nexus-prime/dist/cli.js mcp`*  
-*Memory persists to: `~/.nexus-prime/memory.db`*
+Memory persists under `~/.nexus-prime/`. Worker-selected runtime context is written inside each worker worktree under `.agent/runtime/`.
