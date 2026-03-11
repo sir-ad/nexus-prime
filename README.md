@@ -312,6 +312,14 @@ nexus-prime setup status
 ---
 
 ## 📜 Changelog
+### c3.5.0 "Runtime Intel"
+- **Broader built-in skill/workflow packs for PDLC, GTM, writing, deep-tech, API, data, Python, Django, TypeScript, Node, React, AI, security, and economics**
+- **First-class HookArtifact runtime with lifecycle checkpoint triggers**
+- **First-class AutomationArtifact runtime with bounded follow-up execution and connector delivery records**
+- **Balanced SecurityShield for patch apply, promotions, connectors, and memory governance**
+- **Memory checks for duplicates, contradictions, secret exposure, unsupported claims, and low-provenance/noise**
+- **Real local-federation snapshot with peers, health, relay learnings, and published traces**
+- **MCP, CLI, and dashboard support for hooks, automations, memory audit, and federation status**
 
 ### v3.4.0 "Dashboard Overhaul"
 - **Heartbeat Throttling**: Eliminated refresh storm from client heartbeats — graph stays stable.
