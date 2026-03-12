@@ -227,11 +227,6 @@ Solves the "catastrophic forgetting" problem. Every insight is tagged, prioritiz
 <summary><b>View Details</b></summary>
 Formulates context selection as a budgeted routing problem, solving for maximum information gain against token cost. The runtime persists token telemetry so the dashboard can show lifetime compression totals, by-source allocation, and per-run drilldowns instead of waiting for live-only events.
 
-<div align="center">
-  <img src="./docs/assets/screenshots/dashboard_v3.8.0.png" alt="Nexus Prime dashboard showing session-first RAG collections, source mix, provenance, and by-source token allocation">
-  <br>
-  <i>Session-first RAG and token budgeting: Nexus retrieves top matching chunks, records provenance, and shows what was selected or dropped.</i>
-</div>
 </details>
 
 ### 3. Phantom Worker Swarms
