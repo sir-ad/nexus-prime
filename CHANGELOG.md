@@ -2,6 +2,24 @@
 
 All notable changes to Nexus Prime will be documented in this file.
 
+## [3.9.0] - 2026-03-12
+
+### Added
+- **Instruction Gateway**: Added a shared `InstructionGateway` that compiles `AGENTS.md`, `.agent/rules/*`, and runtime-selected context into a deduplicated, token-budgeted instruction packet for active runs.
+- **Cross-Client Instruction Envelopes**: Added packet renderers for Codex, Claude Code, Antigravity/OpenClaw, Cursor, Windsurf, and Opencode so every high-level client path consumes one compiled protocol instead of adapter-specific stubs.
+- **Execution Ledger Surfaces**: Added persisted execution ledger tracking plus dashboard APIs for `/api/orchestration/ledger` and `/api/instruction-packet`.
+- **Release Notes Artifact**: Added release notes for this version under `releases/v3.9.0.md`.
+
+### Changed
+- **High-Level Runtime Enforcement**: Orchestrated runs now compile and persist instruction packets, planner/token-optimization status, and machine-readable step outcomes before entering runtime execution.
+- **Human vs Machine Protocol Split**: Reduced `AGENTS.md` into a compact human operator manual and moved the durable machine-facing protocol path to `.agent/rules/*` plus `.agent/runtime/packet.json` and `.agent/runtime/packet.md`.
+- **Dashboard Runtime Truth**: The dashboard now shows execution mode, latest packet, latest ledger, and clearer empty token-state messaging from persisted runtime snapshots.
+
+### Fixed
+- **Antigravity / OpenClaw Stub Behavior**: Replaced log-only adapter behavior with real packet rendering over the shared instruction gateway.
+- **Execution Truth Drift**: Internal continuation runs no longer overwrite the canonical packet-bearing orchestration snapshot for the parent runtime.
+- **Prompt Noise Regression**: Compiled packets now deduplicate repeated AGENTS/rules sections and avoid dumping the full installed skill catalog into model-facing context.
+
 ## [3.8.0] - 2026-03-11
 
 ### Added

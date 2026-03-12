@@ -140,7 +140,7 @@ export class NexusPrime {
     }
 
     this.dashboardServer.start();
-    nexusEventBus.emit('system.boot', { version: '3.8.0', toolsCount: 32 });
+    nexusEventBus.emit('system.boot', { version: '3.9.0', toolsCount: 32 });
 
     this.running = true;
     console.error('✅ Nexus Prime running with engines!');

@@ -313,6 +313,13 @@ nexus-prime setup status
 ---
 
 ## 📜 Changelog
+### v3.9.0 "Instruction Gateway"
+- **Shared instruction gateway compiles AGENTS, `.agent/rules/*`, and runtime selections into a deduplicated packet for every orchestrated run**
+- **Cross-client packet renderers now support Codex, Claude Code, Antigravity/OpenClaw, Cursor, Windsurf, and Opencode from one protocol path**
+- **Execution ledgers and compiled packets are persisted and exposed in the dashboard via `/api/orchestration/ledger` and `/api/instruction-packet`**
+- **AGENTS is now a compact human manual, while `.agent/runtime/packet.json` and `.agent/runtime/packet.md` serve as the machine-facing handoff**
+- **Continuation children no longer overwrite the parent runtime's canonical orchestration snapshot**
+
 ### v3.8.0 "Orchestrator Control Plane"
 - **New `nexus_orchestrate` raw-prompt entrypoint plus discovery APIs for skills, workflows, hooks, and automations**
 - **Orchestrator-first execution path now owns intent analysis, context loading, token planning, artifact selection, and bounded autonomous runtime preparation**
