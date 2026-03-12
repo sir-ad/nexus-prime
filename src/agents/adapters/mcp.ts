@@ -138,6 +138,15 @@ const MANUAL_OR_DIAGNOSTIC_TOOLS = new Set<string>([
     'nexus_assemble_context',
     'nexus_execute_nxl',
     'nexus_publish_trace',
+    'nexus_rag_list_collections',
+    'nexus_rag_create_collection',
+    'nexus_rag_ingest_collection',
+    'nexus_rag_attach_collection',
+    'nexus_rag_detach_collection',
+    'nexus_rag_delete_collection',
+    'nexus_pattern_search',
+    'nexus_pattern_list',
+    'nexus_knowledge_provenance',
 ]);
 
 /** Session-level telemetry tracker */
@@ -832,6 +841,116 @@ export class MCPAdapter implements Adapter {
                     },
                 },
                 {
+                    name: 'nexus_rag_list_collections',
+                    description: 'Expert surface: list session-first RAG collections managed by Nexus Prime.',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {},
+                    },
+                },
+                {
+                    name: 'nexus_rag_create_collection',
+                    description: 'Expert surface: create a session-first RAG collection outside the git repo.',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {
+                            name: { type: 'string', description: 'Collection name' },
+                            description: { type: 'string', description: 'Optional collection description' },
+                            tags: { type: 'array', items: { type: 'string' }, description: 'Collection tags' },
+                            scope: { type: 'string', enum: ['session', 'project'], description: 'Collection scope' },
+                        },
+                        required: ['name'],
+                    },
+                },
+                {
+                    name: 'nexus_rag_ingest_collection',
+                    description: 'Expert surface: ingest local files, URLs, or raw text into a RAG collection.',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {
+                            collectionId: { type: 'string', description: 'Collection id' },
+                            inputs: {
+                                type: 'array',
+                                items: {
+                                    type: 'object',
+                                    properties: {
+                                        filePath: { type: 'string' },
+                                        url: { type: 'string' },
+                                        text: { type: 'string' },
+                                        label: { type: 'string' },
+                                        tags: { type: 'array', items: { type: 'string' } },
+                                    },
+                                },
+                                description: 'Collection sources',
+                            },
+                        },
+                        required: ['collectionId', 'inputs'],
+                    },
+                },
+                {
+                    name: 'nexus_rag_attach_collection',
+                    description: 'Expert surface: attach an existing RAG collection to the active runtime/session.',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {
+                            collectionId: { type: 'string', description: 'Collection id' },
+                        },
+                        required: ['collectionId'],
+                    },
+                },
+                {
+                    name: 'nexus_rag_detach_collection',
+                    description: 'Expert surface: detach a RAG collection from the active runtime/session.',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {
+                            collectionId: { type: 'string', description: 'Collection id' },
+                        },
+                        required: ['collectionId'],
+                    },
+                },
+                {
+                    name: 'nexus_rag_delete_collection',
+                    description: 'Expert surface: delete a RAG collection from Nexus state.',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {
+                            collectionId: { type: 'string', description: 'Collection id' },
+                        },
+                        required: ['collectionId'],
+                    },
+                },
+                {
+                    name: 'nexus_pattern_search',
+                    description: 'Expert surface: search bounded orchestration pattern cards that can shape a run.',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {
+                            query: { type: 'string', description: 'Pattern search query' },
+                            limit: { type: 'number', description: 'Optional result limit' },
+                        },
+                        required: ['query'],
+                    },
+                },
+                {
+                    name: 'nexus_pattern_list',
+                    description: 'Expert surface: list the top bounded orchestration pattern cards available to Nexus Prime.',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {
+                            limit: { type: 'number', description: 'Optional result limit' },
+                        },
+                    },
+                },
+                {
+                    name: 'nexus_knowledge_provenance',
+                    description: 'Expert surface: inspect the latest knowledge-fabric provenance trace for the active runtime.',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {},
+                    },
+                },
+                {
                     name: 'nexus_run_status',
                     description: 'Return the current recorded state of a runtime execution run.',
                     inputSchema: {
@@ -1092,6 +1211,7 @@ export class MCPAdapter implements Adapter {
                             shortlist: bootstrap.shortlist,
                             tokenOptimization: bootstrap.tokenOptimization,
                             reviewGates: bootstrap.reviewGates,
+                            knowledgeFabric: bootstrap.knowledgeFabric,
                             mcpToolProfile: this.getToolProfile(),
                         }, null, 2),
                     }],
@@ -2070,6 +2190,88 @@ export class MCPAdapter implements Adapter {
                 };
             }
 
+            case 'nexus_rag_list_collections': {
+                const collections = this.getOrchestrator().listRagCollections();
+                return {
+                    content: [{
+                        type: 'text',
+                        text: JSON.stringify({
+                            total: collections.length,
+                            collections,
+                        }, null, 2),
+                    }],
+                };
+            }
+
+            case 'nexus_rag_create_collection': {
+                const name = String(request.params.arguments?.name ?? '');
+                const description = request.params.arguments?.description ? String(request.params.arguments.description) : undefined;
+                const tags = Array.isArray(request.params.arguments?.tags)
+                    ? (request.params.arguments.tags as unknown[]).map(String)
+                    : [];
+                const scope = String(request.params.arguments?.scope ?? 'session') === 'project' ? 'project' : 'session';
+                const collection = this.getOrchestrator().createRagCollection({ name, description, tags, scope });
+                return {
+                    content: [{
+                        type: 'text',
+                        text: JSON.stringify(collection, null, 2),
+                    }],
+                };
+            }
+
+            case 'nexus_rag_ingest_collection': {
+                const collectionId = String(request.params.arguments?.collectionId ?? '');
+                const inputs = Array.isArray(request.params.arguments?.inputs)
+                    ? (request.params.arguments.inputs as unknown[]).map((entry: any) => ({
+                        filePath: entry?.filePath ? String(entry.filePath) : undefined,
+                        url: entry?.url ? String(entry.url) : undefined,
+                        text: entry?.text ? String(entry.text) : undefined,
+                        label: entry?.label ? String(entry.label) : undefined,
+                        tags: Array.isArray(entry?.tags) ? entry.tags.map(String) : [],
+                    }))
+                    : [];
+                const result = await this.getOrchestrator().ingestRagCollection(collectionId, inputs);
+                return {
+                    content: [{
+                        type: 'text',
+                        text: JSON.stringify(result, null, 2),
+                    }],
+                };
+            }
+
+            case 'nexus_rag_attach_collection': {
+                const collectionId = String(request.params.arguments?.collectionId ?? '');
+                const collection = this.getOrchestrator().attachRagCollection(collectionId);
+                return {
+                    content: [{
+                        type: 'text',
+                        text: JSON.stringify(collection, null, 2),
+                    }],
+                };
+            }
+
+            case 'nexus_rag_detach_collection': {
+                const collectionId = String(request.params.arguments?.collectionId ?? '');
+                const collection = this.getOrchestrator().detachRagCollection(collectionId);
+                return {
+                    content: [{
+                        type: 'text',
+                        text: JSON.stringify(collection, null, 2),
+                    }],
+                };
+            }
+
+            case 'nexus_rag_delete_collection': {
+                const collectionId = String(request.params.arguments?.collectionId ?? '');
+                const removed = this.getOrchestrator().deleteRagCollection(collectionId);
+                return {
+                    content: [{
+                        type: 'text',
+                        text: JSON.stringify({ collectionId, removed }, null, 2),
+                    }],
+                };
+            }
+
             case 'nexus_list_workflows': {
                 const workflows = this.getRuntime().listWorkflows();
                 return {
@@ -2128,6 +2330,45 @@ export class MCPAdapter implements Adapter {
                                 summary: automation.description,
                             })),
                         }, null, 2),
+                    }],
+                };
+            }
+
+            case 'nexus_pattern_search': {
+                const query = String(request.params.arguments?.query ?? '');
+                const limit = Number(request.params.arguments?.limit ?? 6);
+                const results = this.getOrchestrator().searchPatterns(query, limit);
+                return {
+                    content: [{
+                        type: 'text',
+                        text: JSON.stringify({
+                            total: results.length,
+                            patterns: results,
+                        }, null, 2),
+                    }],
+                };
+            }
+
+            case 'nexus_pattern_list': {
+                const limit = Number(request.params.arguments?.limit ?? 8);
+                const results = this.getOrchestrator().listPatterns().slice(0, Math.max(1, limit));
+                return {
+                    content: [{
+                        type: 'text',
+                        text: JSON.stringify({
+                            total: results.length,
+                            patterns: results,
+                        }, null, 2),
+                    }],
+                };
+            }
+
+            case 'nexus_knowledge_provenance': {
+                const provenance = this.getOrchestrator().getKnowledgeFabricProvenance();
+                return {
+                    content: [{
+                        type: 'text',
+                        text: JSON.stringify(provenance, null, 2),
                     }],
                 };
             }
@@ -2552,6 +2793,6 @@ export class MCPAdapter implements Adapter {
         console.error('[MCP Adapter] Disconnected');
     }
 
-    async send(_message: NetworkMessage): Promise<void> { /* future */ }
-    receive(_message: NetworkMessage): void { /* future */ }
+    async send(message: NetworkMessage): Promise<void> { void message; }
+    receive(message: NetworkMessage): void { void message; }
 }

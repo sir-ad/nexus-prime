@@ -14,6 +14,7 @@ import { nxl, type AgentArchetype } from './nxl-interpreter.js';
 import { TokenSupremacyEngine, type FileRef } from './token-supremacy.js';
 import { resolveNexusStateDir } from './runtime-registry.js';
 import type {
+  RuntimeRegistrySnapshot,
   RuntimeOrchestrationSnapshot,
   RuntimePrimaryClientSnapshot,
   RuntimeTokenSummarySnapshot,
@@ -25,10 +26,9 @@ import {
   InstructionGateway,
   createExecutionLedger,
   markExecutionLedgerStep,
-  type ExecutionLedger,
   type GovernanceSnapshot,
-  type InstructionPacket,
 } from './instruction-gateway.js';
+import { KnowledgeFabricEngine, type KnowledgeFabricBundle } from './knowledge-fabric.js';
 import {
   createSubAgentRuntime,
   type ExecutionRun,
@@ -112,6 +112,14 @@ export interface SessionBootstrapResult {
     candidateFiles: string[];
   };
   reviewGates: string[];
+  knowledgeFabric?: {
+    summary: string;
+    dominantSource: string;
+    attachedCollections: string[];
+    patternHits: string[];
+    selectedFiles: string[];
+    modelTiers: string[];
+  };
 }
 
 interface CatalogItem {
@@ -144,6 +152,7 @@ export class OrchestratorEngine {
   private repoRoot: string;
   private tokenEngine: TokenSupremacyEngine;
   private instructionGateway: InstructionGateway;
+  private knowledgeFabric: KnowledgeFabricEngine;
   private sessionsDir: string;
   private sessionState: SessionAutonomyState;
 
@@ -158,6 +167,11 @@ export class OrchestratorEngine {
     this.repoRoot = options.repoRoot ?? process.cwd();
     this.tokenEngine = new TokenSupremacyEngine();
     this.instructionGateway = new InstructionGateway(this.repoRoot);
+    this.knowledgeFabric = new KnowledgeFabricEngine({
+      repoRoot: this.repoRoot,
+      memory: this.memory,
+      tokenEngine: this.tokenEngine,
+    });
     this.sessionsDir = path.join(resolveNexusStateDir(), 'autonomy-sessions');
     fs.mkdirSync(this.sessionsDir, { recursive: true });
     this.sessionState = this.loadSessionState();
@@ -210,9 +224,16 @@ export class OrchestratorEngine {
     const latestDNA = SessionDNAManager.loadLatest();
     const memoryMatches = await this.memory.recall(task, 8);
     const memoryStats = this.memory.getStats();
+    const candidateFiles = options.files?.length
+      ? options.files
+      : this.discoverCandidateFiles(task);
+    const knowledgeFabric = this.composeKnowledgeFabric(task, candidateFiles, memoryMatches, intent);
+    const plannedFiles = options.files?.length
+      ? options.files
+      : (knowledgeFabric.repo.selectedFiles.length > 0 ? knowledgeFabric.repo.selectedFiles : candidateFiles);
     const planner = await this.runtime.planExecution({
       goal: task,
-      files: options.files,
+      files: plannedFiles,
       skillNames: options.skillNames,
       workflowSelectors: options.workflowSelectors,
       crewSelectors: options.crewSelectors,
@@ -220,45 +241,42 @@ export class OrchestratorEngine {
       workers: options.workers,
       optimizationProfile: options.optimizationProfile,
     });
-    const candidateFiles = options.files?.length
-      ? options.files
-      : this.discoverCandidateFiles(task);
     const fileRefs = candidateFiles.map((filePath) => this.toFileRef(filePath)).filter((file): file is FileRef => Boolean(file));
-    const tokenOptimizationRequired = fileRefs.length >= 3;
+    const tokenOptimizationRequired = Boolean(knowledgeFabric.repo.readingPlan) || fileRefs.length >= 3;
     const selectedSkills = options.skillNames?.length
       ? [...options.skillNames]
-      : dedupeStrings([...planner.selectedSkills, ...this.pickCatalogNames(task, intent, this.runtime.listSkills().map((skill) => ({
+      : dedupeStrings([...knowledgeFabric.recommendations.skills, ...planner.selectedSkills, ...this.pickCatalogNames(task, intent, this.runtime.listSkills().map((skill) => ({
           id: skill.skillId,
           name: skill.name,
           body: `${skill.name}\n${skill.instructions}\n${skill.provenance}`,
         })), 4)]);
     const selectedWorkflows = options.workflowSelectors?.length
       ? [...options.workflowSelectors]
-      : dedupeStrings([...planner.selectedWorkflows, ...this.pickCatalogNames(task, intent, this.runtime.listWorkflows().map((workflow) => ({
+      : dedupeStrings([...knowledgeFabric.recommendations.workflows, ...planner.selectedWorkflows, ...this.pickCatalogNames(task, intent, this.runtime.listWorkflows().map((workflow) => ({
           id: workflow.workflowId,
           name: workflow.name,
           body: `${workflow.name}\n${workflow.description}\n${workflow.domain}`,
         })), 3)]);
     const selectedHooks = options.hookSelectors?.length
       ? [...options.hookSelectors]
-      : this.pickCatalogNames(task, intent, this.runtime.listHooks().map((hook) => ({
+      : dedupeStrings([...knowledgeFabric.recommendations.hooks, ...this.pickCatalogNames(task, intent, this.runtime.listHooks().map((hook) => ({
           id: hook.hookId,
           name: hook.name,
           body: `${hook.name}\n${hook.description}\n${hook.trigger}`,
-        })), intent.riskClass === 'high' ? 2 : 1);
+        })), intent.riskClass === 'high' ? 2 : 1)]);
     const selectedAutomations = options.automationSelectors?.length
       ? [...options.automationSelectors]
-      : this.pickCatalogNames(task, intent, this.runtime.listAutomations().map((automation) => ({
+      : dedupeStrings([...knowledgeFabric.recommendations.automations, ...this.pickCatalogNames(task, intent, this.runtime.listAutomations().map((automation) => ({
           id: automation.automationId,
           name: automation.name,
           body: `${automation.name}\n${automation.description}\n${automation.triggerMode}\n${automation.eventTrigger ?? ''}`,
-        })), intent.taskType === 'release' || this.sessionState.repeatedFailures > 0 ? 2 : 1);
+        })), intent.taskType === 'release' || this.sessionState.repeatedFailures > 0 ? 2 : 1)]);
     const selectedSpecialists = options.specialistSelectors?.length
       ? [...options.specialistSelectors]
-      : planner.selectedSpecialists.map((specialist) => specialist.specialistId);
+      : dedupeStrings([...planner.selectedSpecialists.map((specialist) => specialist.specialistId), ...knowledgeFabric.recommendations.specialists]);
     const selectedCrew = options.crewSelectors?.length
       ? options.crewSelectors[0]
-      : planner.selectedCrew?.crewId;
+      : planner.selectedCrew?.crewId ?? knowledgeFabric.recommendations.crews[0];
     const workerCount = this.decideWorkers(options.workers, planner.swarmDecision.workers, phases.length, intent, this.sessionState.repeatedFailures);
     const mode = this.determineMode(intent, phases.length, workerCount);
 
@@ -314,10 +332,20 @@ export class OrchestratorEngine {
       },
       tokenOptimization: {
         required: tokenOptimizationRequired,
-        reason: tokenOptimizationRequired ? 'candidate-files-above-threshold' : 'candidate-files-below-threshold',
-        candidateFiles,
+        reason: tokenOptimizationRequired
+          ? (knowledgeFabric.repo.readingPlan ? 'knowledge-fabric-source-aware-budget' : 'candidate-files-above-threshold')
+          : 'candidate-files-below-threshold',
+        candidateFiles: knowledgeFabric.repo.candidateFiles,
       },
       reviewGates: planner.reviewGates.map((gate) => `${gate.gate}:${gate.status}`),
+      knowledgeFabric: {
+        summary: knowledgeFabric.summary,
+        dominantSource: knowledgeFabric.sourceMix.dominantSource,
+        attachedCollections: knowledgeFabric.rag.attachedCollections.map((collection) => collection.name),
+        patternHits: knowledgeFabric.patterns.selected.map((pattern) => pattern.name),
+        selectedFiles: knowledgeFabric.repo.selectedFiles,
+        modelTiers: knowledgeFabric.modelTierTrace.map((trace) => `${trace.stage}:${trace.tier}`),
+      },
     };
   }
 
@@ -362,9 +390,28 @@ export class OrchestratorEngine {
       },
     });
 
+    const candidateFiles = options.files?.length
+      ? options.files
+      : this.discoverCandidateFiles(task);
+    markExecutionLedgerStep(ledger, 'candidate-file-discovery', 'completed', {
+      summary: `${candidateFiles.length} candidate file(s) discovered.`,
+      details: { files: candidateFiles.slice(0, 24) },
+    });
+    const knowledgeFabric = this.composeKnowledgeFabric(task, candidateFiles, memoryMatches, intent);
+    markExecutionLedgerStep(ledger, 'knowledge-fabric', 'completed', {
+      summary: knowledgeFabric.summary,
+      details: {
+        dominantSource: knowledgeFabric.sourceMix.dominantSource,
+        attachedCollections: knowledgeFabric.rag.attachedCollections.map((collection) => collection.collectionId),
+        patternHits: knowledgeFabric.patterns.selected.map((pattern) => pattern.patternId),
+      },
+    });
+    const plannedFiles = options.files?.length
+      ? options.files
+      : (knowledgeFabric.repo.selectedFiles.length > 0 ? knowledgeFabric.repo.selectedFiles : candidateFiles);
     const planner = await this.runtime.planExecution({
       goal: task,
-      files: options.files,
+      files: plannedFiles,
       skillNames: options.skillNames,
       workflowSelectors: options.workflowSelectors,
       crewSelectors: options.crewSelectors,
@@ -381,54 +428,43 @@ export class OrchestratorEngine {
         skills: planner.selectedSkills,
       },
     });
-
-    const candidateFiles = options.files?.length
-      ? options.files
-      : this.discoverCandidateFiles(task);
-    markExecutionLedgerStep(ledger, 'candidate-file-discovery', 'completed', {
-      summary: `${candidateFiles.length} candidate file(s) discovered.`,
-      details: { files: candidateFiles.slice(0, 24) },
-    });
     const fileRefs = candidateFiles.map((filePath) => this.toFileRef(filePath)).filter((file): file is FileRef => Boolean(file));
-    const tokenPlan = fileRefs.length >= 3 ? this.tokenEngine.plan(task, fileRefs) : undefined;
-    const plannedFiles = tokenPlan
-      ? tokenPlan.files.filter((entry) => entry.action !== 'skip').map((entry) => entry.file.path)
-      : candidateFiles;
+    const tokenPlan = knowledgeFabric.repo.readingPlan;
 
     const selectedSkills = options.skillNames?.length
       ? [...options.skillNames]
-      : dedupeStrings([...planner.selectedSkills, ...this.pickCatalogNames(task, intent, this.runtime.listSkills().map((skill) => ({
+      : dedupeStrings([...knowledgeFabric.recommendations.skills, ...planner.selectedSkills, ...this.pickCatalogNames(task, intent, this.runtime.listSkills().map((skill) => ({
           id: skill.skillId,
           name: skill.name,
           body: `${skill.name}\n${skill.instructions}\n${skill.provenance}`,
         })), 4)]);
     const selectedWorkflows = options.workflowSelectors?.length
       ? [...options.workflowSelectors]
-      : dedupeStrings([...planner.selectedWorkflows, ...this.pickCatalogNames(task, intent, this.runtime.listWorkflows().map((workflow) => ({
+      : dedupeStrings([...knowledgeFabric.recommendations.workflows, ...planner.selectedWorkflows, ...this.pickCatalogNames(task, intent, this.runtime.listWorkflows().map((workflow) => ({
           id: workflow.workflowId,
           name: workflow.name,
           body: `${workflow.name}\n${workflow.description}\n${workflow.domain}`,
         })), 3)]);
     const selectedHooks = options.hookSelectors?.length
       ? [...options.hookSelectors]
-      : this.pickCatalogNames(task, intent, this.runtime.listHooks().map((hook) => ({
+      : dedupeStrings([...knowledgeFabric.recommendations.hooks, ...this.pickCatalogNames(task, intent, this.runtime.listHooks().map((hook) => ({
           id: hook.hookId,
           name: hook.name,
           body: `${hook.name}\n${hook.description}\n${hook.trigger}`,
-        })), intent.riskClass === 'high' ? 2 : 1);
+        })), intent.riskClass === 'high' ? 2 : 1)]);
     const selectedAutomations = options.automationSelectors?.length
       ? [...options.automationSelectors]
-      : this.pickCatalogNames(task, intent, this.runtime.listAutomations().map((automation) => ({
+      : dedupeStrings([...knowledgeFabric.recommendations.automations, ...this.pickCatalogNames(task, intent, this.runtime.listAutomations().map((automation) => ({
           id: automation.automationId,
           name: automation.name,
           body: `${automation.name}\n${automation.description}\n${automation.triggerMode}\n${automation.eventTrigger ?? ''}`,
-        })), intent.taskType === 'release' || this.sessionState.repeatedFailures > 0 ? 2 : 1);
+        })), intent.taskType === 'release' || this.sessionState.repeatedFailures > 0 ? 2 : 1)]);
     const selectedSpecialists = options.specialistSelectors?.length
       ? [...options.specialistSelectors]
-      : planner.selectedSpecialists.map((specialist) => specialist.specialistId);
+      : dedupeStrings([...planner.selectedSpecialists.map((specialist) => specialist.specialistId), ...knowledgeFabric.recommendations.specialists]);
     const selectedCrew = options.crewSelectors?.length
       ? options.crewSelectors[0]
-      : planner.selectedCrew?.crewId;
+      : planner.selectedCrew?.crewId ?? knowledgeFabric.recommendations.crews[0];
     markExecutionLedgerStep(ledger, 'catalog-shortlist', 'completed', {
       summary: 'Built orchestration shortlist across catalogs.',
       details: {
@@ -547,7 +583,7 @@ export class OrchestratorEngine {
       federation: this.runtime.getUsageSnapshot().federation,
       tokenPolicy: {
         applied: Boolean(tokenPlan),
-        reason: tokenPlan ? 'orchestrator-selected' : (fileRefs.length < 3 ? 'candidate-files-below-threshold' : 'no-file-refs'),
+        reason: tokenPlan ? 'knowledge-fabric-source-aware-budget' : (fileRefs.length < 3 ? 'candidate-files-below-threshold' : 'no-file-refs'),
         candidateFiles,
         selectedFiles: plannedFiles,
         estimatedSavings: Number(tokenPlan?.savings ?? 0),
@@ -557,6 +593,7 @@ export class OrchestratorEngine {
       },
       memoryMatches,
       memoryStats,
+      knowledgeFabric,
       manualOverrides: [],
     });
     this.instructionGateway.persist(instructionPacket, this.repoRoot);
@@ -594,6 +631,7 @@ export class OrchestratorEngine {
       manualOverrides: [],
       instructionPacket,
       executionLedger: ledger,
+      knowledgeFabric,
     });
     this.lastRun = run;
 
@@ -638,15 +676,18 @@ export class OrchestratorEngine {
     });
     run.executionLedger = ledger;
     run.instructionPacket = instructionPacket;
+    run.knowledgeFabric = knowledgeFabric;
     this.runtime.recordExecutionLedger(ledger, 'autonomous');
     this.runtime.recordInstructionPacket(instructionPacket, {
       executionMode: 'autonomous',
       plannerApplied: ledger.plannerApplied,
       tokenOptimizationApplied: ledger.tokenOptimizationApplied,
     });
+    this.runtime.recordKnowledgeFabricSnapshot(this.knowledgeFabric.getSessionSnapshot(this.runtime.getRuntimeId()));
     this.runtime.updateExecutionMetadata(run.runId, {
       instructionPacket,
       executionLedger: ledger,
+      knowledgeFabric,
     });
 
     return run;
@@ -671,6 +712,58 @@ export class OrchestratorEngine {
     return this.sessionState;
   }
 
+  public getKnowledgeFabricSnapshot() {
+    return this.knowledgeFabric.getSessionSnapshot(this.runtime.getRuntimeId());
+  }
+
+  public getKnowledgeFabricProvenance() {
+    return this.knowledgeFabric.getProvenance(this.runtime.getRuntimeId());
+  }
+
+  public listRagCollections() {
+    return this.knowledgeFabric.listCollections();
+  }
+
+  public getRagCollection(collectionId: string) {
+    return this.knowledgeFabric.getCollection(collectionId);
+  }
+
+  public createRagCollection(input: { name: string; description?: string; tags?: string[]; scope?: 'session' | 'project' }) {
+    return this.knowledgeFabric.createCollection(input);
+  }
+
+  public async ingestRagCollection(collectionId: string, inputs: Array<{ filePath?: string; url?: string; text?: string; label?: string; tags?: string[] }>) {
+    return this.knowledgeFabric.ingestCollection(collectionId, inputs);
+  }
+
+  public attachRagCollection(collectionId: string) {
+    const collection = this.knowledgeFabric.attachCollection(collectionId, this.runtime.getRuntimeId(), this.sessionState.sessionId);
+    this.runtime.recordKnowledgeFabricSnapshot(this.knowledgeFabric.getSessionSnapshot(this.runtime.getRuntimeId()));
+    return collection;
+  }
+
+  public detachRagCollection(collectionId: string) {
+    const collection = this.knowledgeFabric.detachCollection(collectionId, this.runtime.getRuntimeId(), this.sessionState.sessionId);
+    this.runtime.recordKnowledgeFabricSnapshot(this.knowledgeFabric.getSessionSnapshot(this.runtime.getRuntimeId()));
+    return collection;
+  }
+
+  public deleteRagCollection(collectionId: string) {
+    return this.knowledgeFabric.deleteCollection(collectionId);
+  }
+
+  public listPatterns() {
+    return this.knowledgeFabric.listPatterns();
+  }
+
+  public searchPatterns(query: string, limit: number = 6) {
+    return this.knowledgeFabric.searchPatterns(query, limit);
+  }
+
+  public getModelTierTrace() {
+    return this.knowledgeFabric.getModelTiers(this.runtime.getRuntimeId());
+  }
+
   public async plan(task: string, options?: Partial<ExecutionTask>) {
     return this.runtime.planExecution({
       goal: task,
@@ -682,6 +775,25 @@ export class OrchestratorEngine {
       optimizationProfile: options?.optimizationProfile,
       workers: options?.workers,
     });
+  }
+
+  private composeKnowledgeFabric(
+    task: string,
+    candidateFiles: string[],
+    memoryMatches: string[],
+    intent: AutonomyIntent,
+  ): KnowledgeFabricBundle {
+    const bundle = this.knowledgeFabric.compose({
+      runtimeId: this.runtime.getRuntimeId(),
+      sessionId: this.sessionState.sessionId,
+      task,
+      candidateFiles,
+      memoryMatches,
+      runtimeSnapshot: this.runtime.getUsageSnapshot() as RuntimeRegistrySnapshot,
+      intent,
+    });
+    this.runtime.recordKnowledgeFabricSnapshot(this.knowledgeFabric.getSessionSnapshot(this.runtime.getRuntimeId()));
+    return bundle;
   }
 
   private loadSessionState(): SessionAutonomyState {

@@ -13,6 +13,27 @@ export type { MemoryItem } from './memory.js';
 
 export { OrchestratorEngine, createOrchestrator } from './orchestrator.js';
 export type { Agent, AgentType, Task } from './orchestrator.js';
+export { KnowledgeFabricEngine } from './knowledge-fabric.js';
+export type {
+  ContextProvenanceTrace,
+  KnowledgeFabricBundle,
+  KnowledgeFabricSnapshot,
+  ModelTierPolicy,
+  ModelTierTrace,
+  SourceMixDecision,
+  TokenBudgetAllocation,
+} from './knowledge-fabric.js';
+export { RagCollectionStore } from './rag-collections.js';
+export type {
+  RagCollection,
+  RagCollectionSummary,
+  RagRetrievalHit,
+} from './rag-collections.js';
+export { PatternRegistry } from './pattern-registry.js';
+export type {
+  PatternCard,
+  PatternSearchResult,
+} from './pattern-registry.js';
 export {
   InstructionGateway,
   DEFAULT_REQUIRED_SEQUENCE,

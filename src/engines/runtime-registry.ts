@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
+import type { KnowledgeFabricSnapshot } from './knowledge-fabric.js';
 import type {
     ExecutionLedger,
     InstructionPacket,
@@ -69,6 +70,7 @@ export interface RuntimeTokenRunSnapshot {
     compressionPct: number;
     byPhase: Record<string, number>;
     bySubsystem: Record<string, number>;
+    bySourceClass: Record<string, number>;
 }
 
 export interface RuntimeTokenSummarySnapshot {
@@ -81,6 +83,7 @@ export interface RuntimeTokenSummarySnapshot {
     totalEvents: number;
     byPhase: Record<string, number>;
     bySubsystem: Record<string, number>;
+    bySourceClass: Record<string, number>;
     timeline: RuntimeTokenRunSnapshot[];
     lastUpdatedAt?: number;
 }
@@ -156,6 +159,7 @@ export interface RuntimeRegistrySnapshot {
     federation?: RuntimeFederationUsageSnapshot;
     tokens?: RuntimeTokenSummarySnapshot;
     orchestration?: RuntimeOrchestrationSnapshot;
+    knowledgeFabric?: KnowledgeFabricSnapshot;
     clients?: RuntimeClientsSnapshot;
     clientId?: string;
     clientFamily?: string;
@@ -207,6 +211,7 @@ export function createEmptyTokenSummary(): RuntimeTokenSummarySnapshot {
         totalEvents: 0,
         byPhase: {},
         bySubsystem: {},
+        bySourceClass: {},
         timeline: [],
     };
 }
@@ -250,6 +255,7 @@ export class RuntimeRegistry {
                 ...parsed,
                 usage: { ...createEmptyUsageState(), ...(parsed.usage ?? {}) },
                 tokens: { ...createEmptyTokenSummary(), ...(parsed.tokens ?? {}) },
+                knowledgeFabric: parsed.knowledgeFabric,
                 bootstrapCalled: parsed.bootstrapCalled ?? false,
                 orchestrateCalled: parsed.orchestrateCalled ?? false,
                 plannerCalled: parsed.plannerCalled ?? false,
