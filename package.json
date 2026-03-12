@@ -31,7 +31,7 @@
     "start": "node dist/cli.js start",
     "init": "node dist/cli.js init",
     "test:public": "node test/public-surface.test.ts",
-    "test": "npm run build && node test/basic.test.ts && node test/memory.test.ts && node test/phantom.test.ts && node test/dashboard.test.ts && node test/docs.test.ts && npm run test:public",
+    "test": "npm run build && tsx test/basic.test.ts && tsx test/memory.test.ts && tsx test/phantom.test.ts && tsx test/dashboard.test.ts && tsx test/docs.test.ts && npm run test:public",
     "lint": "eslint src --ext .ts"
   },
   "keywords": [
@@ -74,6 +74,7 @@
     "eslint": "^8.56.0",
     "jest": "^29.7.0",
     "ts-jest": "^29.1.1",
+    "tsx": "^4.20.6",
     "typescript": "^5.3.3"
   },
   "engines": {
