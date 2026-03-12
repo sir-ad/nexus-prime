@@ -78,6 +78,21 @@ async function test() {
     assert.ok(planner.ledger.length > 0, 'planner should emit a live ledger');
     assert.ok(planner.reviewGates.length > 0, 'planner should emit review gates');
 
+    const ragCollection = orchestrator.createRagCollection({
+      name: 'Fixture architecture brief',
+      description: 'Session-scoped test corpus for the knowledge fabric',
+      tags: ['rag', 'fixture'],
+      scope: 'session',
+    });
+    await orchestrator.ingestRagCollection(ragCollection.collectionId, [{
+      text: 'Runtime patch to the fixture repo should update README.md, preserve package.json, use npm run build for verification, and keep the change grounded in the local implementation plan.',
+      label: 'fixture-brief',
+      tags: ['runtime', 'fixture', 'verification'],
+    }]);
+    orchestrator.attachRagCollection(ragCollection.collectionId);
+    assert.ok(orchestrator.listRagCollections().some((collection) => collection.collectionId === ragCollection.collectionId), 'orchestrator should list newly created RAG collections');
+    assert.ok(orchestrator.searchPatterns('governed runtime orchestration', 3).length > 0, 'pattern registry should return bounded pattern hits');
+
     const coder = await nexus.createAgent('coder');
     console.log(`✅ Created agent: ${coder.id}\n`);
 
@@ -151,10 +166,14 @@ async function test() {
     assert.ok(result.execution.activeAutomations.length > 0, 'automations should be active');
     assert.ok(result.execution.instructionPacket, 'execution should expose the compiled instruction packet');
     assert.ok(result.execution.executionLedger, 'execution should expose the orchestration ledger');
+    assert.ok(result.execution.knowledgeFabric, 'execution should expose the knowledge fabric bundle');
+    assert.ok((result.execution.knowledgeFabric?.rag.hits.length || 0) > 0, 'knowledge fabric should surface attached RAG hits when a session collection is attached');
+    assert.ok((result.execution.knowledgeFabric?.patterns.selected.length || 0) > 0, 'knowledge fabric should surface bounded pattern hits');
     assert.strictEqual(result.execution.executionLedger?.executionMode, 'autonomous', 'execution ledger should mark autonomous orchestration mode');
     assert.strictEqual(result.execution.executionLedger?.plannerApplied, true, 'execution ledger should record planner application');
     assert.strictEqual(result.execution.executionLedger?.tokenOptimizationApplied, true, 'execution ledger should record token optimization when 3+ files are in play');
     assert.ok(result.execution.executionLedger?.steps.some((step) => step.id === 'compile-instruction-packet' && step.status === 'completed'), 'execution ledger should record instruction packet compilation');
+    assert.ok(result.execution.executionLedger?.steps.some((step) => step.id === 'knowledge-fabric' && step.status === 'completed'), 'execution ledger should record knowledge fabric assembly');
     assert.strictEqual(result.execution.selectedBackends.memoryBackend, 'temporal-hyperbolic-memory');
     assert.strictEqual(result.execution.selectedBackends.compressionBackend, 'meta-compression');
     assert.strictEqual(result.execution.selectedBackends.dslCompiler, 'agentlang-neural-compiler');
@@ -220,11 +239,14 @@ async function test() {
     assert.strictEqual(usageSnapshot.executionMode, 'autonomous', 'runtime snapshot should persist autonomous execution mode');
     assert.strictEqual(usageSnapshot.plannerApplied, true, 'runtime snapshot should persist planner application');
     assert.strictEqual(usageSnapshot.tokenOptimizationApplied, true, 'runtime snapshot should persist token optimization application');
+    assert.ok(usageSnapshot.knowledgeFabric?.sourceMix?.dominantSource, 'runtime snapshot should persist the latest knowledge-fabric snapshot');
     assert.ok(result.execution.tokenTelemetry, 'execution should persist token telemetry');
     assert.ok(runtime.getTokenTelemetrySummary().totalRuns > 0, 'runtime should aggregate token telemetry across runs');
+    assert.ok(Object.keys(runtime.getTokenTelemetrySummary().bySourceClass || {}).length > 0, 'runtime should aggregate token telemetry by source class');
     assert.ok(runtime.getTokenTelemetryForRun(result.execution.runId), 'runtime should expose per-run token telemetry');
     assert.strictEqual(runtime.getInstructionPacket()?.packetHash, result.execution.instructionPacket?.packetHash, 'runtime should expose the latest compiled instruction packet');
     assert.strictEqual(runtime.getExecutionLedger()?.runId, result.execution.runId, 'runtime should expose the latest execution ledger');
+    assert.ok(runtime.getKnowledgeFabricSnapshot()?.summary, 'runtime should expose the latest knowledge-fabric snapshot');
     assert.strictEqual(orchestrator.getSessionState().lastRunId, result.execution.runId, 'orchestrator session state should track the last run');
     assert.ok(orchestrator.getSessionState().selectedSkills.length > 0, 'orchestrator should record selected skills');
     assert.ok(['single-pass', 'bounded-swarm', 'continuation-capable'].includes(orchestrator.getSessionState().mode), 'orchestrator should record an execution mode for the run');
@@ -272,6 +294,10 @@ async function test() {
     );
     assert.ok(!autonomousTools.includes('nexus_skill_generate'), 'autonomous MCP profile should hide expert-only skill authoring tools');
     assert.ok(fullTools.includes('nexus_skill_generate'), 'full MCP profile should retain expert tooling');
+    assert.ok(!autonomousTools.includes('nexus_rag_create_collection'), 'autonomous MCP profile should hide expert-only RAG authoring tools');
+    assert.ok(fullTools.includes('nexus_rag_create_collection'), 'full MCP profile should expose expert RAG collection tools');
+    assert.ok(fullTools.includes('nexus_pattern_search'), 'full MCP profile should expose bounded pattern search');
+    assert.ok(fullTools.includes('nexus_knowledge_provenance'), 'full MCP profile should expose provenance inspection');
     assert.strictEqual(fullTools[0], 'nexus_session_bootstrap', 'full MCP profile should still prioritize bootstrap first');
     assert.strictEqual(fullTools[1], 'nexus_orchestrate', 'full MCP profile should still prioritize orchestrate second');
 
@@ -288,6 +314,8 @@ async function test() {
     assert.strictEqual(bootstrapPayload.recommendedNextStep, 'nexus_orchestrate', 'bootstrap tool should recommend orchestration as the next step');
     assert.strictEqual(bootstrapPayload.tokenOptimization.required, true, 'bootstrap tool should report token optimization for 3+ files');
     assert.ok(Array.isArray(bootstrapPayload.shortlist.skills), 'bootstrap tool should return a skill shortlist');
+    assert.ok(bootstrapPayload.knowledgeFabric?.summary, 'bootstrap tool should return a knowledge-fabric summary');
+    assert.ok(Array.isArray(bootstrapPayload.knowledgeFabric?.selectedFiles), 'bootstrap tool should return knowledge-fabric selected files');
     assert.strictEqual(runtime.getUsageSnapshot().bootstrapCalled, true, 'runtime snapshot should record bootstrap usage');
     assert.strictEqual(runtime.getUsageSnapshot().plannerCalled, true, 'runtime snapshot should record planner usage during bootstrap');
     assert.strictEqual(runtime.getUsageSnapshot().sequenceCompliance?.status, 'partial', 'runtime snapshot should keep external-client compliance partial when bootstrap is observed after a direct execute path');

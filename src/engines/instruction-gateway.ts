@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { createHash } from 'crypto';
 import type { MemoryStats } from './memory.js';
+import type { KnowledgeFabricBundle, ModelTierTrace, SourceMixDecision } from './knowledge-fabric.js';
 import type { RuntimePrimaryClientSnapshot, RuntimeFederationUsageSnapshot } from './runtime-registry.js';
 import { resolveNexusStateDir } from './runtime-registry.js';
 import type { SelectedCrew, SelectedSpecialist } from './specialist-roster.js';
@@ -19,6 +20,7 @@ export type ExecutionLedgerStepId =
     | 'planner-selection'
     | 'catalog-shortlist'
     | 'candidate-file-discovery'
+    | 'knowledge-fabric'
     | 'token-optimization'
     | 'governance-preflight'
     | 'compile-instruction-packet'
@@ -121,6 +123,14 @@ export interface InstructionPacket {
         specialists: string[];
         crews: string[];
     };
+    knowledgeFabric?: {
+        summary: string;
+        dominantSource: string;
+        sourceMix: SourceMixDecision;
+        attachedCollections: Array<{ collectionId: string; name: string }>;
+        patternHits: Array<{ patternId: string; name: string; score: number }>;
+        modelTierTrace: ModelTierTrace[];
+    };
     protocol: {
         sources: string[];
         sections: Array<{ source: string; heading: string; content: string }>;
@@ -174,6 +184,7 @@ export interface PacketCompileInput {
     tokenPolicy?: Partial<TokenPolicySnapshot>;
     memoryMatches?: string[];
     memoryStats?: MemoryStats;
+    knowledgeFabric?: KnowledgeFabricBundle;
 }
 
 interface ProtocolSection {
@@ -202,6 +213,7 @@ export const DEFAULT_REQUIRED_SEQUENCE: string[] = [
     'planner-selection',
     'catalog-shortlist',
     'candidate-file-discovery',
+    'knowledge-fabric',
     'token-optimization',
     'governance-preflight',
     'compile-instruction-packet',
@@ -223,6 +235,7 @@ const LEDGER_STEP_LABELS: Record<ExecutionLedgerStepId, string> = {
     'planner-selection': 'Run planner selection',
     'catalog-shortlist': 'Build catalog shortlist',
     'candidate-file-discovery': 'Discover candidate files',
+    'knowledge-fabric': 'Assemble knowledge fabric bundle',
     'token-optimization': 'Apply token optimization',
     'governance-preflight': 'Run governance preflight',
     'compile-instruction-packet': 'Compile instruction packet',
@@ -468,6 +481,21 @@ export class InstructionGateway {
                 specialists: dedupeStrings(input.catalogShortlist?.specialists ?? []).slice(0, 6),
                 crews: dedupeStrings(input.catalogShortlist?.crews ?? []).slice(0, 3),
             },
+            knowledgeFabric: input.knowledgeFabric ? {
+                summary: input.knowledgeFabric.summary,
+                dominantSource: input.knowledgeFabric.sourceMix.dominantSource,
+                sourceMix: input.knowledgeFabric.sourceMix,
+                attachedCollections: input.knowledgeFabric.rag.attachedCollections.map((collection) => ({
+                    collectionId: collection.collectionId,
+                    name: collection.name,
+                })).slice(0, 4),
+                patternHits: input.knowledgeFabric.patterns.selected.map((pattern) => ({
+                    patternId: pattern.patternId,
+                    name: pattern.name,
+                    score: pattern.score,
+                })).slice(0, 5),
+                modelTierTrace: input.knowledgeFabric.modelTierTrace.slice(0, 8),
+            } : undefined,
             protocol: {
                 sources: PROTOCOL_SOURCES.map((entry) => entry.source),
                 sections: protocolSections.map((section) => ({
@@ -645,6 +673,12 @@ export class InstructionGateway {
             selectedSpecialists: input.selectedSpecialists?.map((specialist) => specialist.name),
             manualOverrides: input.manualOverrides ?? [],
             memoryMatches: input.memoryMatches ?? [],
+            knowledgeFabric: input.knowledgeFabric ? {
+                summary: input.knowledgeFabric.summary,
+                dominantSource: input.knowledgeFabric.sourceMix.dominantSource,
+                sourceMix: input.knowledgeFabric.sourceMix.weights,
+                patternHits: input.knowledgeFabric.patterns.selected.map((pattern) => pattern.name),
+            } : undefined,
         }));
         let remaining = Math.max(320, (input.packetTokenLimit ?? PACKET_TOKEN_LIMIT) - baseOverhead);
         const selected: ProtocolSection[] = [];
@@ -814,6 +848,13 @@ export function renderInstructionPacketMarkdown(packet: InstructionPacket): stri
         `- Automations: ${packet.catalogShortlist.automations.join(', ') || 'none'}`,
         `- Specialists: ${packet.catalogShortlist.specialists.join(', ') || 'none'}`,
         `- Crews: ${packet.catalogShortlist.crews.join(', ') || 'none'}`,
+        ``,
+        `## Knowledge Fabric`,
+        `- Summary: ${packet.knowledgeFabric?.summary ?? 'No knowledge fabric bundle recorded.'}`,
+        `- Dominant Source: ${packet.knowledgeFabric?.dominantSource ?? 'unknown'}`,
+        `- Attached Collections: ${packet.knowledgeFabric?.attachedCollections.map((item) => item.name).join(', ') || 'none'}`,
+        `- Pattern Hits: ${packet.knowledgeFabric?.patternHits.map((item) => item.name).join(', ') || 'none'}`,
+        `- Model Tiers: ${packet.knowledgeFabric?.modelTierTrace.map((item) => `${item.stage}:${item.tier}`).join(', ') || 'none'}`,
         ``,
         `## Protocol`,
         packet.protocol.markdown || 'No protocol sections loaded.',

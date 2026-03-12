@@ -116,9 +116,14 @@ function assertHealthContract(health: any, address: string): void {
   assert.strictEqual(health.capabilities.federation, true, 'federation capability should be advertised');
   assert.strictEqual(health.capabilities.orchestration, true, 'orchestration capability should be advertised');
   assert.strictEqual(health.capabilities.tokens, true, 'tokens capability should be advertised');
+  assert.strictEqual(health.capabilities.tokenSources, true, 'token-by-source capability should be advertised');
   assert.strictEqual(health.capabilities.clientPrimary, true, 'primary client capability should be advertised');
   assert.strictEqual(health.capabilities.instructionPacket, true, 'instruction packet capability should be advertised');
   assert.strictEqual(health.capabilities.orchestrationLedger, true, 'orchestration ledger capability should be advertised');
+  assert.strictEqual(health.capabilities.knowledgeFabric, true, 'knowledge-fabric capability should be advertised');
+  assert.strictEqual(health.capabilities.ragCollections, true, 'RAG collection capability should be advertised');
+  assert.strictEqual(health.capabilities.patterns, true, 'pattern capability should be advertised');
+  assert.strictEqual(health.capabilities.modelTiers, true, 'model-tier capability should be advertised');
 }
 
 async function test() {
@@ -157,6 +162,18 @@ async function test() {
   const runtimeTwo = createSubAgentRuntime({ repoRoot, memory, artifactsRoot: path.join(stateDir, 'runs-secondary') });
   const orchestrator = createOrchestrator(memory, runtime, clientRegistry, new SessionDNAManager('dashboard-session-primary', path.join(stateDir, 'sessions')), repoRoot);
   const orchestratorTwo = createOrchestrator(memory, runtimeTwo, clientRegistry, new SessionDNAManager('dashboard-session-secondary', path.join(stateDir, 'sessions')), repoRoot);
+  const ragCollection = orchestrator.createRagCollection({
+    name: 'Dashboard RAG corpus',
+    description: 'Ground dashboard orchestration with a session-scoped corpus',
+    tags: ['dashboard', 'rag'],
+    scope: 'session',
+  });
+  await orchestrator.ingestRagCollection(ragCollection.collectionId, [{
+    text: 'Dashboard runs should expose runtime truth, knowledge fabric source mix, by-source token telemetry, and attached collection summaries.',
+    label: 'dashboard-corpus',
+    tags: ['dashboard', 'runtime-truth', 'tokens'],
+  }]);
+  orchestrator.attachRagCollection(ragCollection.collectionId);
   await runtime.run({
     goal: 'Create dashboard smoke artifacts',
     files: ['README.md', 'package.json'],
@@ -245,11 +262,17 @@ async function test() {
       orchestrationRes,
       ledgerRes,
       packetRes,
+      knowledgeFabricRes,
+      knowledgeProvenanceRes,
       tokenSummaryRes,
       tokenTimelineRes,
+      tokenSourcesRes,
+      modelTiersRes,
       primaryClientRes,
       specialistsRes,
       crewsRes,
+      ragCollectionsRes,
+      patternsRes,
       backendsRes,
       healthRes,
       memoryRes,
@@ -273,11 +296,17 @@ async function test() {
       fetch(`${primaryAddress}/api/orchestration/session`),
       fetch(`${primaryAddress}/api/orchestration/ledger?runtimeId=${encodeURIComponent(runtime.getRuntimeId())}`),
       fetch(`${primaryAddress}/api/instruction-packet?runtimeId=${encodeURIComponent(runtime.getRuntimeId())}`),
+      fetch(`${primaryAddress}/api/knowledge-fabric/session?runtimeId=${encodeURIComponent(runtime.getRuntimeId())}`),
+      fetch(`${primaryAddress}/api/knowledge-fabric/provenance?runtimeId=${encodeURIComponent(runtime.getRuntimeId())}`),
       fetch(`${primaryAddress}/api/tokens/summary`),
       fetch(`${primaryAddress}/api/tokens/timeline?limit=5`),
+      fetch(`${primaryAddress}/api/tokens/by-source?runtimeId=${encodeURIComponent(runtime.getRuntimeId())}`),
+      fetch(`${primaryAddress}/api/models/tiers?runtimeId=${encodeURIComponent(runtime.getRuntimeId())}`),
       fetch(`${primaryAddress}/api/clients/primary`),
       fetch(`${primaryAddress}/api/specialists`),
       fetch(`${primaryAddress}/api/crews`),
+      fetch(`${primaryAddress}/api/rag/collections`),
+      fetch(`${primaryAddress}/api/patterns/search?limit=5`),
       fetch(`${primaryAddress}/api/backends`),
       fetch(`${primaryAddress}/api/health`),
       fetch(`${primaryAddress}/api/memory`),
@@ -302,11 +331,17 @@ async function test() {
     const orchestration = await orchestrationRes.json();
     const ledger = await ledgerRes.json();
     const packet = await packetRes.json();
+    const knowledgeFabric = await knowledgeFabricRes.json();
+    const knowledgeProvenance = await knowledgeProvenanceRes.json();
     const tokenSummary = await tokenSummaryRes.json();
     const tokenTimeline = await tokenTimelineRes.json();
+    const tokenSources = await tokenSourcesRes.json();
+    const modelTiers = await modelTiersRes.json();
     const primaryClient = await primaryClientRes.json();
     const specialists = await specialistsRes.json();
     const crews = await crewsRes.json();
+    const ragCollections = await ragCollectionsRes.json();
+    const patterns = await patternsRes.json();
     const backends = await backendsRes.json();
     const health = await healthRes.json();
     const memories = await memoryRes.json();
@@ -326,6 +361,7 @@ async function test() {
     assert.ok(html.includes('data-library-mode="automations"'), 'dashboard HTML should expose automations library mode');
     assert.ok(html.includes('data-library-mode="specialists"'), 'dashboard HTML should expose specialist roster mode');
     assert.ok(html.includes('data-library-mode="crews"'), 'dashboard HTML should expose crew mode');
+    assert.ok(html.includes('data-library-mode="knowledge"'), 'dashboard HTML should expose knowledge-fabric library mode');
     assert.ok(html.includes('data-library-mode="planning"'), 'dashboard HTML should expose planner mode');
     assert.ok(html.includes('data-library-mode="governance"'), 'dashboard HTML should expose governance library mode');
     assert.ok(html.includes('data-library-mode="federation"'), 'dashboard HTML should expose federation library mode');
@@ -333,6 +369,7 @@ async function test() {
     assert.ok(html.includes('runtime-usage-summary'), 'dashboard HTML should expose runtime usage summary shell');
     assert.ok(html.includes('id="plan-button"'), 'dashboard HTML should expose planner preview action');
     assert.ok(html.includes('No token data yet for this runtime'), 'dashboard HTML should explain empty token telemetry state clearly');
+    assert.ok(html.includes('Create Session RAG Collection'), 'dashboard HTML should expose session RAG collection management');
     assert.ok(html.includes('data-event-filter="hooks"'), 'dashboard HTML should expose hooks event filter');
     assert.ok(html.includes('data-event-filter="automations"'), 'dashboard HTML should expose automations event filter');
     assert.ok(html.includes('data-event-filter="shield"'), 'dashboard HTML should expose shield event filter');
@@ -363,15 +400,22 @@ async function test() {
     assert.strictEqual(ledger.executionMode, 'autonomous', 'orchestration ledger API should expose autonomous execution mode');
     assert.ok(Array.isArray(ledger.steps) && ledger.steps.some((step: any) => step.id === 'planner-selection' && step.status === 'completed'), 'orchestration ledger should include planner completion');
     assert.ok(Array.isArray(ledger.steps) && ledger.steps.some((step: any) => step.id === 'token-optimization' && step.status === 'completed'), 'orchestration ledger should include token optimization completion');
+    assert.ok(Array.isArray(ledger.steps) && ledger.steps.some((step: any) => step.id === 'knowledge-fabric' && step.status === 'completed'), 'orchestration ledger should include knowledge fabric assembly');
     assert.ok(packet.packetHash, 'instruction packet API should expose the compiled packet hash');
     assert.ok(Array.isArray(packet.requiredSequence) && packet.requiredSequence.includes('compile-instruction-packet'), 'instruction packet API should expose the required execution sequence');
     assert.ok(Array.isArray(packet.protocol?.sources) && packet.protocol.sources.includes('AGENTS.md'), 'instruction packet API should report protocol sources');
+    assert.ok(knowledgeFabric.sourceMix?.dominantSource, 'knowledge-fabric session API should expose source-mix decisions');
+    assert.ok(Array.isArray(knowledgeProvenance.entries) && knowledgeProvenance.entries.length > 0, 'knowledge provenance API should expose bounded provenance entries');
     assert.ok(tokenSummary.totalRuns > 0, 'tokens summary API should expose persisted run telemetry');
     assert.ok(Array.isArray(tokenTimeline) && tokenTimeline.length > 0, 'tokens timeline API should expose recent runs');
+    assert.ok(Object.keys(tokenSources).length > 0, 'token-by-source API should expose source allocation');
+    assert.ok(Array.isArray(modelTiers.trace) && modelTiers.trace.length > 0, 'model-tier API should expose stage trace');
     assert.strictEqual(primaryClient.clientId, 'codex', 'primary client API should prefer Codex when CODEX env is active');
     assert.strictEqual(primaryClient.state, 'primaryActive', 'primary client API should expose primary-active status');
     assert.ok(Array.isArray(specialists) && specialists.length > 20, 'specialists API should return the imported roster');
     assert.ok(Array.isArray(crews) && crews.length > 0, 'crews API should return crew templates');
+    assert.ok(Array.isArray(ragCollections) && ragCollections.some((collection: any) => collection.collectionId === ragCollection.collectionId), 'RAG collections API should return session-first corpora');
+    assert.ok(Array.isArray(patterns) && patterns.length > 0, 'pattern search API should return bounded pattern cards');
     assert.ok(backends.memory && backends.compression && backends.dsl, 'backends API should return grouped catalogs');
     assertHealthContract(health, primaryAddress);
     assert.ok((health.runtime?.runtimeCount || 0) >= 2, 'health API should include runtime registry count');

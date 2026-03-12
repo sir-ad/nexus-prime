@@ -34,9 +34,14 @@ const REQUIRED_CAPABILITIES = {
     planner: true,
     orchestration: true,
     tokens: true,
+    tokenSources: true,
     clientPrimary: true,
     instructionPacket: true,
     orchestrationLedger: true,
+    knowledgeFabric: true,
+    ragCollections: true,
+    patterns: true,
+    modelTiers: true,
 } as const;
 
 const DEFAULT_SKILLS: Array<{ name: string; instructions: string; riskClass: 'read' | 'orchestrate' | 'mutate'; scope: 'session' | 'worker' | 'global' }> = [
@@ -283,9 +288,29 @@ export class DashboardServer {
             return;
         }
 
+        if (req.method === 'GET' && url.pathname === '/api/knowledge-fabric/session') {
+            const snapshot = this.resolveRuntimeSnapshot(url);
+            const orchestrator = this.getOrchestrator();
+            this.respondJson(res, snapshot?.knowledgeFabric ?? orchestrator?.getKnowledgeFabricSnapshot?.() ?? {});
+            return;
+        }
+
+        if (req.method === 'GET' && url.pathname === '/api/knowledge-fabric/provenance') {
+            const snapshot = this.resolveRuntimeSnapshot(url);
+            const orchestrator = this.getOrchestrator();
+            this.respondJson(res, snapshot?.knowledgeFabric?.provenance ?? orchestrator?.getKnowledgeFabricProvenance?.() ?? { entries: [] });
+            return;
+        }
+
         if (req.method === 'GET' && url.pathname === '/api/tokens/summary') {
             const snapshot = this.resolveRuntimeSnapshot(url);
             this.respondJson(res, snapshot?.tokens ?? this.getRuntime()?.getTokenTelemetrySummary() ?? {});
+            return;
+        }
+
+        if (req.method === 'GET' && url.pathname === '/api/tokens/by-source') {
+            const snapshot = this.resolveRuntimeSnapshot(url);
+            this.respondJson(res, snapshot?.tokens?.bySourceClass ?? this.getRuntime()?.getTokenTelemetrySummary()?.bySourceClass ?? {});
             return;
         }
 
@@ -331,6 +356,41 @@ export class DashboardServer {
 
         if (req.method === 'GET' && url.pathname === '/api/automations') {
             this.respondJson(res, this.getRuntime()?.listAutomations() ?? []);
+            return;
+        }
+
+        if (req.method === 'GET' && url.pathname === '/api/rag/collections') {
+            this.respondJson(res, this.getOrchestrator()?.listRagCollections?.() ?? []);
+            return;
+        }
+
+        if (req.method === 'GET' && url.pathname.startsWith('/api/rag/collections/')) {
+            const collectionId = decodeURIComponent(url.pathname.replace('/api/rag/collections/', ''));
+            const collection = this.getOrchestrator()?.getRagCollection?.(collectionId);
+            this.respondJson(res, collection ?? { error: 'rag-collection-not-found', collectionId }, collection ? 200 : 404);
+            return;
+        }
+
+        if (req.method === 'GET' && url.pathname === '/api/patterns/search') {
+            const query = url.searchParams.get('q') ?? '';
+            const limit = parseInt(url.searchParams.get('limit') || '8', 10);
+            const orchestrator = this.getOrchestrator();
+            const results = query.trim()
+                ? orchestrator?.searchPatterns?.(query, limit) ?? []
+                : (orchestrator?.listPatterns?.() ?? []).slice(0, Math.max(1, limit));
+            this.respondJson(res, results);
+            return;
+        }
+
+        if (req.method === 'GET' && url.pathname === '/api/models/tiers') {
+            const snapshot = this.resolveRuntimeSnapshot(url);
+            const orchestrator = this.getOrchestrator();
+            this.respondJson(res, snapshot?.knowledgeFabric
+                ? {
+                    policy: snapshot.knowledgeFabric.modelTierPolicy,
+                    trace: snapshot.knowledgeFabric.modelTierTrace,
+                }
+                : orchestrator?.getModelTierTrace?.() ?? { trace: [] });
             return;
         }
 
@@ -456,6 +516,83 @@ export class DashboardServer {
                 .filter((event) => !type || event.type === type)
                 .slice(0, Math.max(limit, 1));
             this.respondJson(res, events);
+            return;
+        }
+
+        if (req.method === 'POST' && url.pathname === '/api/rag/collections') {
+            const body = await this.readJsonBody(req);
+            const orchestrator = this.getOrchestrator();
+            if (!orchestrator) {
+                this.respondJson(res, { error: 'orchestrator-unavailable' }, 503);
+                return;
+            }
+            if (!String(body.name ?? '').trim()) {
+                this.respondJson(res, { error: 'name-required' }, 400);
+                return;
+            }
+            const collection = orchestrator.createRagCollection({
+                name: String(body.name),
+                description: body.description ? String(body.description) : undefined,
+                tags: Array.isArray(body.tags) ? body.tags.map(String) : [],
+                scope: body.scope === 'project' ? 'project' : 'session',
+            });
+            this.respondJson(res, collection, 201);
+            return;
+        }
+
+        if (req.method === 'POST' && /\/api\/rag\/collections\/[^/]+\/ingest$/.test(url.pathname)) {
+            const collectionId = decodeURIComponent(url.pathname.split('/')[4] || '');
+            const body = await this.readJsonBody(req);
+            const orchestrator = this.getOrchestrator();
+            if (!orchestrator) {
+                this.respondJson(res, { error: 'orchestrator-unavailable' }, 503);
+                return;
+            }
+            const inputs = Array.isArray(body.inputs)
+                ? body.inputs.map((entry: any) => ({
+                    filePath: entry?.filePath ? String(entry.filePath) : undefined,
+                    url: entry?.url ? String(entry.url) : undefined,
+                    text: entry?.text ? String(entry.text) : undefined,
+                    label: entry?.label ? String(entry.label) : undefined,
+                    tags: Array.isArray(entry?.tags) ? entry.tags.map(String) : [],
+                }))
+                : [];
+            const result = await orchestrator.ingestRagCollection(collectionId, inputs);
+            this.respondJson(res, result);
+            return;
+        }
+
+        if (req.method === 'POST' && /\/api\/rag\/collections\/[^/]+\/attach$/.test(url.pathname)) {
+            const collectionId = decodeURIComponent(url.pathname.split('/')[4] || '');
+            const orchestrator = this.getOrchestrator();
+            if (!orchestrator) {
+                this.respondJson(res, { error: 'orchestrator-unavailable' }, 503);
+                return;
+            }
+            this.respondJson(res, orchestrator.attachRagCollection(collectionId));
+            return;
+        }
+
+        if (req.method === 'POST' && /\/api\/rag\/collections\/[^/]+\/detach$/.test(url.pathname)) {
+            const collectionId = decodeURIComponent(url.pathname.split('/')[4] || '');
+            const orchestrator = this.getOrchestrator();
+            if (!orchestrator) {
+                this.respondJson(res, { error: 'orchestrator-unavailable' }, 503);
+                return;
+            }
+            this.respondJson(res, orchestrator.detachRagCollection(collectionId));
+            return;
+        }
+
+        if (req.method === 'DELETE' && url.pathname.startsWith('/api/rag/collections/')) {
+            const collectionId = decodeURIComponent(url.pathname.replace('/api/rag/collections/', ''));
+            const orchestrator = this.getOrchestrator();
+            if (!orchestrator) {
+                this.respondJson(res, { error: 'orchestrator-unavailable' }, 503);
+                return;
+            }
+            const removed = orchestrator.deleteRagCollection(collectionId);
+            this.respondJson(res, removed ? { ok: true, collectionId } : { error: 'rag-collection-not-found', collectionId }, removed ? 200 : 404);
             return;
         }
 

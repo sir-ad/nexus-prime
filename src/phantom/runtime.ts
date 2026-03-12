@@ -91,10 +91,10 @@ import {
     markExecutionLedgerStep,
     renderInstructionPacketMarkdown,
     type ExecutionLedger,
-    type GovernanceSnapshot,
     type InstructionPacket,
     type OrchestrationExecutionMode,
 } from '../engines/instruction-gateway.js';
+import type { KnowledgeFabricBundle, KnowledgeFabricSnapshot } from '../engines/knowledge-fabric.js';
 import { MergeOracle } from './merge-oracle.js';
 import type { MergeDecision, WorkerResult } from './index.js';
 import type { FileRef, ReadingPlan } from '../engines/token-supremacy.js';
@@ -198,6 +198,7 @@ export interface ExecutionTask {
     manualOverrides: string[];
     instructionPacket?: InstructionPacket;
     executionLedger?: ExecutionLedger;
+    knowledgeFabric?: KnowledgeFabricBundle;
 }
 
 export interface WorkerSkillOverlay {
@@ -372,6 +373,7 @@ export interface ExecutionRun {
     tokenTelemetry?: RuntimeTokenRunSnapshot;
     instructionPacket?: InstructionPacket;
     executionLedger?: ExecutionLedger;
+    knowledgeFabric?: KnowledgeFabricBundle;
 }
 
 export interface SubAgentRuntimeOptions {
@@ -743,6 +745,7 @@ export class SubAgentRuntime {
             continuationChildren: [],
             instructionPacket: task.instructionPacket,
             executionLedger: task.executionLedger,
+            knowledgeFabric: task.knowledgeFabric,
         };
         this.runs.set(runId, run);
         this.attachLatestRun(runId, task.goal, run.state);
@@ -1387,6 +1390,10 @@ export class SubAgentRuntime {
         return this.runtimeSnapshot.executionLedger;
     }
 
+    getKnowledgeFabricSnapshot(): KnowledgeFabricSnapshot | undefined {
+        return this.runtimeSnapshot.knowledgeFabric;
+    }
+
     getTokenTelemetrySummary(): RuntimeTokenSummarySnapshot {
         return this.runtimeSnapshot.tokens ?? createEmptyTokenSummary();
     }
@@ -1403,6 +1410,14 @@ export class SubAgentRuntime {
     recordOrchestrationSnapshot(snapshot: RuntimeOrchestrationSnapshot): RuntimeRegistrySnapshot {
         return this.persistRuntimeSnapshot({
             orchestration: snapshot,
+            lastHeartbeatAt: Date.now(),
+            lastActivityAt: Date.now(),
+        });
+    }
+
+    recordKnowledgeFabricSnapshot(snapshot: KnowledgeFabricSnapshot | undefined): RuntimeRegistrySnapshot {
+        return this.persistRuntimeSnapshot({
+            knowledgeFabric: snapshot,
             lastHeartbeatAt: Date.now(),
             lastActivityAt: Date.now(),
         });
@@ -1506,6 +1521,7 @@ export class SubAgentRuntime {
     updateExecutionMetadata(runId: string, patch: {
         instructionPacket?: InstructionPacket;
         executionLedger?: ExecutionLedger;
+        knowledgeFabric?: KnowledgeFabricBundle;
     }): ExecutionRun | undefined {
         const run = this.runs.get(runId);
         if (!run) return undefined;
@@ -1514,6 +1530,9 @@ export class SubAgentRuntime {
         }
         if (patch.executionLedger !== undefined) {
             run.executionLedger = patch.executionLedger;
+        }
+        if (patch.knowledgeFabric !== undefined) {
+            run.knowledgeFabric = patch.knowledgeFabric;
         }
         this.syncExecutionMetadata(run);
         return run;
@@ -1967,6 +1986,7 @@ export class SubAgentRuntime {
             manualOverrides: dedupeStrings(input.manualOverrides ?? []),
             instructionPacket: input.instructionPacket,
             executionLedger: input.executionLedger,
+            knowledgeFabric: input.knowledgeFabric,
         };
 
         if (input.nxlScript && (!input.actions || input.actions.length === 0)) {
@@ -2675,6 +2695,10 @@ export class SubAgentRuntime {
             reason: 'manual-low-level',
             summary: 'Catalog shortlist was not compiled outside the orchestrator.',
         });
+        markExecutionLedgerStep(ledger, 'knowledge-fabric', 'skipped', {
+            reason: 'manual-low-level',
+            summary: 'Knowledge Fabric assembly was bypassed on this low-level path.',
+        });
         markExecutionLedgerStep(ledger, 'compile-instruction-packet', 'skipped', {
             reason: 'manual-low-level',
             summary: 'Instruction packet compilation was bypassed.',
@@ -2696,6 +2720,7 @@ export class SubAgentRuntime {
                 tokenOptimizationApplied: run.executionLedger?.tokenOptimizationApplied ?? this.runtimeSnapshot.tokenOptimizationApplied ?? false,
             });
             this.recordExecutionLedger(run.executionLedger, run.executionLedger?.executionMode);
+            this.recordKnowledgeFabricSnapshot(run.knowledgeFabric ? toKnowledgeFabricSnapshot(run.knowledgeFabric) : this.runtimeSnapshot.knowledgeFabric);
         }
 
         const runtimeDir = path.join(run.artifactsPath, 'runtime');
@@ -2707,6 +2732,9 @@ export class SubAgentRuntime {
             this.instructionGateway.persist(run.instructionPacket, this.repoRoot);
             fs.writeFileSync(path.join(runtimeDir, 'packet.json'), JSON.stringify(run.instructionPacket, null, 2), 'utf8');
             fs.writeFileSync(path.join(runtimeDir, 'packet.md'), renderInstructionPacketMarkdown(run.instructionPacket), 'utf8');
+        }
+        if (run.knowledgeFabric) {
+            fs.writeFileSync(path.join(runtimeDir, 'knowledge-fabric.json'), JSON.stringify(run.knowledgeFabric, null, 2), 'utf8');
         }
     }
 
@@ -2774,6 +2802,7 @@ export class SubAgentRuntime {
             federation: patch.federation ?? this.runtimeSnapshot?.federation,
             tokens: patch.tokens ?? this.runtimeSnapshot?.tokens ?? createEmptyTokenSummary(),
             orchestration: patch.orchestration ?? this.runtimeSnapshot?.orchestration,
+            knowledgeFabric: patch.knowledgeFabric ?? this.runtimeSnapshot?.knowledgeFabric,
             clients: patch.clients ?? this.runtimeSnapshot?.clients,
             clientId: patch.clientId ?? this.runtimeSnapshot?.clientId,
             clientFamily: patch.clientFamily ?? this.runtimeSnapshot?.clientFamily,
@@ -2861,6 +2890,7 @@ export class SubAgentRuntime {
         const timeline = [telemetry, ...current.timeline.filter((entry) => entry.runId !== telemetry.runId)].slice(0, 40);
         const byPhase = this.mergeTokenBreakdown(current.byPhase, telemetry.byPhase, previous?.byPhase);
         const bySubsystem = this.mergeTokenBreakdown(current.bySubsystem, telemetry.bySubsystem, previous?.bySubsystem);
+        const bySourceClass = this.mergeTokenBreakdown(current.bySourceClass, telemetry.bySourceClass, previous?.bySourceClass);
         const grossInputTokens = Math.max(0, current.grossInputTokens - (previous?.grossInputTokens ?? 0) + telemetry.grossInputTokens);
         const compressedTokens = Math.max(0, current.compressedTokens - (previous?.compressedTokens ?? 0) + telemetry.compressedTokens);
         const savedTokens = Math.max(0, current.savedTokens - (previous?.savedTokens ?? 0) + telemetry.savedTokens);
@@ -2877,6 +2907,7 @@ export class SubAgentRuntime {
             totalEvents,
             byPhase,
             bySubsystem,
+            bySourceClass,
             timeline,
             lastUpdatedAt: Date.now(),
         };
@@ -2913,6 +2944,14 @@ export class SubAgentRuntime {
             + estimateTokenCount(command.stderr)
         ), 0), 0);
         const continuationTokens = run.continuationChildren.reduce((sum, child) => sum + estimateTokenCount(`${child.automationId}:${child.status}:${child.runId ?? ''}:${child.error ?? ''}`), 0);
+        const knowledgeFabric = run.knowledgeFabric;
+        const ragTokens = knowledgeFabric?.rag.hits.reduce((sum, hit) => sum + Number(hit.tokens || 0), 0) ?? 0;
+        const patternTokens = knowledgeFabric?.patterns.selected.reduce((sum, pattern) => sum + estimateTokenCount(pattern.summary), 0) ?? 0;
+        const runtimeTraceTokens = knowledgeFabric ? estimateTokenCount(JSON.stringify({
+            priorObjectives: knowledgeFabric.runtime.priorObjectives,
+            skipReasons: knowledgeFabric.runtime.skipReasons,
+            lastToolCalls: knowledgeFabric.runtime.lastToolCalls,
+        })) : 0;
 
         const byPhase: Record<string, number> = {
             planner: plannerTokens,
@@ -2936,6 +2975,19 @@ export class SubAgentRuntime {
             bySubsystem.automations = continuationTokens;
         }
 
+        const bySourceClass: Record<string, number> = knowledgeFabric
+            ? {
+                repo: Math.max(0, grossPlanTokens + plannerTokens + contextTokens + verificationTokens),
+                memory: memoryTokens,
+                rag: ragTokens,
+                patterns: patternTokens,
+                runtime: Math.max(0, runtimeTraceTokens + continuationTokens),
+            }
+            : {
+                repo: Math.max(0, grossPlanTokens + plannerTokens + contextTokens + verificationTokens),
+                memory: memoryTokens,
+            };
+
         const grossInputTokens = plannerTokens + memoryTokens + grossPlanTokens + contextTokens + verificationTokens + continuationTokens;
         const compressedTokens = plannerTokens + memoryTokens + compressedPlanTokens + contextTokens + verificationTokens + continuationTokens;
         const savedTokens = Math.max(0, grossPlanTokens - compressedPlanTokens);
@@ -2952,6 +3004,7 @@ export class SubAgentRuntime {
             compressionPct: grossInputTokens > 0 ? Math.round((savedTokens / grossInputTokens) * 100) : 0,
             byPhase,
             bySubsystem,
+            bySourceClass,
         };
     }
 
@@ -3395,6 +3448,30 @@ function extractRunTimestamp(run: ExecutionRun): number {
     } catch {
         return 0;
     }
+}
+
+function toKnowledgeFabricSnapshot(bundle: KnowledgeFabricBundle): KnowledgeFabricSnapshot {
+    return {
+        runtimeId: bundle.runtimeId,
+        sessionId: bundle.sessionId,
+        generatedAt: bundle.generatedAt,
+        task: bundle.task,
+        sourceMix: bundle.sourceMix,
+        tokenBudget: bundle.tokenBudget,
+        attachedCollections: bundle.rag.attachedCollections,
+        patternHits: bundle.patterns.selected.map((pattern) => ({
+            patternId: pattern.patternId,
+            name: pattern.name,
+            score: pattern.score,
+        })),
+        selectedFiles: bundle.repo.selectedFiles,
+        candidateFiles: bundle.repo.candidateFiles,
+        recommendations: bundle.recommendations,
+        modelTierPolicy: bundle.modelTierPolicy,
+        modelTierTrace: bundle.modelTierTrace,
+        provenance: bundle.provenance,
+        summary: bundle.summary,
+    };
 }
 
 export function summarizeExecution(run: ExecutionRun): string {
