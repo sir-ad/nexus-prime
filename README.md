@@ -17,8 +17,10 @@
   [![AI Framework](https://img.shields.io/badge/AI-Framework-FF9900?style=for-the-badge)](https://github.com/topics/ai)
   [![LLM Ready](https://img.shields.io/badge/LLM-Ready-00A67E?style=for-the-badge)](https://github.com/topics/llm)
   [![MCP Protocol](https://img.shields.io/badge/Protocol-MCP-4285F4?style=for-the-badge)](https://modelcontextprotocol.io/)
-
+  
   <p><i>Bootstrap. Orchestrate. Verify. Learn.</i></p>
+  <a href="https://www.producthunt.com/products/nexus-prime?embed=true&amp;utm_source=badge-featured&amp;utm_medium=badge&amp;utm_campaign=badge-nexus-prime" target="_blank" rel="noopener noreferrer"><img alt="Nexus-Prime - Semantic memory and parallel execution for AI coding agents | Product Hunt" width="250" height="54" src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1096831&amp;theme=dark&amp;t=1773345508816"></a>
+
 </div>
 
 ---
