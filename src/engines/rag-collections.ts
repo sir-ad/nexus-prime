@@ -79,12 +79,20 @@ export interface RagRetrievalHit {
 }
 
 const MAX_CHUNK_CHARS = 1200;
+const DEFAULT_REMOTE_FETCH_TIMEOUT_MS = 15_000;
+const COLLECTION_ID_PATTERN = /^[A-Za-z0-9_-]{1,128}$/;
+
+export interface RagCollectionStoreOptions {
+    requestTimeoutMs?: number;
+}
 
 export class RagCollectionStore {
     private readonly rootDir: string;
+    private readonly requestTimeoutMs: number;
 
-    constructor(stateRoot: string = resolveNexusStateDir()) {
+    constructor(stateRoot: string = resolveNexusStateDir(), options: RagCollectionStoreOptions = {}) {
         this.rootDir = path.join(stateRoot, 'rag-collections');
+        this.requestTimeoutMs = Math.max(100, options.requestTimeoutMs ?? DEFAULT_REMOTE_FETCH_TIMEOUT_MS);
         fs.mkdirSync(this.rootDir, { recursive: true });
     }
 
@@ -99,6 +107,7 @@ export class RagCollectionStore {
 
     getCollection(collectionId: string): RagCollection | undefined {
         const target = this.collectionPath(collectionId);
+        if (!target) return undefined;
         if (!fs.existsSync(target)) return undefined;
         try {
             const parsed = JSON.parse(fs.readFileSync(target, 'utf8')) as RagCollection;
@@ -189,6 +198,7 @@ export class RagCollectionStore {
 
     deleteCollection(collectionId: string): boolean {
         const target = this.collectionPath(collectionId);
+        if (!target) return false;
         if (!fs.existsSync(target)) return false;
         fs.unlinkSync(target);
         return true;
@@ -254,11 +264,24 @@ export class RagCollectionStore {
     }
 
     private persist(collection: RagCollection): void {
-        fs.writeFileSync(this.collectionPath(collection.collectionId), JSON.stringify(collection, null, 2), 'utf8');
+        fs.writeFileSync(this.collectionPath(collection.collectionId, true), JSON.stringify(collection, null, 2), 'utf8');
     }
 
-    private collectionPath(collectionId: string): string {
-        return path.join(this.rootDir, `${collectionId}.json`);
+    private collectionPath(collectionId: string, strict: boolean = false): string | undefined {
+        const sanitizedCollectionId = this.sanitizeCollectionId(collectionId);
+        if (!sanitizedCollectionId) {
+            if (strict) {
+                throw new Error(`Invalid RAG collection id: ${collectionId}`);
+            }
+            return undefined;
+        }
+        return path.join(this.rootDir, `${sanitizedCollectionId}.json`);
+    }
+
+    private sanitizeCollectionId(collectionId: string): string | undefined {
+        const normalized = String(collectionId || '').trim();
+        if (!COLLECTION_ID_PATTERN.test(normalized)) return undefined;
+        return normalized;
     }
 
     private async readInputContent(input: RagIngestInput): Promise<string> {
@@ -267,7 +290,7 @@ export class RagCollectionStore {
             return fs.readFileSync(path.resolve(input.filePath), 'utf8');
         }
         if (input.url) {
-            return fetchText(input.url);
+            return fetchText(input.url, this.requestTimeoutMs);
         }
         return '';
     }
@@ -325,19 +348,33 @@ function chunkText(content: string, sourceId: string, tags: string[]): RagChunk[
     return chunks;
 }
 
-function fetchText(targetUrl: string): Promise<string> {
+function fetchText(targetUrl: string, timeoutMs: number): Promise<string> {
     const url = new URL(targetUrl);
     const transport = url.protocol === 'https:' ? https : http;
     return new Promise<string>((resolve, reject) => {
+        let settled = false;
+        const finish = (handler: () => void) => {
+            if (settled) return;
+            settled = true;
+            handler();
+        };
         const req = transport.get(url, (res) => {
             const chunks: Buffer[] = [];
+            res.on('aborted', () => finish(() => reject(new Error(`Remote RAG fetch aborted for ${targetUrl}`))));
             res.on('data', (chunk) => chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)));
             res.on('end', () => {
-                resolve(Buffer.concat(chunks).toString('utf8'));
+                finish(() => resolve(Buffer.concat(chunks).toString('utf8')));
             });
-            res.on('error', reject);
+            res.on('error', (error) => finish(() => reject(error)));
         });
-        req.on('error', reject);
+        req.setTimeout(timeoutMs, () => {
+            const error = new Error(`Timed out fetching RAG URL after ${timeoutMs}ms: ${targetUrl}`);
+            finish(() => {
+                req.destroy(error);
+                reject(error);
+            });
+        });
+        req.on('error', (error) => finish(() => reject(error)));
     });
 }
 
