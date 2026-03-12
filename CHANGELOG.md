@@ -2,6 +2,26 @@
 
 All notable changes to Nexus Prime will be documented in this file.
 
+## [3.11.0] - 2026-03-12
+
+### Added
+- **Knowledge Fabric Layer**: Added a new orchestration-time knowledge fabric that assembles bounded execution bundles across repo context, memory, session RAG collections, reusable patterns, and prior runtime traces.
+- **Session-Scoped RAG Collections**: Added first-class RAG collection storage, ingestion, attachment, retrieval, and dashboard/API visibility for session-first corpora.
+- **Pattern Registry**: Added a Nexus-native pattern registry for orchestration recipes, RAG patterns, and reusable context overlays without vendoring external app code into the runtime.
+- **Release QA Process Artifacts**: Added a pull-request checklist and a release-process checklist so review, QA, and remote deploy expectations are explicit in-repo.
+- **RAG Safety Regression Test**: Added `test/rag-collections.test.ts` to cover collection-id filesystem safety and hanging URL ingestion timeouts.
+
+### Changed
+- **Token Intelligence**: Token budgeting and telemetry now break down by source class, attached collections, and model-tier traces instead of remaining file-centric.
+- **CI Release Gate**: `CI & Publish` now runs the same quality bar as the local release gate on pull requests before any publish path is allowed to proceed.
+- **TypeScript Test Execution**: The test suite and public-surface scan now run through `tsx`, keeping local and GitHub Actions execution consistent on Node 20+.
+- **Public Changelog Surfaces**: README, docs, and release notes now advertise the new knowledge-fabric and release-hardening state as the current product baseline.
+
+### Fixed
+- **Filesystem Traversal in RAG Collections**: Caller-controlled collection IDs are now sanitized before filesystem resolution so traversal-style IDs cannot escape the `rag-collections` store.
+- **Hanging Remote RAG Fetches**: URL-based ingestion now times out cleanly instead of waiting indefinitely on slow or misbehaving hosts.
+- **CI Runtime Parity**: Release and PR workflows no longer fail on GitHub Actions from direct `node *.ts` execution against ESM TypeScript test files.
+
 ## [3.10.0] - 2026-03-12
 
 ### Added

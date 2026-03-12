@@ -338,6 +338,13 @@ nexus-prime setup status
 ---
 
 ## 📜 Changelog
+### v3.11.0 "Knowledge Fabric"
+- **New Knowledge Fabric layer now assembles bounded execution bundles across repo code, memory, session RAG collections, reusable patterns, and prior runtime traces**
+- **Session-first RAG collections and the pattern registry now feed orchestrated runs, runtime truth, and dashboard provenance instead of living outside the control plane**
+- **`CI & Publish` now mirrors the real release gate on pull requests with build, lint, full tests, and `npm pack --dry-run` before publish is allowed**
+- **RAG collection IDs are sanitized before filesystem access, and remote URL ingestion now times out instead of hanging indefinitely**
+- **TypeScript tests and public-surface checks now run through `tsx`, keeping local and GitHub Actions behavior aligned**
+
 ### v3.10.0 "Autonomous Bootstrap"
 - **New `nexus_session_bootstrap` entrypoint gives external clients one compact session-start tool with memory recall, stats, shortlist guidance, and token-optimization expectations**
 - **MCP now defaults to an `autonomous` tool profile, keeping `nexus_session_bootstrap` and `nexus_orchestrate` first while reserving the full expert surface for manual work**
