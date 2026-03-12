@@ -3,9 +3,15 @@
 Nexus Prime is orchestrator-first. Treat it as a control plane, not a loose bag of tools.
 
 ## Default Rule
-- For any non-trivial task, start with `nexus_orchestrate`.
+- For any non-trivial task, start with `nexus_session_bootstrap`, then call `nexus_orchestrate`.
 - Use raw prompts unless the caller provides hard constraints.
 - Only bypass the orchestrator for explicit low-level, diagnostic, or manual runtime work.
+```txt
+nexus_session_bootstrap(
+  goal="<the user request in plain language>",
+  files=[optional candidate files]
+)
+```
 ```txt
 nexus_orchestrate(
   prompt="<the user request in plain language>",
@@ -21,13 +27,14 @@ nexus_orchestrate(
 If the caller does not constrain Nexus, let Nexus choose the crew, specialists, skills, workflows, hooks, automations, worker count, and token strategy.
 ## Context Order
 Run this sequence unless the user explicitly asks for a low-level tool:
-1. `nexus_recall_memory(query="<task in 10 words>", k=8)`
-2. `nexus_memory_stats()`
-3. `nexus_plan_execution(goal="<task>", files=[...])` when you want the ledger before execution
-4. `nexus_list_skills()`, `nexus_list_workflows()`, `nexus_list_specialists()`, `nexus_list_crews()` when catalog awareness will narrow execution
-5. `nexus_list_hooks()` and `nexus_list_automations()` only for operating-layer behavior, retries, continuations, or recurring execution
-6. `nexus_optimize_tokens(...)` before reading 3+ files
-7. `nexus_mindkit_check(...)` before risky mutation
+1. `nexus_session_bootstrap(goal="<task>", files=[...])`
+2. `nexus_recall_memory(query="<task in 10 words>", k=8)` when you need the raw matches directly
+3. `nexus_memory_stats()`
+4. `nexus_plan_execution(goal="<task>", files=[...])` only when you want the ledger before execution
+5. `nexus_list_skills()`, `nexus_list_workflows()`, `nexus_list_specialists()`, `nexus_list_crews()` when catalog awareness will narrow execution
+6. `nexus_list_hooks()` and `nexus_list_automations()` only for operating-layer behavior, retries, continuations, or recurring execution
+7. `nexus_optimize_tokens(...)` before reading 3+ files when you need to inspect or override the runtime decision
+8. `nexus_mindkit_check(...)` before risky mutation
 Do not start with broad repo exploration if memory, planner, or catalog data can narrow the problem first.
 ## Subsystem Triggers
 - Memories: use for prior learnings, root causes, architecture history, and handoff. Call `nexus_store_memory` for durable findings.
@@ -53,10 +60,9 @@ Use the packet as the machine-facing brief. Treat `AGENTS.md` as the human opera
 ## Session Protocol
 ### Start
 ```txt
-nexus_recall_memory(query="<today's task in 10 words>", k=8)
-nexus_memory_stats()
+nexus_session_bootstrap(goal="<today's task>", files=[...])
 ```
-For non-trivial work, call `nexus_orchestrate(...)` or `nexus_plan_execution(...)` first if you want to inspect the ledger before running.
+For non-trivial work, call `nexus_orchestrate(...)` next, or `nexus_plan_execution(...)` first if you explicitly want to inspect the ledger before running.
 ### During Work
 ```txt
 nexus_store_memory(
@@ -95,12 +101,13 @@ nexus_mindkit_check(
 ```
 If `passed` is false, stop and resolve the violation first.
 ## Operating Recipes
-- Bug fix: recall memory, inspect plan, optimize tokens, orchestrate, store the root cause.
-- Multi-file feature: recall memory, inspect plan, discover skills and workflows, optimize tokens, orchestrate.
-- Refactor: recall memory, run `nexus_ghost_pass`, inspect plan, run governance, orchestrate.
-- Release prep: recall memory, inspect plan, review workflows and automations, orchestrate.
+- Bug fix: bootstrap, inspect plan if needed, orchestrate, store the root cause.
+- Multi-file feature: bootstrap, inspect plan if needed, discover skills and workflows only when you need explicit control, orchestrate.
+- Refactor: bootstrap, run `nexus_ghost_pass`, inspect plan if needed, run governance, orchestrate.
+- Release prep: bootstrap, inspect plan, review workflows and automations, orchestrate.
 - Operating-layer change: inspect plan, review hooks and automations, run governance, then mutate only after you know whether the behavior belongs in a hook, automation, workflow, or skill.
 ## Anti-Patterns
+- Do not skip `nexus_session_bootstrap` and start with broad repo exploration.
 - Do not skip `nexus_orchestrate` and manually wire every subsystem unless the task is explicitly low-level or diagnostic.
 - Do not read 10+ files before `nexus_optimize_tokens`.
 - Do not treat populated catalogs as proof that a subsystem was used in this runtime.
@@ -108,6 +115,7 @@ If `passed` is false, stop and resolve the violation first.
 - Do not store vague memories like "fixed a bug"; store the exact cause and effect.
 - Do not hardcode tool counts in docs or prompts; the surface evolves.
 ## Key MCP Surfaces
+- `nexus_session_bootstrap`
 - `nexus_orchestrate`
 - `nexus_recall_memory`
 - `nexus_memory_stats`

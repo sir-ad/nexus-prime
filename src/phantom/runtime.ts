@@ -76,9 +76,11 @@ import {
     RuntimeRegistry,
     createEmptyUsageState,
     createEmptyTokenSummary,
+    type RuntimeClientInstructionStatus,
     type RuntimeRegistrySnapshot,
     type RuntimeOrchestrationSnapshot,
     type RuntimePrimaryClientSnapshot,
+    type RuntimeSequenceComplianceSnapshot,
     type RuntimeTokenRunSnapshot,
     type RuntimeTokenSummarySnapshot,
     type RuntimeUsageCategory,
@@ -664,6 +666,16 @@ export class SubAgentRuntime {
             executionMode: 'manual-low-level',
             plannerApplied: false,
             tokenOptimizationApplied: false,
+            bootstrapCalled: false,
+            orchestrateCalled: false,
+            plannerCalled: false,
+            skipReasons: [],
+            lastToolCalls: [],
+            sequenceCompliance: {
+                status: 'idle',
+                summary: 'No client tool sequence recorded yet.',
+                updatedAt: this.startedAt,
+            },
         });
     }
 
@@ -1410,6 +1422,51 @@ export class SubAgentRuntime {
         });
     }
 
+    recordClientInstructionStatus(status: RuntimeClientInstructionStatus): RuntimeRegistrySnapshot {
+        return this.persistRuntimeSnapshot({
+            clientInstructionStatus: status,
+            lastHeartbeatAt: Date.now(),
+            lastActivityAt: Date.now(),
+        });
+    }
+
+    recordClientToolCall(
+        toolName: string,
+        options: {
+            bootstrapCalled?: boolean;
+            orchestrateCalled?: boolean;
+            plannerCalled?: boolean;
+            tokenOptimizationApplied?: boolean;
+            toolProfile?: 'autonomous' | 'full';
+            instructionFiles?: string[];
+        } = {},
+    ): RuntimeRegistrySnapshot {
+        const existingCalls = this.runtimeSnapshot.lastToolCalls ?? [];
+        const lastToolCalls = [...existingCalls, toolName].slice(-12);
+        const client = this.runtimeSnapshot.clients?.primary;
+        const toolProfile = options.toolProfile ?? this.runtimeSnapshot.clientInstructionStatus?.toolProfile ?? 'autonomous';
+        return this.persistRuntimeSnapshot({
+            lastToolCalls,
+            bootstrapCalled: options.bootstrapCalled ?? this.runtimeSnapshot.bootstrapCalled ?? false,
+            orchestrateCalled: options.orchestrateCalled ?? this.runtimeSnapshot.orchestrateCalled ?? false,
+            plannerCalled: options.plannerCalled ?? this.runtimeSnapshot.plannerCalled ?? false,
+            tokenOptimizationApplied: options.tokenOptimizationApplied ?? this.runtimeSnapshot.tokenOptimizationApplied ?? false,
+            clientInstructionStatus: {
+                clientId: client?.clientId ?? this.runtimeSnapshot.clientId,
+                clientFamily: client?.clientFamily ?? this.runtimeSnapshot.clientFamily,
+                toolProfile,
+                status: toolProfile === 'autonomous' ? 'guided' : 'manual',
+                summary: toolProfile === 'autonomous'
+                    ? 'Autonomous MCP profile active. Prefer nexus_session_bootstrap then nexus_orchestrate.'
+                    : 'Full MCP profile active. Low-level and diagnostic tools are exposed.',
+                instructionFiles: options.instructionFiles ?? this.runtimeSnapshot.clientInstructionStatus?.instructionFiles,
+                updatedAt: Date.now(),
+            },
+            lastHeartbeatAt: Date.now(),
+            lastActivityAt: Date.now(),
+        });
+    }
+
     recordInstructionPacket(
         packet: InstructionPacket | undefined,
         options: {
@@ -1489,6 +1546,12 @@ export class SubAgentRuntime {
     async planExecution(input: Partial<ExecutionTask> & { goal: string }): Promise<TaskPlannerState> {
         const task = await this.normalizeTask(input);
         const planner = planTask(task).plannerState;
+        this.persistRuntimeSnapshot({
+            plannerCalled: true,
+            plannerApplied: true,
+            lastHeartbeatAt: Date.now(),
+            lastActivityAt: Date.now(),
+        });
         this.markUsage('plan', {
             summary: `Planner prepared ${planner.selectedCrew?.name ?? 'baseline'} for ${task.goal}`,
             count: planner.ledger.length,
@@ -2647,7 +2710,50 @@ export class SubAgentRuntime {
         }
     }
 
+    private collectSkipReasons(ledger: ExecutionLedger | undefined, existing: string[] = []): string[] {
+        const reasons = new Set(existing);
+        for (const step of ledger?.steps ?? []) {
+            if ((step.status === 'skipped' || step.status === 'blocked' || step.status === 'failed') && step.reason) {
+                reasons.add(step.reason);
+            }
+        }
+        return [...reasons];
+    }
+
+    private deriveSequenceCompliance(snapshot: RuntimeRegistrySnapshot): RuntimeSequenceComplianceSnapshot {
+        const now = Date.now();
+        const hasObservedActivity = Boolean(snapshot.executionLedger || (snapshot.lastToolCalls?.length ?? 0) > 0);
+        if (hasObservedActivity && (snapshot.executionMode ?? 'manual-low-level') === 'manual-low-level' && (snapshot.orchestrateCalled ?? false) === false) {
+            return {
+                status: 'manual-low-level',
+                summary: 'Manual low-level execution bypassed the bootstrap-to-orchestrate sequence.',
+                updatedAt: now,
+            };
+        }
+        if (snapshot.bootstrapCalled && snapshot.orchestrateCalled) {
+            return {
+                status: 'compliant',
+                summary: 'Active client followed nexus_session_bootstrap before nexus_orchestrate.',
+                updatedAt: now,
+            };
+        }
+        if (snapshot.bootstrapCalled || snapshot.orchestrateCalled || snapshot.plannerCalled || (snapshot.lastToolCalls?.length ?? 0) > 0) {
+            return {
+                status: 'partial',
+                summary: 'Client activity detected, but the full bootstrap-to-orchestrate path was not observed yet.',
+                updatedAt: now,
+            };
+        }
+        return {
+            status: 'idle',
+            summary: 'No client tool sequence recorded yet.',
+            updatedAt: now,
+        };
+    }
+
     private persistRuntimeSnapshot(patch: Partial<RuntimeRegistrySnapshot>): RuntimeRegistrySnapshot {
+        const executionLedger = patch.executionLedger ?? this.runtimeSnapshot?.executionLedger;
+        const skipReasons = this.collectSkipReasons(executionLedger, patch.skipReasons ?? this.runtimeSnapshot?.skipReasons ?? []);
         const nextSnapshot: RuntimeRegistrySnapshot = {
             ...this.runtimeSnapshot,
             ...patch,
@@ -2674,10 +2780,18 @@ export class SubAgentRuntime {
             instructionPacketHash: patch.instructionPacketHash ?? this.runtimeSnapshot?.instructionPacketHash,
             instructionPacket: patch.instructionPacket ?? this.runtimeSnapshot?.instructionPacket,
             executionMode: patch.executionMode ?? this.runtimeSnapshot?.executionMode ?? 'manual-low-level',
-            executionLedger: patch.executionLedger ?? this.runtimeSnapshot?.executionLedger,
+            executionLedger,
             plannerApplied: patch.plannerApplied ?? this.runtimeSnapshot?.plannerApplied ?? false,
             tokenOptimizationApplied: patch.tokenOptimizationApplied ?? this.runtimeSnapshot?.tokenOptimizationApplied ?? false,
+            bootstrapCalled: patch.bootstrapCalled ?? this.runtimeSnapshot?.bootstrapCalled ?? false,
+            orchestrateCalled: patch.orchestrateCalled ?? this.runtimeSnapshot?.orchestrateCalled ?? false,
+            plannerCalled: patch.plannerCalled ?? this.runtimeSnapshot?.plannerCalled ?? false,
+            skipReasons,
+            lastToolCalls: patch.lastToolCalls ?? this.runtimeSnapshot?.lastToolCalls ?? [],
+            clientInstructionStatus: patch.clientInstructionStatus ?? this.runtimeSnapshot?.clientInstructionStatus,
+            sequenceCompliance: patch.sequenceCompliance ?? this.runtimeSnapshot?.sequenceCompliance,
         };
+        nextSnapshot.sequenceCompliance = this.deriveSequenceCompliance(nextSnapshot);
         this.runtimeSnapshot = this.runtimeRegistry.write(nextSnapshot);
         return this.runtimeSnapshot;
     }

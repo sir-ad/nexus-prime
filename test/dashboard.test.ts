@@ -353,8 +353,12 @@ async function test() {
     assert.strictEqual(usagePrimary.executionMode, 'autonomous', 'primary runtime usage should record autonomous orchestration mode');
     assert.strictEqual(usagePrimary.plannerApplied, true, 'primary runtime usage should record planner application');
     assert.strictEqual(usagePrimary.tokenOptimizationApplied, true, 'primary runtime usage should record token optimization application');
+    assert.strictEqual(usagePrimary.orchestrateCalled, true, 'primary runtime usage should record orchestrate usage');
+    assert.strictEqual(usagePrimary.bootstrapCalled, false, 'primary runtime should remain partial until bootstrap is observed');
+    assert.strictEqual(usagePrimary.sequenceCompliance?.status, 'partial', 'primary runtime usage should surface partial client-sequence compliance');
     assert.strictEqual(usageSecondary.usage.plan.status, 'used', 'secondary runtime usage should record planning usage');
     assert.strictEqual(usageSecondary.usage.memories.status, 'used', 'secondary runtime usage should record memory usage');
+    assert.strictEqual(usageSecondary.plannerCalled, true, 'secondary runtime usage should record planner calls');
     assert.ok(orchestration.sessionId, 'orchestration session API should expose a session id');
     assert.strictEqual(ledger.executionMode, 'autonomous', 'orchestration ledger API should expose autonomous execution mode');
     assert.ok(Array.isArray(ledger.steps) && ledger.steps.some((step: any) => step.id === 'planner-selection' && step.status === 'completed'), 'orchestration ledger should include planner completion');
@@ -474,6 +478,8 @@ async function test() {
     assert.strictEqual(snapshot.executionMode, 'manual-low-level', 'runtime registry snapshot should mark explicit low-level automation runs as manual');
     assert.ok(Array.isArray(snapshot.executionLedger?.steps), 'runtime registry snapshot should persist the latest execution ledger');
     assert.ok(snapshot.executionLedger.steps.some((step: any) => step.id === 'compile-instruction-packet' && step.status === 'skipped' && step.reason === 'manual-low-level'), 'manual execution snapshots should preserve packet bypass reasons');
+    assert.ok(Array.isArray(snapshot.lastToolCalls), 'runtime registry snapshot should persist the recent client tool chain');
+    assert.ok(snapshot.sequenceCompliance?.status, 'runtime registry snapshot should persist sequence compliance');
     snapshot.lastHeartbeatAt = Date.now() - (5 * 60 * 1000);
     fs.writeFileSync(primarySnapshotPath, JSON.stringify(snapshot, null, 2), 'utf8');
     const staleRuntimes = await fetchJson(`${primaryAddress}/api/runtimes`);

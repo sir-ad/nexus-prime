@@ -54,6 +54,7 @@ async function test() {
   try {
     const { createNexusPrime } = await import('../dist/index.js');
     const { createAdapter } = await import('../dist/agents/adapters.js');
+    const { MCPAdapter } = await import('../dist/agents/adapters/mcp.js');
     const nexus = createNexusPrime({ adapters: [] });
     await nexus.start();
     console.log('✅ Started\n');
@@ -259,6 +260,68 @@ async function test() {
       assert.strictEqual(envelope.format, expectedFormat, `${adapterType} should render the expected client format`);
       await adapter.disconnect();
     }
+
+    const mcpAdapter = new MCPAdapter() as any;
+    mcpAdapter.setNexusRef(nexus);
+    const autonomousTools = mcpAdapter.debugListTools('autonomous').map((tool: any) => tool.name);
+    const fullTools = mcpAdapter.debugListTools('full').map((tool: any) => tool.name);
+    assert.deepStrictEqual(
+      autonomousTools.slice(0, 3),
+      ['nexus_session_bootstrap', 'nexus_orchestrate', 'nexus_plan_execution'],
+      'autonomous MCP profile should lead with bootstrap, orchestrate, and optional plan'
+    );
+    assert.ok(!autonomousTools.includes('nexus_skill_generate'), 'autonomous MCP profile should hide expert-only skill authoring tools');
+    assert.ok(fullTools.includes('nexus_skill_generate'), 'full MCP profile should retain expert tooling');
+    assert.strictEqual(fullTools[0], 'nexus_session_bootstrap', 'full MCP profile should still prioritize bootstrap first');
+    assert.strictEqual(fullTools[1], 'nexus_orchestrate', 'full MCP profile should still prioritize orchestrate second');
+
+    const bootstrapResponse = await mcpAdapter.handleToolCall({
+      params: {
+        name: 'nexus_session_bootstrap',
+        arguments: {
+          goal: 'Restore autonomous MCP usage across runtime, setup, docs, and dashboard',
+          files: ['README.md', 'package.json', 'src/app.ts']
+        }
+      }
+    });
+    const bootstrapPayload = JSON.parse(bootstrapResponse.content[0].text);
+    assert.strictEqual(bootstrapPayload.recommendedNextStep, 'nexus_orchestrate', 'bootstrap tool should recommend orchestration as the next step');
+    assert.strictEqual(bootstrapPayload.tokenOptimization.required, true, 'bootstrap tool should report token optimization for 3+ files');
+    assert.ok(Array.isArray(bootstrapPayload.shortlist.skills), 'bootstrap tool should return a skill shortlist');
+    assert.strictEqual(runtime.getUsageSnapshot().bootstrapCalled, true, 'runtime snapshot should record bootstrap usage');
+    assert.strictEqual(runtime.getUsageSnapshot().plannerCalled, true, 'runtime snapshot should record planner usage during bootstrap');
+    assert.strictEqual(runtime.getUsageSnapshot().sequenceCompliance?.status, 'partial', 'runtime snapshot should keep external-client compliance partial when bootstrap is observed after a direct execute path');
+    assert.strictEqual(runtime.getUsageSnapshot().clientInstructionStatus?.toolProfile, 'autonomous', 'runtime snapshot should record the active autonomous tool profile');
+
+    const fakeHome = path.join(repoRoot, '.fake-home');
+    fs.mkdirSync(fakeHome, { recursive: true });
+    const cliPath = path.join(originalCwd, 'dist', 'cli.js');
+    const setupEnv = { ...process.env, HOME: fakeHome, USERPROFILE: fakeHome };
+    execSync(`node "${cliPath}" setup cursor`, { cwd: repoRoot, env: setupEnv, stdio: 'ignore' });
+    execSync(`node "${cliPath}" setup windsurf`, { cwd: repoRoot, env: setupEnv, stdio: 'ignore' });
+    execSync(`node "${cliPath}" setup antigravity`, { cwd: repoRoot, env: setupEnv, stdio: 'ignore' });
+    const cursorRulePath = path.join(repoRoot, '.cursor', 'rules', 'nexus-prime.mdc');
+    const windsurfRulePath = path.join(repoRoot, '.windsurfrules');
+    const antigravitySkillDir = path.join(fakeHome, '.antigravity', 'skills', 'nexus-prime');
+    assert.ok(fs.existsSync(path.join(fakeHome, '.cursor', 'mcp.json')), 'Cursor setup should write an MCP config');
+    assert.ok(fs.existsSync(path.join(fakeHome, '.windsurf', 'mcp.json')), 'Windsurf setup should write an MCP config');
+    assert.ok(fs.existsSync(path.join(fakeHome, '.antigravity', 'mcp.json')), 'Antigravity setup should write an MCP config');
+    assert.ok(fs.existsSync(cursorRulePath), 'Cursor setup should write a project-local .mdc rule');
+    assert.ok(fs.existsSync(windsurfRulePath), 'Windsurf setup should write a project-local .windsurfrules file');
+    assert.ok(fs.existsSync(antigravitySkillDir), 'Antigravity setup should write a home-scoped skill bundle');
+    assert.ok(fs.readFileSync(cursorRulePath, 'utf8').includes('nexus_session_bootstrap'), 'Cursor rule file should teach the bootstrap-first sequence');
+    assert.ok(fs.readFileSync(windsurfRulePath, 'utf8').includes('nexus_orchestrate'), 'Windsurf rule file should teach the orchestrate path');
+    const antigravitySkillFiles = fs.readdirSync(antigravitySkillDir);
+    assert.ok(antigravitySkillFiles.length > 0, 'Antigravity setup should emit at least one SKILL.md file');
+    antigravitySkillFiles.forEach((fileName) => {
+      const content = fs.readFileSync(path.join(antigravitySkillDir, fileName), 'utf8');
+      assert.ok(content.includes('nexus_session_bootstrap'), 'Antigravity skill files should teach the bootstrap-first sequence');
+      assert.ok(content.length <= 6500, 'Antigravity setup should keep each skill artifact below the compact size budget');
+    });
+    const statusOutput = execSync(`node "${cliPath}" setup status`, { cwd: repoRoot, env: setupEnv, encoding: 'utf8' });
+    assert.ok(statusOutput.includes('Cursor: ✅'), 'setup status should report Cursor as installed');
+    assert.ok(statusOutput.includes('Windsurf: ✅'), 'setup status should report Windsurf as installed');
+    assert.ok(statusOutput.includes('Antigravity / OpenClaw: ✅'), 'setup status should report Antigravity as installed');
 
     await nexus.stop();
     console.log('✅ Stopped\n');

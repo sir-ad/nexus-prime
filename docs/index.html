@@ -4,19 +4,19 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Nexus Prime — The Self-Evolving Agent OS</title>
+  <title>Nexus Prime — Orchestrator-First MCP Control Plane</title>
 
   <!-- SEO & Open Graph Tags -->
   <meta name="description"
-    content="The autonomous meta-framework for AI agents. Cross-session memory, token optimization, parallel swarm induction, and machine-verifiable guardrails." />
-  <meta property="og:title" content="Nexus Prime | Cognitive OS for Multi-Agent Swarms" />
+    content="Nexus Prime is a local-first MCP control plane for coding agents with bootstrap-orchestrate execution, token-aware routing, runtime truth, and verified worktree execution." />
+  <meta property="og:title" content="Nexus Prime | Orchestrator-First MCP Control Plane" />
   <meta property="og:description"
-    content="The autonomous meta-framework for AI agents. Permanent memory, mathematically optimized context limits, safety guardrails, and massively parallel Git-worktree execution." />
+    content="Bootstrap memory and context, let Nexus orchestrate execution, and inspect runtime truth, token telemetry, hooks, automations, crews, specialists, and federation state." />
   <meta property="og:type" content="website" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Nexus Prime — Agent OS" />
+  <meta name="twitter:title" content="Nexus Prime — MCP Control Plane" />
   <meta name="twitter:description"
-    content="Meta-framework for autonomous agent armies providing persistent Cortex memory and token supremacy." />
+    content="Bootstrap, orchestrate, verify, and learn with a local-first runtime for coding agents." />
 
   <!-- Preconnect & Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -24,6 +24,7 @@
   <link
     href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Inter:wght@300;400;500;600;700;900&display=swap"
     rel="stylesheet" />
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
 
   <!-- Deferred Scripts -->
   <script defer src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
@@ -151,6 +152,39 @@
     .nav-cta:hover {
       box-shadow: 0 0 24px var(--green-glow);
       transform: translateY(-1px);
+    }
+
+    .mobile-nav {
+      display: none;
+      width: 100%;
+      margin-top: 12px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: rgba(10, 10, 10, 0.94);
+    }
+
+    .mobile-nav summary {
+      list-style: none;
+      cursor: pointer;
+      padding: 12px 16px;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--green);
+    }
+
+    .mobile-nav summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .mobile-nav-links {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 0 16px 16px;
+    }
+
+    .mobile-nav-links a {
+      color: var(--text-dim);
+      text-decoration: none;
     }
 
     /* Layout Sections */
@@ -684,6 +718,10 @@
         display: none;
       }
 
+      .mobile-nav {
+        display: block;
+      }
+
       .data-table {
         display: block;
         overflow-x: auto;
@@ -706,18 +744,29 @@
         <li><a href="https://github.com/sir-ad/nexus-prime" target="_blank" rel="noopener">Repository</a></li>
       </ul>
       <a class="nav-cta" href="#documentation">Read Docs →</a>
+      <details class="mobile-nav">
+        <summary>Menu</summary>
+        <div class="mobile-nav-links">
+          <a href="#documentation">Documentation</a>
+          <a href="#architecture">Architecture</a>
+          <a href="#capabilities">Capabilities</a>
+          <a href="#tooling">Tools</a>
+          <a href="#install">Deployment</a>
+          <a href="https://github.com/sir-ad/nexus-prime" target="_blank" rel="noopener">Repository</a>
+        </div>
+      </details>
     </nav>
   </header>
 
   <main>
     <section id="hero" aria-labelledby="hero-title">
       <div class="hero-glow"></div>
-      <div class="hero-badge">🧬 v3.0.0 Stable · 20 MCP Tools · Autonomous Runtime</div>
-      <h1 id="hero-title">The meta-framework for<br><span class="accent">autonomous agent armies.</span></h1>
+      <div class="hero-badge">🧬 Orchestrator-first · Bootstrap + Orchestrate · Runtime Truth</div>
+      <h1 id="hero-title">A local-first MCP control plane for<br><span class="accent">coding agents that need real runtime discipline.</span></h1>
       <p class="hero-sub">
-        Nexus Prime is a high-performance cognitive OS giving agents cross-session memory, token supremacy, parallel
-        swarm
-        induction, and machine-verifiable guardrails.
+        Nexus Prime gives Codex, Cursor, Claude Code, Opencode, Windsurf, and Antigravity a default path that starts
+        with memory/bootstrap context, routes file reads through token-aware planning, and executes through a bounded,
+        verified runtime.
       </p>
 
       <div class="showcase-image">
@@ -728,10 +777,10 @@
 
       <div class="hero-actions">
         <a class="btn-primary" href="#install">
-          $ npm install nexus-prime
+          $ npm install -g nexus-prime
         </a>
-        <a class="btn-secondary" href="#documentation">
-          Read Documentation →
+        <a class="btn-secondary" href="integrations.html">
+          Setup Clients →
         </a>
       </div>
     </section>
@@ -746,13 +795,13 @@
         <a class="cap-card" href="knowledge-base.html">
           <span class="cap-icon">📚</span>
           <h3>Knowledge Base</h3>
-          <p>Core concepts, APIs, runtime behavior, and guardrails for teams building directly on Nexus Prime.</p>
+          <p>Operator-facing reference for packets, ledgers, token telemetry, runtime truth, and guardrails.</p>
           <span class="cap-tag">Open Reference</span>
         </a>
         <a class="cap-card" href="integrations.html">
           <span class="cap-icon">🔌</span>
           <h3>Integrations</h3>
-          <p>Step-by-step setup for Cursor, Claude Code, Codex, Opencode, and other MCP-compatible clients.</p>
+          <p>Verified setup for Cursor, Claude Code, Opencode, Windsurf, Antigravity/OpenClaw, and Codex guidance.</p>
           <span class="cap-tag">Setup Guide</span>
         </a>
         <a class="cap-card" href="architecture-diagrams.html">
@@ -767,32 +816,32 @@
     <!-- PROMINENT ARCHITECTURE SECTION -->
     <article id="architecture">
       <span class="section-label">Topology</span>
-      <h2 class="section-title">Swarm Orchestration</h2>
-      <p class="section-sub">Nexus Prime enables true parallelization by isolating agents into dynamically generated Git
-        worktrees. Inter-worker communication happens over the local <b>POD Network</b>, and merges are mediated by the
-        <b>Merge Oracle</b>.
+      <h2 class="section-title">Runtime Sequence</h2>
+      <p class="section-sub">The public contract is simple: bootstrap the session, let the orchestrator choose the
+        runtime path, and inspect persisted runtime truth afterward. Phantom workers and the POD network remain behind
+        that control plane.
       </p>
 
       <div class="mermaid"
         style="margin-top: 32px; background: rgba(0,0,0,0.5); padding: 40px; border-radius: 16px; border: 1px solid var(--border); box-shadow: inset 0 0 30px rgba(0,255,136,0.05);">
         sequenceDiagram
-        participant U as User / Agent (Cursor/Claude)
+        participant U as User / Agent
         participant M as MCP Adapter
-        participant G as MindKit Guardrails
-        participant T as Token Optimizer
-        participant E as Core Engines (Memory/Evolution)
+        participant B as Session Bootstrap
+        participant O as Orchestrator
+        participant G as Governance + Token Routing
         participant W as Phantom Workers
 
-        U->>M: Call Tool (e.g., nexus_spawn_workers)
-        M->>G: nexus_mindkit_check()
-        G-->>M: PASS / FAIL
-        M->>T: nexus_optimize_tokens()
-        T-->>M: Reading Plan (READ/OUTLINE/SKIP)
-        M->>E: Execute Logic
-        E->>W: Spawn parallel worktrees (if needed)
-        W-->>E: Results
-        E->>E: Store Experience (Cortex/Zettelkasten)
-        E-->>M: Final Result
+        U->>M: nexus_session_bootstrap(goal)
+        M->>B: recall memory + inspect stats + shortlist assets
+        B-->>M: recommended next step
+        U->>M: nexus_orchestrate(prompt)
+        M->>O: plan + select crews, specialists, skills, workflows
+        O->>G: token routing + governance preflight
+        G->>W: verified runtime execution
+        W-->>O: artifacts + verifier results
+        O->>O: persist packet, ledger, and token telemetry
+        O-->>M: Final Result
         M-->>U: JSON-RPC Response
       </div>
 
@@ -804,36 +853,32 @@
 
     <article id="capabilities">
       <span class="section-label">Core Modules</span>
-      <h2 class="section-title">The pillars of<br>super-intelligence.</h2>
+      <h2 class="section-title">The surfaces that matter in practice.</h2>
 
       <div class="cap-grid">
         <div class="cap-card">
           <span class="cap-icon">🧠</span>
           <h3>3-Tier Semantic Memory</h3>
-          <p>Solves catastrophic forgetting. Prefrontal (Working), Hippocampus (Episodic), and Cortex (Permanent SQLite
-            indexing with HNSW).</p>
+          <p>Persistent recall plus session context so clients can start with prior learnings instead of browsing blind.</p>
           <span class="cap-tag">nexus_recall_memory</span>
         </div>
         <div class="cap-card">
           <span class="cap-icon">✂️</span>
           <h3>Token Supremacy</h3>
-          <p>Formulates reading as a Mathematical Greedy Knapsack Problem. Saves 50-90% context costs via Continuous
-            Attention Streams.</p>
+          <p>Token-aware routing and persisted telemetry so the runtime can show what was compressed, forwarded, or skipped.</p>
           <span class="cap-tag">nexus_optimize_tokens</span>
         </div>
         <div class="cap-card">
           <span class="cap-icon">🐝</span>
           <h3>Phantom Swarms</h3>
-          <p>Parallelize tasks across isolated Git Worktrees with Byzantine Fault Tolerance consensus. Multi-agent state
-            synchronization.</p>
-          <span class="cap-tag">nexus_spawn_workers</span>
+          <p>Verified worktree-backed execution with review gates, bounded continuations, and auditable artifacts.</p>
+          <span class="cap-tag">nexus_orchestrate</span>
         </div>
         <div class="cap-card">
-          <span class="cap-icon">🌀</span>
-          <h3>Quantum Entanglement</h3>
-          <p>Shared probabilistic state in high-dimensional Hilbert space. Correlated decision making across unbound
-            workers.</p>
-          <span class="cap-tag">nexus_entangle</span>
+          <span class="cap-icon">🧭</span>
+          <h3>Runtime Truth</h3>
+          <p>Packets, ledgers, token timelines, hooks, automations, federation state, crews, and specialists all report from persisted runtime data.</p>
+          <span class="cap-tag">/api/usage</span>
         </div>
       </div>
     </article>
@@ -841,7 +886,7 @@
     <article id="specs">
       <span class="section-label">Engineering Deep-Dive</span>
       <h2 class="section-title">Technical Specifications</h2>
-      <p class="section-sub">Detailed schematics of the internal language and performance benchmarks.</p>
+      <p class="section-sub">Key implementation contracts without stale benchmark theatre.</p>
 
       <!-- LANGUAGE SPEC -->
       <details>
@@ -864,16 +909,15 @@ induction:
 
       <!-- BENCHMARKS -->
       <details>
-        <summary>📊 Comparison & Benchmarks</summary>
+        <summary>📊 Operational Comparison</summary>
         <div class="details-content">
-          <p>Performance metrics validated against standard agent-to-filesystem orchestration (e.g. Claude Code, Cursor
-            raw filesystem access).</p>
+          <p>What changes when the client follows the bootstrap-to-orchestrate path instead of directly browsing and mutating.</p>
           <table class="data-table">
             <thead>
               <tr>
                 <th>Metric</th>
                 <th>Standard Agent</th>
-                <th>Nexus Prime Enhanced</th>
+                <th>Nexus Prime</th>
               </tr>
             </thead>
             <tbody>
@@ -883,19 +927,24 @@ induction:
                 <td><strong>Persistent (Cross-Session)</strong></td>
               </tr>
               <tr>
-                <td>Token Utilization</td>
-                <td>100% (Raw Read)</td>
-                <td><strong>10% - 30% (CAS Compression)</strong></td>
+                <td>Session Start</td>
+                <td>Repo docs and ad-hoc exploration</td>
+                <td><strong>nexus_session_bootstrap</strong></td>
               </tr>
               <tr>
-                <td>Avg. Response Time</td>
-                <td>~2500ms</td>
-                <td><strong>~600ms (HyperTune Enabled)</strong></td>
+                <td>Execution Control</td>
+                <td>Manual tool chaining</td>
+                <td><strong>nexus_orchestrate</strong></td>
               </tr>
               <tr>
-                <td>Multi-File Safety</td>
-                <td>Heuristic / Risky</td>
-                <td><strong>Verifiable Guardrails</strong></td>
+                <td>Token Telemetry</td>
+                <td>Often stream-only or absent</td>
+                <td><strong>Persisted totals + per-run analyzer</strong></td>
+              </tr>
+              <tr>
+                <td>Runtime Truth</td>
+                <td>Depends on the active host process</td>
+                <td><strong>Shared runtime snapshots</strong></td>
               </tr>
             </tbody>
           </table>
@@ -921,7 +970,7 @@ induction:
     <article id="tooling">
       <span class="section-label">Exposed Controls</span>
       <h2 class="section-title">MCP Tooling Matrix</h2>
-      <p class="section-sub">Nexus Prime exposes 20 native MCP tools that any driving agent can reliably invoke.</p>
+      <p class="section-sub">The full tool catalog is broader than this table. These are the operator-facing controls that should anchor client behavior.</p>
 
       <table class="data-table">
         <thead>
@@ -932,6 +981,16 @@ induction:
           </tr>
         </thead>
         <tbody>
+          <tr>
+            <td><code>nexus_session_bootstrap</code></td>
+            <td>Session-start memory, stats, shortlist, and next-step recommendation</td>
+            <td>Core</td>
+          </tr>
+          <tr>
+            <td><code>nexus_orchestrate</code></td>
+            <td>Raw-prompt autonomous execution path</td>
+            <td>Core</td>
+          </tr>
           <tr>
             <td><code>nexus_store_memory</code></td>
             <td>Store semantic findings and insights</td>
@@ -948,24 +1007,24 @@ induction:
             <td>Optimization</td>
           </tr>
           <tr>
+            <td><code>nexus_plan_execution</code></td>
+            <td>Inspect the execution ledger before a run</td>
+            <td>Planning</td>
+          </tr>
+          <tr>
             <td><code>nexus_spawn_workers</code></td>
-            <td>Dispatch isolated parallel swarm via Git Worktrees</td>
+            <td>Manual/diagnostic swarm control when explicit worker control is required</td>
             <td>Autonomy</td>
           </tr>
           <tr>
             <td><code>nexus_mindkit_check</code></td>
-            <td>Pre-flight guardrail validation on destructive actions</td>
+            <td>Governance preflight for risky mutation</td>
             <td>Safety</td>
           </tr>
           <tr>
-            <td><code>nexus_ghost_pass</code></td>
-            <td>Read-only AST risk analysis before swarming</td>
-            <td>Analysis</td>
-          </tr>
-          <tr>
-            <td><code>nexus_entangle</code></td>
-            <td>Measure quantum-entangled agent probability state</td>
-            <td>Quantum</td>
+            <td><code>nexus_list_skills</code>, <code>nexus_list_workflows</code>, <code>nexus_list_hooks</code>, <code>nexus_list_automations</code></td>
+            <td>Inspect runtime assets when you want explicit control</td>
+            <td>Runtime</td>
           </tr>
         </tbody>
       </table>
@@ -973,37 +1032,35 @@ induction:
 
     <article id="install">
       <span class="section-label">Deployment</span>
-      <h2 class="section-title">Ready to induct.</h2>
-      <p class="section-sub">Nexus Prime runs as a persistent background server. Zero-config integration with top-tier
-        driving agents.</p>
+      <h2 class="section-title">Get from install to useful behavior quickly.</h2>
+      <p class="section-sub">Install the MCP server, provision a client-native instruction surface, then verify the bootstrap-orchestrate path.</p>
 
       <div class="terminal-console">
         <p class="terminal-comment"># Global installation</p>
         <p class="terminal-command">npm install -g nexus-prime</p>
 
-        <p class="terminal-comment"># Initialize MCP server directly</p>
-        <p class="terminal-command-alt">npx nexus-prime mcp --port 8080</p>
+        <p class="terminal-comment"># Start the MCP server</p>
+        <p class="terminal-command-alt">npx nexus-prime mcp</p>
 
         <br>
         <p class="terminal-comment"># Automated Client Integrations</p>
         <p class="terminal-command">nexus-prime setup cursor</p>
         <p class="terminal-command">nexus-prime setup claude</p>
+        <p class="terminal-command">nexus-prime setup windsurf</p>
+        <p class="terminal-command">nexus-prime setup antigravity</p>
         <p class="terminal-command-alt">nexus-prime setup status</p>
       </div>
     </article>
 
     <aside id="extras">
       <details>
-        <summary>📜 v3.0.0 Changelog</summary>
+        <summary>📜 Recent Changelog</summary>
         <div class="details-content">
           <ul>
-            <li><strong>The Pulse Update (v3.0.0):</strong> Added POD Telemetry (real-time heartbeat visualization) and
-              improved HyperTune algorithms for large monorepo traversal.</li>
-            <li><strong>Intelligence Expansion (v1.5.0):</strong> Introduced Mandatory Induction for complex goals,
-              Thermodynamic Memory decay, Federation Engine (NexusNet Gist Relay), NXL Interpreter, and the real-time
-              Neural HUD.</li>
-            <li><strong>The Core Stabilization (v1.4.0):</strong> Added auto-setup CLI commands, unified the CAS Engine
-              (Continuous Attention Streams), and overhauled Git Worktree parallelization.</li>
+            <li><strong>v3.10.0:</strong> Added `nexus_session_bootstrap`, autonomous MCP tool profiles, compact client bootstrap installers, and public-surface trust checks.</li>
+            <li><strong>v3.9.0:</strong> Shared instruction gateway, compact AGENTS manual, execution ledgers, and cross-client packet renderers.</li>
+            <li><strong>v3.8.0:</strong> Orchestrator-first execution, persisted token telemetry, and runtime/client truth in the dashboard.</li>
+            <li><strong>v3.7.0:</strong> Shared runtime registry, worker context handoff, bounded automation continuations, and explicit relay status.</li>
           </ul>
         </div>
       </details>

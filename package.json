@@ -1,6 +1,6 @@
 {
   "name": "nexus-prime",
-  "version": "3.9.0",
+  "version": "3.10.0",
   "description": "The Self-Evolving Agent Operating System — cross-session memory, token optimization, parallel sub-agents via MCP",
   "type": "module",
   "main": "dist/index.js",
@@ -30,7 +30,8 @@
     "dev": "tsc --watch",
     "start": "node dist/cli.js start",
     "init": "node dist/cli.js init",
-    "test": "npm run build && node test/basic.test.ts && node test/memory.test.ts && node test/phantom.test.ts && node test/dashboard.test.ts && node test/docs.test.ts",
+    "test:public": "node test/public-surface.test.ts",
+    "test": "npm run build && node test/basic.test.ts && node test/memory.test.ts && node test/phantom.test.ts && node test/dashboard.test.ts && node test/docs.test.ts && npm run test:public",
     "lint": "eslint src --ext .ts"
   },
   "keywords": [

@@ -36,7 +36,9 @@ function test() {
   expectIncludes(architectureHtml, 'Diagram Index', 'architecture page should render the diagram sidebar');
   expectIncludes(readme, 'https://sir-ad.github.io/nexus-prime/', 'README should point to the public website');
   expectIncludes(readme, 'https://sir-ad.github.io/nexus-prime/knowledge-base.html', 'README should point to the public docs');
+  expectIncludes(readme, 'nexus_session_bootstrap', 'README should document the bootstrap-first path');
   expectIncludes(agents, 'nexus_orchestrate', 'AGENTS should document the orchestrator-first entrypoint');
+  expectIncludes(agents, 'nexus_session_bootstrap', 'AGENTS should document the bootstrap-first entrypoint');
   expectIncludes(agents, 'nexus_list_skills', 'AGENTS should document skill discovery');
   expectIncludes(agents, 'nexus_list_workflows', 'AGENTS should document workflow discovery');
   expectIncludes(agents, 'nexus_list_hooks', 'AGENTS should document hook discovery');
@@ -45,9 +47,17 @@ function test() {
   expectIncludes(agents, '.agent/runtime/packet.json', 'AGENTS should document the compiled instruction packet handoff');
   expectIncludes(agentReadme, '.agent/rules/*', '.agent README should document the durable rule source');
   expectIncludes(agentReadme, '.agent/runtime/packet.json', '.agent README should document the compiled packet output');
+  expectIncludes(agentReadme, '.agent/client-bootstrap', '.agent README should document generated client bootstrap files');
   assert.ok(agents.split('\n').length <= 160, 'AGENTS should remain compact enough for humans');
   assert.ok(!agents.includes('Available MCP Tools (44 total'), 'AGENTS should avoid stale hardcoded tool totals');
   assert.ok(!agents.includes('### Available skills'), 'AGENTS should not embed a full static skill inventory');
+  assert.ok(!readme.includes('20 native MCP tools'), 'README should not hardcode stale MCP tool counts');
+  assert.ok(!indexHtml.includes('20 MCP Tools'), 'landing page should not hardcode stale MCP tool counts');
+  assert.ok(!integrationsHtml.includes('NUXUS_PRIME_MCP'), 'integrations page should not contain the stale setup typo');
+  expectIncludes(indexHtml, 'nexus_session_bootstrap', 'landing page should mention the bootstrap-first entrypoint');
+  expectIncludes(integrationsHtml, 'nexus-prime setup windsurf', 'integrations page should document Windsurf setup');
+  expectIncludes(integrationsHtml, 'nexus-prime setup antigravity', 'integrations page should document Antigravity setup');
+  expectIncludes(indexHtml, 'Menu', 'landing page should expose a mobile navigation control');
   assert.strictEqual(packageJson.homepage, 'https://sir-ad.github.io/nexus-prime/', 'package homepage should point to GitHub Pages');
 
   console.log('✅ Docs website navigation and metadata are wired correctly\n');

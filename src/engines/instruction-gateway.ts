@@ -137,11 +137,26 @@ export interface ClientInstructionEnvelope {
     content: string;
 }
 
+export interface ClientBootstrapArtifact {
+    fileName: string;
+    format: ClientInstructionEnvelope['format'];
+    content: string;
+}
+
+export interface ClientBootstrapBundle {
+    clientId: string;
+    clientFamily: string;
+    packetHash: string;
+    estimatedTokens: number;
+    artifacts: ClientBootstrapArtifact[];
+}
+
 export interface PacketCompileInput {
     runtimeId: string;
     sessionId: string;
     goal: string;
     executionMode: OrchestrationExecutionMode;
+    packetTokenLimit?: number;
     manualOverrides?: string[];
     objectiveHistory?: string[];
     phases?: string[];
@@ -171,6 +186,15 @@ interface ProtocolSection {
 }
 
 export const PACKET_TOKEN_LIMIT = 3500;
+export const CLIENT_BOOTSTRAP_TOKEN_LIMITS: Record<string, number> = {
+    antigravity: 1200,
+    cursor: 1800,
+    windsurf: 1800,
+    'claude-code': 2000,
+    opencode: 2000,
+    codex: 1800,
+    mcp: 1800,
+};
 export const DEFAULT_REQUIRED_SEQUENCE: string[] = [
     'identify-client-session',
     'recall-memory',
@@ -183,6 +207,13 @@ export const DEFAULT_REQUIRED_SEQUENCE: string[] = [
     'compile-instruction-packet',
     'runtime-execution',
     'structured-learning',
+];
+export const CLIENT_BOOTSTRAP_SEQUENCE: string[] = [
+    'Start every non-trivial task with nexus_session_bootstrap(goal, files?)',
+    'Default to nexus_orchestrate(prompt=raw user request) unless explicit low-level control is requested',
+    'Use nexus_plan_execution only when the operator explicitly wants a plan before mutation',
+    'Let Nexus select crews, specialists, skills, workflows, hooks, automations, and token strategy by default',
+    'Close durable work with nexus_store_memory and nexus_session_dna(action="generate")',
 ];
 
 const LEDGER_STEP_LABELS: Record<ExecutionLedgerStepId, string> = {
@@ -524,6 +555,67 @@ export class InstructionGateway {
         };
     }
 
+    renderClientBootstrapBundle(
+        clientId: string,
+        options: {
+            toolProfile?: 'autonomous' | 'full';
+            goal?: string;
+        } = {},
+    ): ClientBootstrapBundle {
+        const family = this.toClientFamily(clientId);
+        const displayName = this.displayNameForClient(family);
+        const packet = this.compile({
+            runtimeId: `client-bootstrap-${family}`,
+            sessionId: `client-bootstrap-${family}`,
+            goal: options.goal ?? `Bootstrap ${displayName} to use Nexus Prime through the default MCP sequence.`,
+            executionMode: 'autonomous',
+            packetTokenLimit: CLIENT_BOOTSTRAP_TOKEN_LIMITS[family] ?? 1800,
+            objectiveHistory: [
+                'Prefer nexus_session_bootstrap first',
+                'Prefer nexus_orchestrate for non-trivial work',
+            ],
+            phases: ['bootstrap', 'orchestrate', 'close'],
+            requiredSequence: CLIENT_BOOTSTRAP_SEQUENCE,
+            client: {
+                clientId: family,
+                clientFamily: family,
+                displayName,
+                state: 'installed',
+                source: 'setup',
+                confidence: 1,
+                evidence: [`tool-profile:${options.toolProfile ?? 'autonomous'}`],
+            },
+            governance: {
+                passed: true,
+                score: 100,
+                violations: [],
+                suggestions: [],
+            },
+            tokenPolicy: {
+                applied: true,
+                reason: `client-bootstrap-${options.toolProfile ?? 'autonomous'}`,
+                candidateFiles: [],
+                selectedFiles: [],
+                estimatedSavings: 0,
+                estimatedCompressionPct: 0,
+            },
+            manualOverrides: ['client-bootstrap'],
+            memoryMatches: [],
+        });
+        const envelope = this.renderEnvelope(packet, family);
+        return {
+            clientId,
+            clientFamily: family,
+            packetHash: packet.packetHash,
+            estimatedTokens: packet.estimatedTokens,
+            artifacts: this.renderBootstrapArtifacts(
+                family,
+                envelope,
+                CLIENT_BOOTSTRAP_TOKEN_LIMITS[family] ?? 1800,
+            ),
+        };
+    }
+
     private selectProtocolSections(input: PacketCompileInput): ProtocolSection[] {
         const allSections: ProtocolSection[] = [];
         const seen = new Set<string>();
@@ -554,7 +646,7 @@ export class InstructionGateway {
             manualOverrides: input.manualOverrides ?? [],
             memoryMatches: input.memoryMatches ?? [],
         }));
-        let remaining = Math.max(320, PACKET_TOKEN_LIMIT - baseOverhead);
+        let remaining = Math.max(320, (input.packetTokenLimit ?? PACKET_TOKEN_LIMIT) - baseOverhead);
         const selected: ProtocolSection[] = [];
 
         for (const section of allSections) {
@@ -577,6 +669,86 @@ export class InstructionGateway {
         if (normalized === 'windsurf') return 'windsurf';
         if (normalized === 'mcp') return 'mcp';
         return normalized || 'codex';
+    }
+
+    private displayNameForClient(clientId: string): string {
+        const family = this.toClientFamily(clientId);
+        if (family === 'antigravity') return 'Antigravity / OpenClaw';
+        if (family === 'claude-code') return 'Claude Code';
+        if (family === 'opencode') return 'Opencode';
+        if (family === 'cursor') return 'Cursor';
+        if (family === 'windsurf') return 'Windsurf';
+        if (family === 'mcp') return 'MCP Client';
+        return family.charAt(0).toUpperCase() + family.slice(1);
+    }
+
+    private renderBootstrapArtifacts(
+        family: string,
+        envelope: ClientInstructionEnvelope,
+        tokenLimit: number,
+    ): ClientBootstrapArtifact[] {
+        if (family === 'antigravity') {
+            const chunks = this.chunkContent(envelope.content, tokenLimit);
+            return chunks.map((chunk, index) => ({
+                fileName: index === 0 ? 'SKILL.md' : `SKILL-${String(index + 1).padStart(2, '0')}.md`,
+                format: 'skill-md',
+                content: [
+                    '---',
+                    `name: nexus-prime-bootstrap${index === 0 ? '' : `-${index + 1}`}`,
+                    `description: Nexus Prime bootstrap instructions (${index + 1}/${chunks.length})`,
+                    'risk: low',
+                    'source: nexus-prime',
+                    '---',
+                    '',
+                    chunk,
+                ].join('\n'),
+            }));
+        }
+        if (family === 'cursor') {
+            return [{ fileName: 'nexus-prime.mdc', format: 'mdc', content: envelope.content }];
+        }
+        if (family === 'windsurf') {
+            return [{ fileName: '.windsurfrules', format: 'windsurfrules', content: envelope.content }];
+        }
+        return [{ fileName: `${family}.md`, format: 'markdown', content: envelope.content }];
+    }
+
+    private chunkContent(content: string, maxTokens: number): string[] {
+        const maxChars = Math.max(1200, maxTokens * 4);
+        if (content.length <= maxChars) return [content];
+
+        const blocks = content.split(/\n(?=##\s+)/g);
+        const chunks: string[] = [];
+        let current = '';
+
+        for (const block of blocks) {
+            const candidate = current ? `${current}\n${block}` : block;
+            if (candidate.length <= maxChars) {
+                current = candidate;
+                continue;
+            }
+            if (current.trim()) chunks.push(current.trim());
+            if (block.length <= maxChars) {
+                current = block;
+                continue;
+            }
+
+            const lines = block.split('\n');
+            let partial = '';
+            for (const line of lines) {
+                const nextLine = partial ? `${partial}\n${line}` : line;
+                if (nextLine.length > maxChars && partial.trim()) {
+                    chunks.push(partial.trim());
+                    partial = line;
+                } else {
+                    partial = nextLine;
+                }
+            }
+            current = partial;
+        }
+
+        if (current.trim()) chunks.push(current.trim());
+        return chunks;
     }
 }
 

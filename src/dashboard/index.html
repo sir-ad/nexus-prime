@@ -2528,8 +2528,14 @@
             }
 
             const runtime = getSelectedRuntime();
+            const usage = state.usage || runtime || {};
+            const compliance = usage.sequenceCompliance?.status || runtime?.sequenceCompliance?.status || 'idle';
+            const bootstrapCalled = usage.bootstrapCalled ?? runtime?.bootstrapCalled ?? false;
+            const orchestrateCalled = usage.orchestrateCalled ?? runtime?.orchestrateCalled ?? false;
+            const recentTools = (usage.lastToolCalls || runtime?.lastToolCalls || []).slice(-4);
+            const toolProfile = usage.clientInstructionStatus?.toolProfile || runtime?.clientInstructionStatus?.toolProfile || 'autonomous';
             $('runtime-usage-summary').textContent = runtime
-                ? `${runtime.health === 'stale' ? 'Stale' : 'Active'} runtime · ${(state.usage?.executionMode || runtime.executionMode || state.orchestrationSession?.mode || runtime.orchestration?.mode || 'single-pass')} · plan:${state.usage?.plannerApplied ? 'on' : 'off'} · tokens:${state.usage?.tokenOptimizationApplied ? 'on' : 'off'} · last activity ${formatAgo(runtime.lastActivityAt)}`
+                ? `${runtime.health === 'stale' ? 'Stale' : 'Active'} runtime · ${(usage.executionMode || runtime.executionMode || state.orchestrationSession?.mode || runtime.orchestration?.mode || 'single-pass')} · profile:${toolProfile} · sequence:${compliance} · bootstrap:${bootstrapCalled ? 'on' : 'off'} · orchestrate:${orchestrateCalled ? 'on' : 'off'} · plan:${usage.plannerApplied ? 'on' : 'off'} · tokens:${usage.tokenOptimizationApplied ? 'on' : 'off'}${recentTools.length ? ` · tools:${recentTools.join(' → ')}` : ''} · last activity ${formatAgo(runtime.lastActivityAt)}`
                 : 'No runtime usage data yet.';
         }
 

@@ -6,11 +6,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Integrations | Nexus Prime</title>
     <meta name="description"
-        content="Client setup and MCP integration guide for Nexus Prime across Cursor, Claude, Opencode, Codex, and related tooling." />
+        content="Verified client setup for Nexus Prime across Cursor, Claude Code, Opencode, Windsurf, Antigravity/OpenClaw, and Codex guidance." />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link
         href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Inter:wght@300;400;500;600;700;900&display=swap"
         rel="stylesheet" />
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
     <style>
         :root {
             --green: #00ff88;
@@ -281,8 +282,8 @@
             <div class="hero-card">
                 <div class="eyebrow">Client Integration Guide</div>
                 <h1>Connect Nexus Prime to the tools that actually drive the work.</h1>
-                <p>This page turns the original integration markdown into a website-native reference. Use it to wire
-                    the MCP server into your coding clients, verify the bridge, and debug the common failure modes.</p>
+                <p>Use this page to install the autonomous MCP profile, write the compact client-native instruction
+                    surface, verify the bridge, and debug the common failure modes.</p>
             </div>
             <div class="hero-card">
                 <div class="eyebrow">Docs Shortcuts</div>
@@ -306,14 +307,16 @@
         <section class="grid">
             <article class="panel" id="automated-setup">
                 <h2>Automated Setup</h2>
-                <p>The fastest path is still the `setup` command.</p>
+                <p>The fastest path installs both MCP config and the right client-native Nexus Prime instructions.</p>
                 <pre><code># Globally install first
 npm install -g nexus-prime
 
 # Run setup for your tool
 nexus-prime setup cursor
 nexus-prime setup claude
-nexus-prime setup opencode</code></pre>
+nexus-prime setup opencode
+nexus-prime setup windsurf
+nexus-prime setup antigravity</code></pre>
             </article>
 
             <article class="panel" id="verification">
@@ -321,28 +324,40 @@ nexus-prime setup opencode</code></pre>
                 <ol>
                     <li>Open the AI or settings pane in your tool.</li>
                     <li>Confirm `nexus-prime-mcp` appears in connected servers.</li>
-                    <li>Call `nexus_memory_stats` to verify the bridge is active.</li>
+                    <li>Call <code>nexus_session_bootstrap</code> with a real task to verify the bridge and the default execution path.</li>
+                    <li>For non-trivial work, follow with <code>nexus_orchestrate</code> instead of manually chaining low-level tools.</li>
                 </ol>
             </article>
 
             <article class="panel" id="clients">
                 <h2>Supported Tools</h2>
                 <h3>Cursor</h3>
-                <p>Automated: <code>nexus-prime setup cursor</code><br />Manual path:
-                    <code>~/Library/Application Support/Cursor/User/globalStorage/mcpServers.json</code></p>
+                <p>Automated: <code>nexus-prime setup cursor</code><br />MCP config:
+                    <code>~/.cursor/mcp.json</code><br />Project rule:
+                    <code>.cursor/rules/nexus-prime.mdc</code></p>
 
                 <h3>Claude Code</h3>
-                <p>Automated: <code>nexus-prime setup claude</code><br />Manual path:
-                    <code>~/.claude-code/mcp.json</code></p>
+                <p>Automated: <code>nexus-prime setup claude</code><br />MCP config:
+                    <code>~/.claude-code/mcp.json</code><br />Project instruction:
+                    <code>.agent/client-bootstrap/claude-code.md</code></p>
 
                 <h3>Opencode</h3>
-                <p>Automated: <code>nexus-prime setup opencode</code><br />Manual path:
-                    <code>~/.opencode/config.json</code></p>
+                <p>Automated: <code>nexus-prime setup opencode</code><br />MCP config:
+                    <code>~/.opencode/config.json</code><br />Project instruction:
+                    <code>.agent/client-bootstrap/opencode.md</code></p>
 
-                <h3>Kilocode / Codex</h3>
-                <p>For clients without a standardized config yet, pass the MCP environment flags directly:</p>
-                <pre><code>NUXUS_PRIME_MCP=true
-MCP_PORT=3377</code></pre>
+                <h3>Windsurf</h3>
+                <p>Automated: <code>nexus-prime setup windsurf</code><br />MCP config:
+                    <code>~/.windsurf/mcp.json</code><br />Project rule:
+                    <code>.windsurfrules</code></p>
+
+                <h3>Antigravity / OpenClaw</h3>
+                <p>Automated: <code>nexus-prime setup antigravity</code><br />MCP config:
+                    <code>~/.antigravity/mcp.json</code><br />Home-scoped skill bundle:
+                    <code>~/.antigravity/skills/nexus-prime/</code></p>
+
+                <h3>Codex</h3>
+                <p>Codex uses the repo-local <code>AGENTS.md</code> plus the autonomous MCP profile. There is no separate Codex-only setup artifact today.</p>
             </article>
 
             <article class="panel" id="troubleshooting">
@@ -350,6 +365,9 @@ MCP_PORT=3377</code></pre>
                 <h3>Polluted stdout</h3>
                 <p>Use <code>npx -y nexus-prime mcp</code> or the published CLI. Extra stdout breaks JSON-RPC framing in
                     strict MCP clients.</p>
+
+                <h3>Wrong MCP profile</h3>
+                <p>External clients should use <code>NEXUS_MCP_TOOL_PROFILE=autonomous</code>. The setup command writes this automatically so clients see <code>nexus_session_bootstrap</code> and <code>nexus_orchestrate</code> first instead of a noisy expert catalog.</p>
 
                 <h3>Version mismatch</h3>
                 <p>Ensure the client is picking up the latest npm version. Recent runtime behavior and dashboard fixes

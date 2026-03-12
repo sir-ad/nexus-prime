@@ -126,6 +126,22 @@ export interface RuntimeClientsSnapshot {
     lastUpdatedAt: number;
 }
 
+export interface RuntimeSequenceComplianceSnapshot {
+    status: 'idle' | 'partial' | 'compliant' | 'manual-low-level';
+    summary: string;
+    updatedAt: number;
+}
+
+export interface RuntimeClientInstructionStatus {
+    clientId?: string;
+    clientFamily?: string;
+    toolProfile: 'autonomous' | 'full';
+    status: 'guided' | 'manual';
+    summary: string;
+    instructionFiles?: string[];
+    updatedAt: number;
+}
+
 export interface RuntimeRegistrySnapshot {
     runtimeId: string;
     pid: number;
@@ -149,6 +165,13 @@ export interface RuntimeRegistrySnapshot {
     executionLedger?: ExecutionLedger;
     plannerApplied?: boolean;
     tokenOptimizationApplied?: boolean;
+    bootstrapCalled?: boolean;
+    orchestrateCalled?: boolean;
+    plannerCalled?: boolean;
+    skipReasons?: string[];
+    lastToolCalls?: string[];
+    sequenceCompliance?: RuntimeSequenceComplianceSnapshot;
+    clientInstructionStatus?: RuntimeClientInstructionStatus;
 }
 
 export interface ListedRuntimeSnapshot extends RuntimeRegistrySnapshot {
@@ -227,6 +250,11 @@ export class RuntimeRegistry {
                 ...parsed,
                 usage: { ...createEmptyUsageState(), ...(parsed.usage ?? {}) },
                 tokens: { ...createEmptyTokenSummary(), ...(parsed.tokens ?? {}) },
+                bootstrapCalled: parsed.bootstrapCalled ?? false,
+                orchestrateCalled: parsed.orchestrateCalled ?? false,
+                plannerCalled: parsed.plannerCalled ?? false,
+                skipReasons: parsed.skipReasons ?? [],
+                lastToolCalls: parsed.lastToolCalls ?? [],
             };
         } catch {
             return undefined;
@@ -238,6 +266,11 @@ export class RuntimeRegistry {
             ...snapshot,
             usage: { ...createEmptyUsageState(), ...(snapshot.usage ?? {}) },
             tokens: { ...createEmptyTokenSummary(), ...(snapshot.tokens ?? {}) },
+            bootstrapCalled: snapshot.bootstrapCalled ?? false,
+            orchestrateCalled: snapshot.orchestrateCalled ?? false,
+            plannerCalled: snapshot.plannerCalled ?? false,
+            skipReasons: snapshot.skipReasons ?? [],
+            lastToolCalls: snapshot.lastToolCalls ?? [],
         };
         fs.writeFileSync(this.snapshotPath(snapshot.runtimeId), JSON.stringify(normalized, null, 2), 'utf8');
         return normalized;

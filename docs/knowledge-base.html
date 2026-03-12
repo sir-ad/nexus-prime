@@ -11,6 +11,7 @@
     <link
         href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Inter:wght@300;400;500;600;700;900&display=swap"
         rel="stylesheet" />
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
 
     <style>
         :root {
@@ -440,49 +441,39 @@
         <!-- CONTENT -->
         <main>
             <h1>Developer Knowledge Base</h1>
-            <p>A comprehensive guide on building with, configuring, and coding alongside the Nexus Prime OS layer.</p>
+            <p>This page is for operators and integrators who need to understand how Nexus Prime behaves at runtime, how the MCP path should be used, and what the dashboard is actually reporting.</p>
 
             <!-- INTRO -->
             <section id="introduction">
                 <h2>1. Introduction</h2>
-                <p>Nexus Prime is designed to be completely invisible to the end user, but completely exposed to the AI
-                    Coding Agent. By running as an MCP server in the background, agents (like AntiGravity, Claude
-                    Desktop, or custom scripts) can invoke its tools natively.</p>
+                <p>Nexus Prime runs as a local-first MCP control plane. It sits between the driving client and the repo,
+                    providing memory recall, orchestration, runtime selection, verification, and persisted dashboard truth.</p>
 
                 <div class="callout">
                     <div class="callout-title" style="color: var(--cyan)">Mental Model</div>
-                    <p>Treat Nexus Prime as a co-processor. If you (the agent) are unsure about history, you ping the
-                        Hippocampus. If you are reading heavy logs, you route them through the Token Optimizer. If you
-                        are refactoring multiple interrelated files, you spawn Phantom Workers.</p>
+                    <p>Treat Nexus Prime as a control plane. Start non-trivial work with
+                        <code>nexus_session_bootstrap</code>, let <code>nexus_orchestrate</code> choose the runtime
+                        path by default, and inspect the packet, ledger, token telemetry, and usage snapshots when you
+                        need to understand what actually happened.</p>
                 </div>
             </section>
 
             <!-- AGENT LANGUAGE -->
             <section id="agent-language">
-                <h2>2. Nexus Prime Language Guideline (for Agents)</h2>
-                <p>If you are an AI coding agent connected to this workspace, you are operating within the <strong>Super
-                        Intellect Stack</strong>. Your prompts, code exploration, and problem-solving strategies must
-                    follow the Core Directives.</p>
+                <h2>2. Client Operating Guideline</h2>
+                <p>External clients should follow a compact sequence instead of manually chaining every subsystem. The
+                    default path is bootstrap first, orchestrate second, with explicit low-level tools reserved for
+                    diagnostics and expert override cases.</p>
 
                 <div class="lang-block">
-                    <h3>The Agent Language Directive</h3>
-                    <p>When coding in a Nexus Prime environment, you must adhere to the following principles:</p>
+                    <h3>Recommended Client Sequence</h3>
+                    <p>When coding in a Nexus Prime environment, use these principles:</p>
                     <ul>
-                        <li><strong>Protocol Over Assumption:</strong> Never guess what happened prior to your birth
-                            (session start). You. MUST. Call. <code>nexus_recall_memory</code> on first boot.</li>
-                        <li><strong>Token Frugality:</strong> If a file is over 500 lines, do not read it raw. Pass it
-                            through <code>nexus_optimize_tokens</code>. Listen to the routing (Read, Outline, or Skip).
-                            Ignorance of routing is a Guardrail violation.</li>
-                        <li><strong>Fission on Insight:</strong> When you decipher a complex architecture, figure out a
-                            bug, or make an architectural decision, immediately invoke <code>nexus_store_memory</code>.
-                            Write it like a Zettelkasten note (concise, searchable, heavily tagged).</li>
-                        <li><strong>Pre-Flight Checks:</strong> Before deleting files, rewriting core modules, or
-                            altering >3 files simultaneously, run <code>nexus_ghost_pass</code> to detect rippling
-                            dependencies via the AST.</li>
-                        <li><strong>Swarm Delegation:</strong> When the `Ghost Pass` reveals heavily coupled
-                            dependencies and you aren't sure which path is correct, DO NOT guess. Use
-                            <code>nexus_spawn_workers</code> to split the worktree and run experiments in parallel.
-                        </li>
+                        <li><strong>Bootstrap first:</strong> Start non-trivial work with <code>nexus_session_bootstrap</code>.</li>
+                        <li><strong>Orchestrate by default:</strong> Call <code>nexus_orchestrate</code> with the raw request unless the operator explicitly wants low-level control.</li>
+                        <li><strong>Inspect plans on request:</strong> Use <code>nexus_plan_execution</code> only when you want the ledger before mutation.</li>
+                        <li><strong>Treat token routing as runtime truth:</strong> Use <code>nexus_optimize_tokens</code> manually only when you need to inspect or override the reading plan.</li>
+                        <li><strong>Store durable learnings:</strong> Close meaningful work with <code>nexus_store_memory</code> and <code>nexus_session_dna</code>.</li>
                     </ul>
                 </div>
             </section>
@@ -496,8 +487,8 @@
 ─── 📡 Nexus Prime (12s) ───
 3 calls │ 20.3k tokens saved │ 2 stored │ 5 recalled
 &lt;/state&gt;</pre>
-                <p>As an agent, you do not need to parse this. It is designed to be injected into your prompt context so
-                    that you are passively aware of your savings and memory accumulation throughout the session.</p>
+                <p>Operators do not need to parse this by hand. The dashboard and runtime snapshot persist the same
+                    state so you can inspect lifetime totals and per-run details even after restart.</p>
             </section>
 
             <!-- MCP API REFERENCE -->

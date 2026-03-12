@@ -1,6 +1,6 @@
 <div align="center">
   <h1>🧬 Nexus Prime</h1>
-  <p><strong>The Cognitive Operating System for Multi-Agent Swarms</strong></p>
+  <p><strong>Local-first MCP control plane for coding agents</strong></p>
 
   [![npm version](https://img.shields.io/npm/v/nexus-prime?style=for-the-badge&color=00ff88)](https://www.npmjs.com/package/nexus-prime)
   [![npm downloads](https://img.shields.io/npm/d18m/nexus-prime?style=for-the-badge&color=00d4ff)](https://www.npmjs.com/package/nexus-prime)
@@ -18,7 +18,7 @@
   [![LLM Ready](https://img.shields.io/badge/LLM-Ready-00A67E?style=for-the-badge)](https://github.com/topics/llm)
   [![MCP Protocol](https://img.shields.io/badge/Protocol-MCP-4285F4?style=for-the-badge)](https://modelcontextprotocol.io/)
 
-  <p><i>Permanent Memory. Hyper-Context. Parallel Autonomy.</i></p>
+  <p><i>Bootstrap. Orchestrate. Verify. Learn.</i></p>
 </div>
 
 ---
@@ -34,7 +34,15 @@ npx nexus-prime mcp
 
 ---
 
-**Nexus Prime** is a local-first coding-agent operating system. Exposed as an MCP (Model Context Protocol) server or integrated programmatically, it provides single and multi-agent systems with **persistent memory, selectable runtime backends, guarded live skills, workflow artifacts, a live dashboard, and parallel Git-worktree execution with verification.**
+**Nexus Prime** is a local-first MCP control plane for coding agents. Run it as an MCP server or integrate it programmatically to give your client **persistent memory, orchestrator-first execution, token-aware file routing, crews/specialists/skills/workflows selection, runtime truth in the dashboard, and verified worktree-backed execution.**
+
+### Default external-client path
+```txt
+nexus_session_bootstrap(goal, files?)
+nexus_orchestrate(prompt="<raw user request>")
+```
+
+Use `nexus_plan_execution` only when you explicitly want a plan before mutation. Let Nexus choose crews, specialists, skills, workflows, hooks, automations, worker count, and token strategy unless you need hard constraints.
 
 **Website:** [sir-ad.github.io/nexus-prime](https://sir-ad.github.io/nexus-prime/)
 **Documentation:** [Knowledge Base](https://sir-ad.github.io/nexus-prime/knowledge-base.html) · [Integrations](https://sir-ad.github.io/nexus-prime/integrations.html) · [Architecture Diagrams](https://sir-ad.github.io/nexus-prime/architecture-diagrams.html)
@@ -99,16 +107,15 @@ nexus_skill_register --card ./my-custom-skill.yml
 </details>
 
 <details>
-<summary><b>📊 Comparison & Benchmarks (Performance Metrics)</b></summary>
+<summary><b>📊 Operational Differences</b></summary>
 
-Nexus Prime significantly reduces cognitive load and token expenditure compared to direct agent-to-filesystem interactions.
-
-| Metric | Standard Agent (Claude/Cursor) | Nexus Prime Enhanced |
+| Concern | Direct agent-to-filesystem flow | Nexus Prime flow |
 | :--- | :--- | :--- |
-| **Context Retention** | Session-bound (Ephemeral) | Persistent (Cross-Session) |
-| **Avg. Response Time** | ~2500ms | ~600ms (HyperTune Enabled) |
-| **Token Utilization** | 100% (Raw Read) | 10% - 30% (CAS Compression) |
-| **Multi-File Safety** | Heuristic / Risky | Verifiable Guardrails |
+| Session start | Depends on repo docs and ad-hoc browsing | `nexus_session_bootstrap` recovers memory and recommends the next step |
+| Multi-step execution | Manual tool chaining | `nexus_orchestrate` selects crews, specialists, skills, workflows, hooks, automations, and token strategy |
+| Token discipline | Caller-managed | Optimizer and runtime record whether token routing was applied or skipped |
+| Runtime truth | Depends on the current host process | Shared runtime snapshots back the dashboard and API surfaces |
+| Follow-up learning | Optional and easy to skip | Session DNA, memory storage, and execution ledgers are first-class runtime outputs |
 
 </details>
 
@@ -209,7 +216,7 @@ swarm.on('consensus.reach', (state) => {
 ### 1. 3-Tier Semantic Memory (Cortex)
 <details>
 <summary><b>View Details</b></summary>
-Solves the "catastrophic forgetting" problem. Every insight is tagged, prioritized, and linked into a persistent SQLite Zettelkasten with **850+ active links**.
+Solves the "catastrophic forgetting" problem. Every insight is tagged, prioritized, and linked into a persistent SQLite Zettelkasten.
 - **Prefrontal**: Active working set stored in-memory for instant recall.
 - **Hippocampus**: Session-level episodic buffer caching recent states.
 - **Cortex**: Long-term SQLite storage utilizing Vector embeddings (**HNSW**) and relational graph mapping.
@@ -218,7 +225,7 @@ Solves the "catastrophic forgetting" problem. Every insight is tagged, prioritiz
 ### 2. Token Supremacy (HyperTune Optimizer)
 <details>
 <summary><b>View Details</b></summary>
-Formulates file-reading as a **Greedy Knapsack Problem**, solving for maximum information gain against token cost. **Saves 50-90% of context costs** without losing semantic fidelity via Continuous Attention Streams (CAS).
+Formulates file-reading as a **Greedy Knapsack Problem**, solving for maximum information gain against token cost. The runtime persists token telemetry so the dashboard can show lifetime compression totals and per-run drilldowns instead of waiting for live-only events.
 
 <div align="center">
   <img src="./docs/assets/screenshots/neural_hud.png" alt="Token Optimization" width="80%">
@@ -253,22 +260,31 @@ Agents share mathematical state in a high-dimensional Hilbert space. When an age
 
 ---
 
-## 🛠️ MCP Tooling Checklist
+## 🛠️ MCP Control Surfaces
 
-Nexus Prime exposes 20 native MCP tools that any agent can invoke. Below are key examples:
+Nexus Prime ships a broad MCP surface, but the default external-client path should stay small:
+
+```txt
+nexus_session_bootstrap(goal, files?)
+nexus_orchestrate(prompt="<raw request>")
+```
+
+These are the most important operator-facing surfaces:
 
 | Tool | Capability | Tier |
 | :--- | :--- | :--- |
+| `nexus_session_bootstrap` | Recover memory, inspect stats, see the recommended next step | Core |
+| `nexus_orchestrate` | Raw-prompt autonomous execution path | Core |
 | `nexus_store_memory` | Store finding/insight | Core |
 | `nexus_recall_memory` | Semantically recall context | Core |
-| `nexus_optimize_tokens` | Mathematical context reduction | Optimization |
+| `nexus_plan_execution` | Inspect the execution ledger before mutation | Planning |
+| `nexus_optimize_tokens` | Manual token-plan inspection or override | Optimization |
 | `nexus_spawn_workers` | Execute parallel worktree swarm with verification and artifacts | Autonomy |
 | `nexus_mindkit_check` | Guardrail validation | Safety |
 | `nexus_ghost_pass` | Pre-flight risk analysis | Analysis |
 | `nexus_run_status` | Inspect run ledger state | Runtime |
-| `nexus_skill_generate` | Generate deployable runtime skills | Runtime |
-| `nexus_workflow_run` | Execute workflow artifacts | Runtime |
-| `nexus_entangle` | Measure entangled agent state | Quantum |
+| `nexus_list_skills` / `nexus_list_workflows` | Inspect available runtime assets when you need explicit control | Runtime |
+| `nexus_list_hooks` / `nexus_list_automations` | Inspect operating-layer behavior and follow-up execution | Runtime |
 
 ### Real Runtime Execution
 ```bash
@@ -292,11 +308,14 @@ Each run returns a real execution state plus an artifact directory containing ma
 ## 🚀 Get Started
 
 ### Supported MCP Clients
-Nexus Prime provides first-class, automated integration with:
-- 🛡️ **Antigravity** (Autonomous Agent)
-- 🔵 **Cursor** (IDE)
-- 🍊 **Claude Code** (CLI)
-- 🟢 **Opencode** (Editor)
+Nexus Prime currently provides automated setup for:
+- 🔵 **Cursor**
+- 🍊 **Claude Code**
+- 🟢 **Opencode**
+- 🌊 **Windsurf**
+- 🛡️ **Antigravity / OpenClaw**
+
+Codex uses the repo-local `AGENTS.md` plus the autonomous MCP profile and does not currently require a separate client-native setup artifact.
 
 ### Automated Integration
 ```bash
@@ -306,6 +325,12 @@ nexus-prime setup cursor
 # Setup Claude Code integration
 nexus-prime setup claude
 
+# Setup Windsurf
+nexus-prime setup windsurf
+
+# Setup Antigravity / OpenClaw
+nexus-prime setup antigravity
+
 # Check all integration statuses
 nexus-prime setup status
 ```
@@ -313,6 +338,13 @@ nexus-prime setup status
 ---
 
 ## 📜 Changelog
+### v3.10.0 "Autonomous Bootstrap"
+- **New `nexus_session_bootstrap` entrypoint gives external clients one compact session-start tool with memory recall, stats, shortlist guidance, and token-optimization expectations**
+- **MCP now defaults to an `autonomous` tool profile, keeping `nexus_session_bootstrap` and `nexus_orchestrate` first while reserving the full expert surface for manual work**
+- **`nexus-prime setup` now installs client-native bootstrap instructions for Cursor, Windsurf, Claude Code, Opencode, and Antigravity/OpenClaw**
+- **Runtime snapshots now expose bootstrap/orchestrate compliance, recent tool-call chains, and client instruction status in the dashboard truth model**
+- **README, docs, and public-surface scanning now align the public story with the real orchestrator-first product and guard against obvious disclosure drift**
+
 ### v3.9.0 "Instruction Gateway"
 - **Shared instruction gateway compiles AGENTS, `.agent/rules/*`, and runtime selections into a deduplicated packet for every orchestrated run**
 - **Cross-client packet renderers now support Codex, Claude Code, Antigravity/OpenClaw, Cursor, Windsurf, and Opencode from one protocol path**

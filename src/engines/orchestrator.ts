@@ -89,6 +89,31 @@ export interface SessionAutonomyState {
   tokenSummary?: RuntimeTokenSummarySnapshot;
 }
 
+export interface SessionBootstrapResult {
+  client?: RuntimePrimaryClientSnapshot;
+  memoryRecall: {
+    count: number;
+    matches: string[];
+  };
+  memoryStats: ReturnType<MemoryEngine['getStats']>;
+  recommendedNextStep: 'nexus_orchestrate' | 'nexus_plan_execution';
+  recommendedExecutionMode: RuntimeOrchestrationSnapshot['mode'];
+  shortlist: {
+    crews: string[];
+    specialists: string[];
+    skills: string[];
+    workflows: string[];
+    hooks: string[];
+    automations: string[];
+  };
+  tokenOptimization: {
+    required: boolean;
+    reason: string;
+    candidateFiles: string[];
+  };
+  reviewGates: string[];
+}
+
 interface CatalogItem {
   id: string;
   name: string;
@@ -178,11 +203,133 @@ export class OrchestratorEngine {
     return subtasks.length > 0 ? subtasks : [task];
   }
 
+  public async bootstrapSession(task: string, options: Partial<ExecutionTask> = {}): Promise<SessionBootstrapResult> {
+    const intent = this.classifyIntent(task);
+    const phases = this.decomposeTask(task);
+    const primaryClient = this.resolvePrimaryClient();
+    const latestDNA = SessionDNAManager.loadLatest();
+    const memoryMatches = await this.memory.recall(task, 8);
+    const memoryStats = this.memory.getStats();
+    const planner = await this.runtime.planExecution({
+      goal: task,
+      files: options.files,
+      skillNames: options.skillNames,
+      workflowSelectors: options.workflowSelectors,
+      crewSelectors: options.crewSelectors,
+      specialistSelectors: options.specialistSelectors,
+      workers: options.workers,
+      optimizationProfile: options.optimizationProfile,
+    });
+    const candidateFiles = options.files?.length
+      ? options.files
+      : this.discoverCandidateFiles(task);
+    const fileRefs = candidateFiles.map((filePath) => this.toFileRef(filePath)).filter((file): file is FileRef => Boolean(file));
+    const tokenOptimizationRequired = fileRefs.length >= 3;
+    const selectedSkills = options.skillNames?.length
+      ? [...options.skillNames]
+      : dedupeStrings([...planner.selectedSkills, ...this.pickCatalogNames(task, intent, this.runtime.listSkills().map((skill) => ({
+          id: skill.skillId,
+          name: skill.name,
+          body: `${skill.name}\n${skill.instructions}\n${skill.provenance}`,
+        })), 4)]);
+    const selectedWorkflows = options.workflowSelectors?.length
+      ? [...options.workflowSelectors]
+      : dedupeStrings([...planner.selectedWorkflows, ...this.pickCatalogNames(task, intent, this.runtime.listWorkflows().map((workflow) => ({
+          id: workflow.workflowId,
+          name: workflow.name,
+          body: `${workflow.name}\n${workflow.description}\n${workflow.domain}`,
+        })), 3)]);
+    const selectedHooks = options.hookSelectors?.length
+      ? [...options.hookSelectors]
+      : this.pickCatalogNames(task, intent, this.runtime.listHooks().map((hook) => ({
+          id: hook.hookId,
+          name: hook.name,
+          body: `${hook.name}\n${hook.description}\n${hook.trigger}`,
+        })), intent.riskClass === 'high' ? 2 : 1);
+    const selectedAutomations = options.automationSelectors?.length
+      ? [...options.automationSelectors]
+      : this.pickCatalogNames(task, intent, this.runtime.listAutomations().map((automation) => ({
+          id: automation.automationId,
+          name: automation.name,
+          body: `${automation.name}\n${automation.description}\n${automation.triggerMode}\n${automation.eventTrigger ?? ''}`,
+        })), intent.taskType === 'release' || this.sessionState.repeatedFailures > 0 ? 2 : 1);
+    const selectedSpecialists = options.specialistSelectors?.length
+      ? [...options.specialistSelectors]
+      : planner.selectedSpecialists.map((specialist) => specialist.specialistId);
+    const selectedCrew = options.crewSelectors?.length
+      ? options.crewSelectors[0]
+      : planner.selectedCrew?.crewId;
+    const workerCount = this.decideWorkers(options.workers, planner.swarmDecision.workers, phases.length, intent, this.sessionState.repeatedFailures);
+    const mode = this.determineMode(intent, phases.length, workerCount);
+
+    this.sessionState = {
+      ...this.sessionState,
+      updatedAt: Date.now(),
+      lastPrompt: task,
+      objectiveHistory: dedupeStrings([task, ...this.sessionState.objectiveHistory]).slice(0, MAX_AUTONOMY_HISTORY),
+      phases,
+      mode,
+      intent,
+      selectedCrew,
+      selectedSpecialists,
+      selectedSkills,
+      selectedWorkflows,
+      selectedHooks,
+      selectedAutomations,
+      lastMemoryMatches: memoryMatches.slice(0, 6),
+      latestSessionDNA: latestDNA
+        ? {
+            sessionId: latestDNA.sessionId,
+            timestamp: latestDNA.timestamp,
+            handoverScore: latestDNA.handoverScore,
+          }
+        : this.sessionState.latestSessionDNA,
+      primaryClient,
+    };
+    this.persistSessionState();
+    this.runtime.recordPrimaryClient(primaryClient, this.listDetectedClients());
+    this.runtime.recordOrchestrationSnapshot(this.toRuntimeOrchestrationSnapshot(this.sessionState));
+    this.runtime.recordClientToolCall('nexus_session_bootstrap', {
+      bootstrapCalled: true,
+      plannerCalled: true,
+      tokenOptimizationApplied: tokenOptimizationRequired,
+    });
+
+    return {
+      client: primaryClient,
+      memoryRecall: {
+        count: memoryMatches.length,
+        matches: memoryMatches.slice(0, 6),
+      },
+      memoryStats,
+      recommendedNextStep: 'nexus_orchestrate',
+      recommendedExecutionMode: mode,
+      shortlist: {
+        crews: selectedCrew ? [selectedCrew] : [],
+        specialists: selectedSpecialists,
+        skills: selectedSkills,
+        workflows: selectedWorkflows,
+        hooks: selectedHooks,
+        automations: selectedAutomations,
+      },
+      tokenOptimization: {
+        required: tokenOptimizationRequired,
+        reason: tokenOptimizationRequired ? 'candidate-files-above-threshold' : 'candidate-files-below-threshold',
+        candidateFiles,
+      },
+      reviewGates: planner.reviewGates.map((gate) => `${gate.gate}:${gate.status}`),
+    };
+  }
+
   public async orchestrate(task: string, options: Partial<ExecutionTask> = {}): Promise<ExecutionRun> {
     const army = await this.induce(task);
     const intent = this.classifyIntent(task);
     const phases = this.decomposeTask(task);
     const primaryClient = this.resolvePrimaryClient();
+    this.runtime.recordClientToolCall('nexus_orchestrate', {
+      orchestrateCalled: true,
+      plannerCalled: true,
+    });
     const ledger = createExecutionLedger({
       sessionId: this.sessionState.sessionId,
       task,

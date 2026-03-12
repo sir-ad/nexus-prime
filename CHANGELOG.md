@@ -2,6 +2,27 @@
 
 All notable changes to Nexus Prime will be documented in this file.
 
+## [3.10.0] - 2026-03-12
+
+### Added
+- **Session Bootstrap MCP Entry Point**: Added `nexus_session_bootstrap` so external clients can start from a compact session-start tool that returns client identity, memory recall, stats, shortlist guidance, and token-optimization expectations.
+- **Curated MCP Tool Profiles**: Added `NEXUS_MCP_TOOL_PROFILE=autonomous|full`, defaulting to `autonomous`, so external clients see a smaller, sequence-oriented tool surface instead of the full expert catalog.
+- **Client-Native Setup Artifacts**: Extended `nexus-prime setup` to install generated instruction artifacts for Cursor, Windsurf, Claude Code, Opencode, and Antigravity/OpenClaw alongside MCP configuration.
+- **Public Surface Scan**: Added `test/public-surface.test.ts` plus `npm run test:public` to scan README, docs, releases, and workflow files for stale claims, secret-like patterns, typos, and private-path leaks.
+- **Website Favicon**: Added `docs/favicon.svg` so the public docs stop 404ing the favicon request.
+
+### Changed
+- **External Client Sequence**: External clients now default to `nexus_session_bootstrap` followed by `nexus_orchestrate`, while planner, hooks, automations, crews, specialists, and token optimization remain orchestrator-selected unless explicitly requested.
+- **Runtime Truth Snapshots**: Runtime registry snapshots now persist `bootstrapCalled`, `orchestrateCalled`, `plannerCalled`, `tokenOptimizationApplied`, `skipReasons`, `lastToolCalls`, `sequenceCompliance`, and `clientInstructionStatus`.
+- **Setup and Status UX**: `nexus-prime setup status` now reports installation and drift state for supported clients, while generated bootstrap artifacts stay compact and task-sequence oriented instead of dumping full catalogs.
+- **Public Positioning**: README and docs now present Nexus Prime as an orchestrator-first MCP control plane with bootstrap-orchestrate defaults, runtime truth, token telemetry, and verified client setup paths.
+
+### Fixed
+- **Autonomous MCP Steering**: External clients are now guided toward the right first tool and no longer have to infer the correct sequence from a large undifferentiated tool list.
+- **Antigravity File-Limit Failures**: Generated Antigravity/OpenClaw bootstrap instructions now split into compact `SKILL.md` chunks when needed, avoiding oversized single-file prompts.
+- **Public Docs Drift**: Removed stale claims like the old fixed tool count and outdated setup wording, fixed the `NUXUS_PRIME_MCP` typo, added a working mobile-nav fallback, and aligned knowledge-base copy to human operators.
+- **Public Exposure Risk**: The repo now guards against accidental publication of secret-like strings, local home-directory paths, and other obvious public-surface leaks in tested docs and release artifacts.
+
 ## [3.9.0] - 2026-03-12
 
 ### Added

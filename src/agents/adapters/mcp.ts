@@ -75,6 +75,71 @@ function getHybridRetriever(): HybridRetriever {
 const __filename = fileURLToPath(import.meta.url);
 const PROJECT_ROOT = path.resolve(path.dirname(__filename), '..', '..', '..');
 
+type McpToolProfile = 'autonomous' | 'full';
+type McpToolDefinition = {
+    name: string;
+    description: string;
+    inputSchema: Record<string, unknown>;
+};
+
+const AUTONOMOUS_TOOL_ORDER = [
+    'nexus_session_bootstrap',
+    'nexus_orchestrate',
+    'nexus_plan_execution',
+    'nexus_recall_memory',
+    'nexus_memory_stats',
+    'nexus_store_memory',
+    'nexus_optimize_tokens',
+    'nexus_mindkit_check',
+    'nexus_ghost_pass',
+    'nexus_spawn_workers',
+    'nexus_session_dna',
+    'nexus_list_skills',
+    'nexus_list_workflows',
+    'nexus_list_hooks',
+    'nexus_list_automations',
+    'nexus_list_specialists',
+    'nexus_list_crews',
+    'nexus_federation_status',
+    'nexus_run_status',
+] as const;
+
+const AUTONOMOUS_TOOL_SET = new Set<string>(AUTONOMOUS_TOOL_ORDER);
+const MANUAL_OR_DIAGNOSTIC_TOOLS = new Set<string>([
+    'nexus_spawn_workers',
+    'nexus_optimize_tokens',
+    'nexus_ghost_pass',
+    'nexus_hypertune_max',
+    'nexus_graph_query',
+    'nexus_skill_generate',
+    'nexus_skill_deploy',
+    'nexus_skill_revoke',
+    'nexus_workflow_generate',
+    'nexus_workflow_deploy',
+    'nexus_workflow_run',
+    'nexus_hook_generate',
+    'nexus_hook_deploy',
+    'nexus_hook_revoke',
+    'nexus_automation_generate',
+    'nexus_automation_deploy',
+    'nexus_automation_run',
+    'nexus_automation_revoke',
+    'nexus_memory_audit',
+    'nexus_darwin_propose',
+    'nexus_darwin_review',
+    'nexus_net_publish',
+    'nexus_net_sync',
+    'nexus_entangle',
+    'nexus_cas_compress',
+    'nexus_kv_bridge_status',
+    'nexus_kv_adapt',
+    'nexus_decompose_task',
+    'nexus_request_affirmation',
+    'nexus_assemble_context',
+    'nexus_execute_nxl',
+    'nexus_publish_trace',
+]);
+
 /** Session-level telemetry tracker */
 class SessionTelemetry {
     private startTime = Date.now();
@@ -263,9 +328,67 @@ export class MCPAdapter implements Adapter {
         return orchestrator;
     }
 
-    private setupToolHandlers() {
-        this.server.setRequestHandler(ListToolsRequestSchema, async () => ({
-            tools: [
+    private getToolProfile(): McpToolProfile {
+        return String(process.env.NEXUS_MCP_TOOL_PROFILE ?? 'autonomous').toLowerCase() === 'full'
+            ? 'full'
+            : 'autonomous';
+    }
+
+    private describeClientInstructionStatus(profile: McpToolProfile): string {
+        return profile === 'autonomous'
+            ? 'Autonomous MCP profile active. Prefer nexus_session_bootstrap then nexus_orchestrate.'
+            : 'Full MCP profile active. Low-level and authoring tools are exposed.';
+    }
+
+    private finalizeToolDefinitions(tools: McpToolDefinition[], profile: McpToolProfile = this.getToolProfile()): McpToolDefinition[] {
+        const scoped = profile === 'full'
+            ? tools.slice()
+            : tools.filter((tool) => AUTONOMOUS_TOOL_SET.has(tool.name));
+        const order = profile === 'full'
+            ? [...AUTONOMOUS_TOOL_ORDER, ...scoped.map((tool) => tool.name).filter((name) => !AUTONOMOUS_TOOL_SET.has(name))]
+            : [...AUTONOMOUS_TOOL_ORDER];
+        const orderIndex = new Map(order.map((name, index) => [name, index]));
+
+        return scoped
+            .map((tool) => ({
+                ...tool,
+                description: this.decorateToolDescription(tool.name, tool.description, profile),
+            }))
+            .sort((left, right) => {
+                const leftIndex = orderIndex.get(left.name) ?? Number.MAX_SAFE_INTEGER;
+                const rightIndex = orderIndex.get(right.name) ?? Number.MAX_SAFE_INTEGER;
+                return leftIndex - rightIndex || left.name.localeCompare(right.name);
+            });
+    }
+
+    private decorateToolDescription(name: string, description: string, profile: McpToolProfile): string {
+        if (name === 'nexus_session_bootstrap') {
+            return 'Preferred session-start tool for external clients. Call this first to recover memory, inspect stats, see the recommended next step, and learn whether token optimization will be applied before execution.';
+        }
+        if (name === 'nexus_orchestrate') {
+            return 'Preferred default for non-trivial work. Give Nexus Prime the raw request and let it choose crews, specialists, skills, workflows, hooks, automations, and token strategy automatically.';
+        }
+        if (name === 'nexus_plan_execution') {
+            return 'Optional plan-before-run surface. Use only when you explicitly want to inspect the execution ledger before calling nexus_orchestrate.';
+        }
+        if (name === 'nexus_optimize_tokens') {
+            return 'Manual/diagnostic reading-plan tool. Usually the orchestrator applies token optimization internally; call this directly only when you need to inspect or override the reading plan.';
+        }
+        if (name === 'nexus_spawn_workers') {
+            return 'Manual/diagnostic swarm surface. Prefer nexus_orchestrate unless you explicitly want low-level control over worker count, strategies, or runtime actions.';
+        }
+        if (MANUAL_OR_DIAGNOSTIC_TOOLS.has(name) && profile === 'full') {
+            return `Advanced/manual surface. ${description}`;
+        }
+        return description;
+    }
+
+    debugListTools(profile: McpToolProfile = this.getToolProfile()): McpToolDefinition[] {
+        return this.finalizeToolDefinitions(this.buildToolDefinitions(), profile);
+    }
+
+    private buildToolDefinitions(): McpToolDefinition[] {
+        return [
                 // ── Memory ────────────────────────────────────────────────────────
                 {
                     name: 'nexus_store_memory',
@@ -280,6 +403,7 @@ export class MCPAdapter implements Adapter {
                         required: ['content'],
                     },
                 },
+                // ── Memory ────────────────────────────────────────────────────────
                 {
                     name: 'nexus_recall_memory',
                     description: 'Retrieve relevant context from Nexus Prime. Call at the START of each session to recover prior knowledge. Also call mid-session when encountering a topic that may have been researched before.',
@@ -296,6 +420,18 @@ export class MCPAdapter implements Adapter {
                     name: 'nexus_memory_stats',
                     description: 'Get deep stats about the Graph Knowledge Engine: tier counts, top tags, and Zettelkasten links. Use this to gauge available knowledge depth before starting research.',
                     inputSchema: { type: 'object', properties: {}, required: [] },
+                },
+                {
+                    name: 'nexus_session_bootstrap',
+                    description: 'Read-only session-start summary. Returns current client identity, memory recall summary, memory stats, recommended next step, recommended execution mode, shortlist recommendations, and whether token optimization will be required.',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {
+                            goal: { type: 'string', description: 'Raw goal or task description for this session' },
+                            files: { type: 'array', items: { type: 'string' }, description: 'Optional candidate file constraints' },
+                        },
+                        required: ['goal'],
+                    },
                 },
                 // ── Token optimization ────────────────────────────────────────────
                 {
@@ -867,8 +1003,24 @@ export class MCPAdapter implements Adapter {
                         required: ['taskId', 'goal', 'findings'],
                     },
                 },
-            ],
-        }));
+            ];
+    }
+
+    private setupToolHandlers() {
+        this.server.setRequestHandler(ListToolsRequestSchema, async () => {
+            const profile = this.getToolProfile();
+            this.getRuntime().recordClientInstructionStatus({
+                clientId: this.name,
+                clientFamily: this.name === 'openclaw' ? 'antigravity' : this.name,
+                toolProfile: profile,
+                status: profile === 'autonomous' ? 'guided' : 'manual',
+                summary: this.describeClientInstructionStatus(profile),
+                updatedAt: Date.now(),
+            });
+            return {
+                tools: this.finalizeToolDefinitions(this.buildToolDefinitions(), profile),
+            };
+        });
 
         this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
             if (!this.nexusRef) {
@@ -900,9 +1052,17 @@ export class MCPAdapter implements Adapter {
 
         const args = request.params.arguments ?? {};
         const goal = String(args.goal ?? args.task ?? args.prompt ?? '');
+        const toolName = String(request.params.name ?? '');
+        this.getRuntime().recordClientToolCall(toolName, {
+            bootstrapCalled: toolName === 'nexus_session_bootstrap',
+            orchestrateCalled: toolName === 'nexus_orchestrate',
+            plannerCalled: toolName === 'nexus_plan_execution',
+            tokenOptimizationApplied: toolName === 'nexus_optimize_tokens',
+            toolProfile: this.getToolProfile(),
+        });
 
         // v1.5 Mandatory Induction Interceptor
-        if (goal && goal.length > 50 && request.params.name !== 'nexus_execute_nxl') {
+        if (goal && goal.length > 50 && !['nexus_execute_nxl', 'nexus_session_bootstrap', 'nexus_plan_execution'].includes(request.params.name)) {
             this.box('🚀 MANDATORY INDUCTION', [
                 `Goal: ${goal.substring(0, 60)}...`,
                 `Result: Specialized agent army induced by default.`,
@@ -913,6 +1073,30 @@ export class MCPAdapter implements Adapter {
         }
 
         switch (request.params.name) {
+
+            case 'nexus_session_bootstrap': {
+                const bootstrapGoal = String(request.params.arguments?.goal ?? request.params.arguments?.prompt ?? '');
+                const files = Array.isArray(request.params.arguments?.files)
+                    ? (request.params.arguments.files as unknown[]).map(String)
+                    : undefined;
+                const bootstrap = await this.getOrchestrator().bootstrapSession(bootstrapGoal, { files });
+                return {
+                    content: [{
+                        type: 'text',
+                        text: JSON.stringify({
+                            client: bootstrap.client,
+                            memoryRecall: bootstrap.memoryRecall,
+                            memoryStats: bootstrap.memoryStats,
+                            recommendedNextStep: bootstrap.recommendedNextStep,
+                            recommendedExecutionMode: bootstrap.recommendedExecutionMode,
+                            shortlist: bootstrap.shortlist,
+                            tokenOptimization: bootstrap.tokenOptimization,
+                            reviewGates: bootstrap.reviewGates,
+                            mcpToolProfile: this.getToolProfile(),
+                        }, null, 2),
+                    }],
+                };
+            }
 
             case 'nexus_orchestrate': {
                 const prompt = String(request.params.arguments?.prompt ?? request.params.arguments?.goal ?? '');
