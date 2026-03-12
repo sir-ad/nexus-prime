@@ -149,7 +149,7 @@ sequenceDiagram
 
 ### 🐝 Phantom Swarm Execution Topology
 
-The original Phantom concept remains central to Nexus Prime: `GhostPass()` evaluates risk, workers execute in isolated worktrees, the entanglement layer shares runtime state, and the Merge Oracle decides what lands back on the main branch.
+The original Phantom concept remains central to Nexus Prime: `GhostPass()` evaluates risk, workers execute in isolated worktrees, shared runtime context keeps them aligned, and the merge layer decides what lands back on the main branch.
 
 ```text
 ┌─────────────────────────────────────────────────────────────────────┐
@@ -166,7 +166,7 @@ The original Phantom concept remains central to Nexus Prime: `GhostPass()` evalu
 │           └────┬─────────┴─────────┬────┘                           │
 │                │                   │                                │
 │                ▼                   ▼                                │
-│        Entanglement Engine (Quantum-Inspired Hilbert Space)         │
+│        Shared Runtime Context (correlated worker state)             │
 │                │                                                    │
 │                ▼                   ▼                                │
 │      Merge Oracle (Byzantine Consensus + Hierarchical Synthesis)    │
@@ -177,9 +177,9 @@ The original Phantom concept remains central to Nexus Prime: `GhostPass()` evalu
 ```
 
 <div align="center">
-  <img src="./docs/assets/screenshots/swarm_trace.png" alt="Swarm Induction Trace" width="80%">
+  <img src="./docs/assets/screenshots/dashboard_v3.8.0.png" alt="Nexus Prime dashboard showing runtime truth, token telemetry, knowledge fabric, and operator actions" width="1600" height="980">
   <br>
-  <i>Mandatory Induction: A 7-worker swarm coordinating via POD Network.</i>
+  <i>Current dashboard overview: runtime truth, lifetime token telemetry, and knowledge fabric in one operator view.</i>
 </div>
 
 ### Execution Protocol (Agent Orchestrator)
@@ -222,15 +222,15 @@ Solves the "catastrophic forgetting" problem. Every insight is tagged, prioritiz
 - **Cortex**: Long-term SQLite storage utilizing Vector embeddings (**HNSW**) and relational graph mapping.
 </details>
 
-### 2. Token Supremacy (HyperTune Optimizer)
+### 2. Lifetime Token Routing and Telemetry
 <details>
 <summary><b>View Details</b></summary>
-Formulates file-reading as a **Greedy Knapsack Problem**, solving for maximum information gain against token cost. The runtime persists token telemetry so the dashboard can show lifetime compression totals and per-run drilldowns instead of waiting for live-only events.
+Formulates context selection as a budgeted routing problem, solving for maximum information gain against token cost. The runtime persists token telemetry so the dashboard can show lifetime compression totals, by-source allocation, and per-run drilldowns instead of waiting for live-only events.
 
 <div align="center">
-  <img src="./docs/assets/screenshots/neural_hud.png" alt="Token Optimization" width="80%">
+  <img src="./docs/assets/screenshots/dashboard_knowledge_focus.png" alt="Nexus Prime dashboard showing session-first RAG collections, source mix, provenance, and by-source token allocation" width="1600" height="980">
   <br>
-  <i>Real-time token compression visualization in the Neural HUD.</i>
+  <i>Session-first RAG and token budgeting: Nexus retrieves top matching chunks, records provenance, and shows what was selected or dropped.</i>
 </div>
 </details>
 
@@ -249,13 +249,13 @@ Nexus Prime now ships bundled domain skill packs and workflow packs for **market
 ### 5. Runtime Console
 <details>
 <summary><b>View Details</b></summary>
-The built-in dashboard exposes active and recent runs, worker states, verifier results, backend catalogs, skills, workflows, live events, and docs/release health from the same runtime ledger that powers CLI and MCP execution.
+The built-in dashboard exposes active and recent runs, worker states, verifier results, knowledge collections, backend catalogs, skills, workflows, live events, and docs/release health from the same runtime ledger that powers CLI and MCP execution.
 </details>
 
-### 6. Quantum-Inspired Entanglement (Phase 9A)
+### 6. Coordination and Continuation Layer
 <details>
 <summary><b>View Details</b></summary>
-Agents share mathematical state in a high-dimensional Hilbert space. When an agent acts, the shared probabilistic state collapses, causing entangled agents to automatically make correlated decisions across the swarm without explicit communication overhead.
+Runs carry shared runtime context, review gates, continuation traces, and execution ledgers so follow-up work can stay bounded, inspectable, and governed instead of relying on ad-hoc worker fan-out.
 </details>
 
 ---
@@ -413,7 +413,7 @@ nexus-prime setup status
 - **Thermodynamic Memory**: Integrated entropy decay and gravitational attention.
 - **Federation Engine**: Automated knowledge sharing via GitHub Gist Relay (NexusNet).
 - **NXL Interpreter**: Declarative logic layer for defining agent archetypes.
-- **Neural HUD**: Real-time token analytics and fission event visualization.
+- **Token Telemetry Console**: Real-time token analytics and runtime visualization.
 
 ### v1.4.0
 - **Auto-Setup**: Added `nexus-prime setup` for one-click IDE integration.

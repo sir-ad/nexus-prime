@@ -8,15 +8,20 @@
 
   <!-- SEO & Open Graph Tags -->
   <meta name="description"
-    content="Nexus Prime is a local-first MCP control plane for coding agents with bootstrap-orchestrate execution, token-aware routing, runtime truth, and verified worktree execution." />
+    content="Nexus Prime is a local-first MCP control plane for coding agents with bootstrap-orchestrate execution, session-first RAG, lifetime token telemetry, runtime truth, and verified worktree execution." />
+  <link rel="canonical" href="https://sir-ad.github.io/nexus-prime/" />
+  <meta property="og:url" content="https://sir-ad.github.io/nexus-prime/" />
   <meta property="og:title" content="Nexus Prime | Orchestrator-First MCP Control Plane" />
   <meta property="og:description"
-    content="Bootstrap memory and context, let Nexus orchestrate execution, and inspect runtime truth, token telemetry, hooks, automations, crews, specialists, and federation state." />
+    content="Bootstrap memory and context, let Nexus orchestrate execution, attach session RAG collections, and inspect runtime truth, token telemetry, provenance, hooks, automations, crews, specialists, and federation state." />
   <meta property="og:type" content="website" />
+  <meta property="og:image" content="https://sir-ad.github.io/nexus-prime/assets/screenshots/dashboard_v3.8.0.png" />
+  <meta name="robots" content="index,follow" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Nexus Prime — MCP Control Plane" />
   <meta name="twitter:description"
-    content="Bootstrap, orchestrate, verify, and learn with a local-first runtime for coding agents." />
+    content="Bootstrap, orchestrate, inspect runtime truth, and ground runs with session-first RAG in a local-first runtime for coding agents." />
+  <meta name="twitter:image" content="https://sir-ad.github.io/nexus-prime/assets/screenshots/dashboard_v3.8.0.png" />
 
   <!-- Preconnect & Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -770,16 +775,17 @@
       </p>
 
       <div class="showcase-image">
-        <img src="./assets/screenshots/dashboard_v3.0.png"
-          alt="Nexus Prime Neural HUD Dashboard showing real-time token compression and fission event visualization">
+        <img src="./assets/screenshots/dashboard_v3.8.0.png"
+          alt="Nexus Prime dashboard showing runtime truth, token telemetry, knowledge fabric, and operator actions"
+          width="1600" height="980">
       </div>
-      <div class="showcase-caption">Watch the swarm think in real-time with the SSE-powered dashboard.</div>
+      <div class="showcase-caption">Inspect the live runtime: lifetime token telemetry, runtime truth, knowledge provenance, and operator actions in one place.</div>
 
       <div class="hero-actions">
         <a class="btn-primary" href="#install">
           $ npm install -g nexus-prime
         </a>
-        <a class="btn-secondary" href="integrations.html">
+        <a class="btn-secondary" href="./integrations.html">
           Setup Clients →
         </a>
       </div>
@@ -792,19 +798,19 @@
         before integrating Nexus Prime into your stack.</p>
 
       <div class="cap-grid">
-        <a class="cap-card" href="knowledge-base.html">
+        <a class="cap-card" href="./knowledge-base.html">
           <span class="cap-icon">📚</span>
           <h3>Knowledge Base</h3>
           <p>Operator-facing reference for packets, ledgers, token telemetry, runtime truth, and guardrails.</p>
           <span class="cap-tag">Open Reference</span>
         </a>
-        <a class="cap-card" href="integrations.html">
+        <a class="cap-card" href="./integrations.html">
           <span class="cap-icon">🔌</span>
           <h3>Integrations</h3>
           <p>Verified setup for Cursor, Claude Code, Opencode, Windsurf, Antigravity/OpenClaw, and Codex guidance.</p>
           <span class="cap-tag">Setup Guide</span>
         </a>
-        <a class="cap-card" href="architecture-diagrams.html">
+        <a class="cap-card" href="./architecture-diagrams.html">
           <span class="cap-icon">🗺️</span>
           <h3>Architecture Diagrams</h3>
           <p>Visual diagrams for memory topology, token flow, Phantom swarms, and the end-to-end request lifecycle.</p>
@@ -846,7 +852,7 @@
       </div>
 
       <div class="showcase-image">
-        <img src="./assets/screenshots/swarm_trace.png" alt="Swarm Induction Trace showing 7 worker nodes coordinating">
+        <img src="./assets/screenshots/swarm_trace.png" alt="Swarm trace showing multiple worker nodes coordinating through the pod network" width="1024" height="822">
       </div>
       <div class="showcase-caption">Mandatory Induction: A 7-worker swarm coordinating via POD Network.</div>
     </article>
@@ -864,8 +870,8 @@
         </div>
         <div class="cap-card">
           <span class="cap-icon">✂️</span>
-          <h3>Token Supremacy</h3>
-          <p>Token-aware routing and persisted telemetry so the runtime can show what was compressed, forwarded, or skipped.</p>
+          <h3>Lifetime Token Telemetry</h3>
+          <p>Token-aware routing and persisted telemetry so the runtime can show what was compressed, forwarded, retrieved, or skipped.</p>
           <span class="cap-tag">nexus_optimize_tokens</span>
         </div>
         <div class="cap-card">
@@ -881,6 +887,11 @@
           <span class="cap-tag">/api/usage</span>
         </div>
       </div>
+
+      <div class="showcase-image">
+        <img src="./assets/screenshots/dashboard_knowledge_focus.png" alt="Nexus Prime dashboard showing session-first RAG collections, source mix, provenance, and by-source token allocation" width="1600" height="980">
+      </div>
+      <div class="showcase-caption">Session-first RAG stays attached to the runtime, not dumped wholesale into prompts. Nexus records what was retrieved, what was selected, and what token budgeting dropped.</div>
     </article>
 
     <article id="specs">
@@ -1089,9 +1100,9 @@ induction:
   <footer>
     <div class="footer-logo">⬡ nexus-prime</div>
     <div class="footer-links">
-      <a href="knowledge-base.html">Knowledge Base</a>
-      <a href="integrations.html">Integrations</a>
-      <a href="architecture-diagrams.html">Architecture Diagrams</a>
+      <a href="./knowledge-base.html">Knowledge Base</a>
+      <a href="./integrations.html">Integrations</a>
+      <a href="./architecture-diagrams.html">Architecture Diagrams</a>
       <a href="https://github.com/sir-ad/nexus-prime" target="_blank" rel="noopener">GitHub</a>
       <a href="https://www.npmjs.com/package/nexus-prime" target="_blank" rel="noopener">NPM Registry</a>
     </div>
