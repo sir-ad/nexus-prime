@@ -177,7 +177,7 @@ The original Phantom concept remains central to Nexus Prime: `GhostPass()` evalu
 ```
 
 <div align="center">
-  <img src="./docs/assets/screenshots/dashboard_v3.8.0.png" alt="Nexus Prime dashboard showing runtime truth, token telemetry, knowledge fabric, and operator actions" width="1600" height="980">
+  <img src="./docs/assets/screenshots/dashboard_v3.8.0.png" alt="Nexus Prime dashboard showing runtime truth, token telemetry, knowledge fabric, and operator actions">
   <br>
   <i>Current dashboard overview: runtime truth, lifetime token telemetry, and knowledge fabric in one operator view.</i>
 </div>
