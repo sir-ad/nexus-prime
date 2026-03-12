@@ -216,7 +216,9 @@ export class MCPAdapter implements Adapter {
         // Check well-known environment variables set by MCP clients
         if (process.env.CLAUDE_CODE || process.env.CLAUDE_SESSION_ID || process.env.CLAUDE_PROJECT_DIR) return 'claude-code';
         if (process.env.CODEX_HOME || process.env.CODEX_SESSION) return 'codex';
+        if (process.env.CURSOR_HOME || process.env.CURSOR_SESSION) return 'cursor';
         if (process.env.OPENCODE_HOME) return 'opencode';
+        if (process.env.WINDSURF_HOME || process.env.WINDSURF_SESSION) return 'windsurf';
         if (process.env.MCP_CLIENT_NAME) return process.env.MCP_CLIENT_NAME.toLowerCase();
 
         // Check parent process name as fallback
@@ -226,7 +228,9 @@ export class MCPAdapter implements Adapter {
                 const ps = execSync(`ps -p ${ppid} -o comm=`, { encoding: 'utf8', timeout: 400 }).trim().toLowerCase();
                 if (ps.includes('claude')) return 'claude-code';
                 if (ps.includes('codex')) return 'codex';
+                if (ps.includes('cursor')) return 'cursor';
                 if (ps.includes('opencode')) return 'opencode';
+                if (ps.includes('windsurf')) return 'windsurf';
                 if (ps.includes('antigravity') || ps.includes('openclaw')) return 'openclaw';
             }
         } catch {
@@ -1277,6 +1281,8 @@ export class MCPAdapter implements Adapter {
                     backendSelectors: { memoryBackend, compressionBackend, dslCompiler },
                     backendMode,
                     optimizationProfile,
+                    executionMode: 'manual-low-level',
+                    manualOverrides: ['nexus_spawn_workers'],
                 });
 
                 const verifiedWorkers = execution.workerResults.filter(result => result.verified).length;

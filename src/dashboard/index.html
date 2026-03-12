@@ -1284,7 +1284,7 @@
 
     <script>
         const DASHBOARD_API_VERSION = '3';
-        const REQUIRED_CAPABILITIES = ['runs', 'memory', 'pod', 'clients', 'events', 'stream', 'specialists', 'crews', 'planner', 'hooks', 'automations', 'federation', 'orchestration', 'tokens', 'clientPrimary'];
+        const REQUIRED_CAPABILITIES = ['runs', 'memory', 'pod', 'clients', 'events', 'stream', 'specialists', 'crews', 'planner', 'hooks', 'automations', 'federation', 'orchestration', 'tokens', 'clientPrimary', 'instructionPacket', 'orchestrationLedger'];
 
         function createResourceState() {
             return { status: 'idle', error: '' };
@@ -1296,6 +1296,8 @@
             usage: { health: 'stale', usage: {} },
             selectedRuntimeId: null,
             orchestrationSession: null,
+            orchestrationLedger: null,
+            instructionPacket: null,
             tokensSummary: null,
             tokensTimeline: [],
             primaryClient: null,
@@ -1331,6 +1333,8 @@
                 runtimes: createResourceState(),
                 usage: createResourceState(),
                 orchestrationSession: createResourceState(),
+                orchestrationLedger: createResourceState(),
+                instructionPacket: createResourceState(),
                 tokensSummary: createResourceState(),
                 tokensTimeline: createResourceState(),
                 skills: createResourceState(),
@@ -1379,6 +1383,20 @@
                 dynamic: true,
                 assign(value) {
                     state.orchestrationSession = value || null;
+                },
+            },
+            orchestrationLedger: {
+                url: '/api/orchestration/ledger',
+                dynamic: true,
+                assign(value) {
+                    state.orchestrationLedger = value || null;
+                },
+            },
+            instructionPacket: {
+                url: '/api/instruction-packet',
+                dynamic: true,
+                assign(value) {
+                    state.instructionPacket = value || null;
                 },
             },
             tokensSummary: {
@@ -1850,6 +1868,8 @@
                     summary: state.tokensSummary,
                     timeline: state.tokensTimeline,
                     orchestration: state.orchestrationSession,
+                    ledger: state.orchestrationLedger,
+                    packet: state.instructionPacket,
                 },
             };
 
@@ -2193,7 +2213,7 @@
             const dialEl = $('dial-progress');
             const circumference = 2 * Math.PI * 70;
             if (tokenMetrics.events === 0 && tokenMetrics.totalRuns === 0 && !tokenMetrics.gross && !tokenMetrics.saved && !tokenMetrics.forwarded) {
-                $('token-summary').textContent = resourceFailed('tokensSummary') ? 'telemetry unavailable' : 'awaiting data';
+                $('token-summary').textContent = resourceFailed('tokensSummary') ? 'telemetry unavailable' : 'No token data yet for this runtime';
                 $('gross-tokens').textContent = '--';
                 $('saved-tokens').textContent = '--';
                 $('net-tokens').textContent = '--';
@@ -2509,7 +2529,7 @@
 
             const runtime = getSelectedRuntime();
             $('runtime-usage-summary').textContent = runtime
-                ? `${runtime.health === 'stale' ? 'Stale' : 'Active'} runtime · ${state.orchestrationSession?.mode || runtime.orchestration?.mode || 'single-pass'} · last activity ${formatAgo(runtime.lastActivityAt)}`
+                ? `${runtime.health === 'stale' ? 'Stale' : 'Active'} runtime · ${(state.usage?.executionMode || runtime.executionMode || state.orchestrationSession?.mode || runtime.orchestration?.mode || 'single-pass')} · plan:${state.usage?.plannerApplied ? 'on' : 'off'} · tokens:${state.usage?.tokenOptimizationApplied ? 'on' : 'off'} · last activity ${formatAgo(runtime.lastActivityAt)}`
                 : 'No runtime usage data yet.';
         }
 
@@ -3049,6 +3069,8 @@
             if (kind === 'token-summary') {
                 const summary = data.summary || {};
                 const timeline = Array.isArray(data.timeline) ? data.timeline : [];
+                const ledger = data.ledger || {};
+                const packet = data.packet || {};
                 const subsystemRows = Object.entries(summary.bySubsystem || {})
                     .sort((left, right) => Number(right[1]) - Number(left[1]))
                     .map(([name, value]) => ({ label: name, meta: `${formatNumber(value)} tokens` }));
@@ -3082,6 +3104,22 @@
                             meta: `${formatDate(entry.timestamp)} · ${formatNumber(entry.savedTokens || 0)} saved · ${Number(entry.compressionPct || 0)}%`,
                             action: `run:${entry.runId}`,
                         })))}
+                    </section>
+                    <section class="drawer-section">
+                        <h4>Execution Ledger</h4>
+                        ${renderSmallList((ledger.steps || []).map((step) => ({
+                            label: `${step.label || step.id} · ${step.status}`,
+                            meta: step.reason || step.summary || formatDate(step.updatedAt),
+                        })))}
+                    </section>
+                    <section class="drawer-section">
+                        <h4>Instruction Packet</h4>
+                        <div class="list-inline">
+                            ${chip(`hash:${packet.packetHash || 'n/a'}`)}
+                            ${chip(`mode:${packet.task?.executionMode || 'n/a'}`)}
+                            ${chip(`client:${packet.client?.displayName || 'n/a'}`)}
+                        </div>
+                        <div class="meta">${escapeHtml(packet.task?.goal || 'No compiled packet for this runtime yet.')}</div>
                     </section>
                 `;
             }
@@ -3589,6 +3627,8 @@
                             summary: state.tokensSummary,
                             timeline: state.tokensTimeline,
                             orchestration: state.orchestrationSession,
+                            ledger: state.orchestrationLedger,
+                            packet: state.instructionPacket,
                         },
                     };
                 } else if (kind === 'federation-peer') {
@@ -3681,6 +3721,8 @@
                         summary: state.tokensSummary,
                         timeline: state.tokensTimeline,
                         orchestration: state.orchestrationSession,
+                        ledger: state.orchestrationLedger,
+                        packet: state.instructionPacket,
                     },
                 };
                 render();
@@ -3698,7 +3740,7 @@
 
             $('runtime-select').addEventListener('change', async (event) => {
                 state.selectedRuntimeId = event.target.value || null;
-                await refreshAll(['usage', 'orchestrationSession', 'tokensSummary', 'tokensTimeline', 'clients', 'primaryClient']);
+                await refreshAll(['usage', 'orchestrationSession', 'orchestrationLedger', 'instructionPacket', 'tokensSummary', 'tokensTimeline', 'clients', 'primaryClient']);
             });
 
             $('execute-form').addEventListener('submit', async (event) => {

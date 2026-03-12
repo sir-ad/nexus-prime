@@ -83,6 +83,16 @@ import {
     type RuntimeTokenSummarySnapshot,
     type RuntimeUsageCategory,
 } from '../engines/runtime-registry.js';
+import {
+    InstructionGateway,
+    createExecutionLedger,
+    markExecutionLedgerStep,
+    renderInstructionPacketMarkdown,
+    type ExecutionLedger,
+    type GovernanceSnapshot,
+    type InstructionPacket,
+    type OrchestrationExecutionMode,
+} from '../engines/instruction-gateway.js';
 import { MergeOracle } from './merge-oracle.js';
 import type { MergeDecision, WorkerResult } from './index.js';
 import type { FileRef, ReadingPlan } from '../engines/token-supremacy.js';
@@ -182,6 +192,10 @@ export interface ExecutionTask {
     continuationDepth: number;
     suppressedAutomationIds: string[];
     allowedToolsOverride?: string[];
+    executionMode: OrchestrationExecutionMode;
+    manualOverrides: string[];
+    instructionPacket?: InstructionPacket;
+    executionLedger?: ExecutionLedger;
 }
 
 export interface WorkerSkillOverlay {
@@ -327,6 +341,8 @@ export interface ExecutionRun {
     state: ExecutionState;
     mode: ExecutionMode;
     goal: string;
+    parentRunId?: string;
+    sourceAutomationId?: string;
     artifactsPath: string;
     workerManifests: WorkerManifest[];
     activeSkills: SkillArtifact[];
@@ -352,6 +368,8 @@ export interface ExecutionRun {
     plannerState?: TaskPlannerState;
     continuationChildren: Array<{ automationId: string; runId?: string; status: 'queued' | 'completed' | 'suppressed' | 'failed'; error?: string }>;
     tokenTelemetry?: RuntimeTokenRunSnapshot;
+    instructionPacket?: InstructionPacket;
+    executionLedger?: ExecutionLedger;
 }
 
 export interface SubAgentRuntimeOptions {
@@ -593,6 +611,7 @@ export class SubAgentRuntime {
     private runtimeRegistry: RuntimeRegistry;
     private runtimeSnapshot: RuntimeRegistrySnapshot;
     private runs = new Map<string, ExecutionRun>();
+    private instructionGateway: InstructionGateway;
 
     constructor(options: SubAgentRuntimeOptions = {}) {
         this.repoRoot = options.repoRoot ?? process.cwd();
@@ -631,6 +650,7 @@ export class SubAgentRuntime {
         this.federation = options.federation ?? defaultFederation;
         this.artifactsRoot = options.artifactsRoot;
         this.runtimeRegistry = new RuntimeRegistry();
+        this.instructionGateway = new InstructionGateway(this.repoRoot);
         this.runtimeSnapshot = this.persistRuntimeSnapshot({
             runtimeId: this.runtimeId,
             pid: process.pid,
@@ -641,6 +661,9 @@ export class SubAgentRuntime {
             lastActivityAt: this.startedAt,
             libraries: this.collectLibraryCounts(),
             usage: createEmptyUsageState(),
+            executionMode: 'manual-low-level',
+            plannerApplied: false,
+            tokenOptimizationApplied: false,
         });
     }
 
@@ -648,8 +671,21 @@ export class SubAgentRuntime {
         const runId = buildRunId('exec');
         const recorder = new ArtifactRecorder(runId, this.artifactsRoot);
         let task = await this.normalizeTask(input);
+        if (!task.executionLedger) {
+            task.executionLedger = this.createManualLedger(task);
+        }
+        task.executionLedger.runId = runId;
         const planner = planTask(task);
         task = planner.task;
+        task.executionLedger = task.executionLedger ?? this.createManualLedger(task);
+        task.executionLedger.runId = runId;
+        markExecutionLedgerStep(task.executionLedger, 'planner-selection', 'completed', {
+            summary: `Planner selected ${planner.plannerState.selectedCrew?.name ?? 'baseline'} for runtime execution.`,
+            details: {
+                crew: planner.plannerState.selectedCrew?.crewId ?? null,
+                specialists: planner.plannerState.selectedSpecialists.map((specialist) => specialist.specialistId),
+            },
+        });
         const backends = this.resolveBackends(task);
         const selectedBackends: BackendSelection = {
             memoryBackend: backends.memory.descriptor.kind,
@@ -663,6 +699,8 @@ export class SubAgentRuntime {
             state: 'planned',
             mode: 'real',
             goal: task.goal,
+            parentRunId: task.parentRunId,
+            sourceAutomationId: task.sourceAutomationId,
             artifactsPath: recorder.runDir,
             workerManifests: [],
             activeSkills: [],
@@ -691,12 +729,27 @@ export class SubAgentRuntime {
             result: '',
             plannerState: planner.plannerState,
             continuationChildren: [],
+            instructionPacket: task.instructionPacket,
+            executionLedger: task.executionLedger,
         };
         this.runs.set(runId, run);
         this.attachLatestRun(runId, task.goal, run.state);
+        this.syncExecutionMetadata(run);
 
         recorder.writeJson('task.json', task);
         recorder.writeJson('planner-state.json', planner.plannerState);
+        const memoryStats = backends.memory.selected.stats();
+        if (task.executionMode === 'manual-low-level') {
+            markExecutionLedgerStep(task.executionLedger, 'memory-stats', 'completed', {
+                summary: `Runtime memory stats loaded (${memoryStats.cortex} cortex / ${memoryStats.hippocampus} hippocampus).`,
+                details: {
+                    prefrontal: memoryStats.prefrontal,
+                    hippocampus: memoryStats.hippocampus,
+                    cortex: memoryStats.cortex,
+                    totalLinks: memoryStats.totalLinks,
+                },
+            });
+        }
         this.markUsage('plan', {
             summary: `Planner selected ${planner.plannerState.selectedCrew?.name ?? 'baseline'} for ${task.goal}`,
             count: planner.plannerState.ledger.length,
@@ -743,6 +796,15 @@ export class SubAgentRuntime {
             tokenCount: 2500 + task.files.length * 300,
             isDestructive: false,
         });
+        markExecutionLedgerStep(task.executionLedger, 'governance-preflight', guardrail.passed ? 'completed' : 'blocked', {
+            summary: `Guardrail score ${guardrail.score}`,
+            details: {
+                passed: guardrail.passed,
+                violations: guardrail.violations.map((violation) => violation.id),
+            },
+        });
+        run.executionLedger = task.executionLedger;
+        this.syncExecutionMetadata(run);
         recorder.writeJson('guardrail.json', guardrail);
         this.markUsage('governance', {
             summary: `Guardrail score ${guardrail.score}`,
@@ -755,6 +817,12 @@ export class SubAgentRuntime {
             run.mode = 'analysis';
             run.result = 'Guardrails blocked execution.';
             this.attachLatestRun(runId, task.goal, run.state);
+            markExecutionLedgerStep(task.executionLedger, 'runtime-execution', 'failed', {
+                reason: 'guardrail-blocked',
+                summary: run.result,
+            });
+            run.executionLedger = task.executionLedger;
+            this.syncExecutionMetadata(run);
             recorder.writeJson('run.json', run);
             return run;
         }
@@ -764,14 +832,36 @@ export class SubAgentRuntime {
         const fileRefs = task.files.length > 0
             ? this.resolveFileRefs(task.files)
             : this.discoverTargetFiles(task.goal, backends.compression.selected);
+        markExecutionLedgerStep(task.executionLedger, 'candidate-file-discovery', 'completed', {
+            summary: `${fileRefs.length} candidate file(s) routed into runtime bootstrap.`,
+            details: {
+                files: fileRefs.map((file) => file.path),
+            },
+        });
         const memoryMatches = await backends.memory.selected.recall(task.goal, 6);
         this.markUsage('memories', {
             summary: `Recalled ${memoryMatches.length} memory match(es) for ${task.goal}`,
             count: memoryMatches.length,
             details: memoryMatches.slice(0, 3),
         });
+        if (task.executionMode === 'manual-low-level') {
+            markExecutionLedgerStep(task.executionLedger, 'recall-memory', 'completed', {
+                summary: `Runtime recalled ${memoryMatches.length} memory match(es).`,
+                details: {
+                    matches: memoryMatches.slice(0, 3),
+                },
+            });
+        }
         const planResult = normalizeReadingPlan(backends.compression.selected.planFiles(task.goal, fileRefs));
         const plan = planResult.plan;
+        markExecutionLedgerStep(task.executionLedger, 'token-optimization', 'completed', {
+            summary: `Runtime selected ${plan.files.length} routed file(s).`,
+            details: {
+                totalEstimatedTokens: plan.totalEstimatedTokens,
+                savings: plan.savings,
+                files: plan.files.map((entry) => ({ path: entry.file.path, action: entry.action })),
+            },
+        });
         run.backendEvidence.memory = await (backends.memory.selected.shadowRecall?.(task.goal, 6) ?? Promise.resolve({ recalled: memoryMatches }));
         run.backendEvidence.compression = await backends.compression.selected.shadow(task.goal, fileRefs);
         run.backendEvidence.notes.push(...planResult.notes);
@@ -1191,6 +1281,21 @@ export class SubAgentRuntime {
         }
         run.tokenTelemetry = this.buildRunTokenTelemetry(run, plan, memoryMatches);
         this.recordRunTokenTelemetry(run.tokenTelemetry);
+        markExecutionLedgerStep(task.executionLedger, 'runtime-execution', run.state === 'failed' ? 'failed' : 'completed', {
+            summary: run.result,
+            details: {
+                state: run.state,
+                verifiedWorkers: run.workerResults.filter((worker) => worker.verified).length,
+            },
+        });
+        if (task.executionMode === 'manual-low-level') {
+            markExecutionLedgerStep(task.executionLedger, 'structured-learning', 'skipped', {
+                reason: 'manual-low-level',
+                summary: 'Structured learning remains a caller responsibility for low-level runs.',
+            });
+        }
+        run.executionLedger = task.executionLedger;
+        this.syncExecutionMetadata(run);
         recorder.writeJson('token-telemetry.json', run.tokenTelemetry);
         recorder.writeJson('planner-state.json', run.plannerState);
         recorder.writeJson('planner-result.json', run.plannerResult);
@@ -1262,6 +1367,14 @@ export class SubAgentRuntime {
         return this.runtimeSnapshot;
     }
 
+    getInstructionPacket(): InstructionPacket | undefined {
+        return this.runtimeSnapshot.instructionPacket;
+    }
+
+    getExecutionLedger(): ExecutionLedger | undefined {
+        return this.runtimeSnapshot.executionLedger;
+    }
+
     getTokenTelemetrySummary(): RuntimeTokenSummarySnapshot {
         return this.runtimeSnapshot.tokens ?? createEmptyTokenSummary();
     }
@@ -1290,9 +1403,63 @@ export class SubAgentRuntime {
                 detected,
                 lastUpdatedAt: Date.now(),
             },
+            clientId: snapshot?.clientId,
+            clientFamily: snapshot?.clientFamily,
             lastHeartbeatAt: Date.now(),
             lastActivityAt: Date.now(),
         });
+    }
+
+    recordInstructionPacket(
+        packet: InstructionPacket | undefined,
+        options: {
+            executionMode?: OrchestrationExecutionMode;
+            plannerApplied?: boolean;
+            tokenOptimizationApplied?: boolean;
+        } = {},
+    ): RuntimeRegistrySnapshot {
+        const primary = this.runtimeSnapshot.clients?.primary;
+        return this.persistRuntimeSnapshot({
+            instructionPacket: packet,
+            instructionPacketHash: packet?.packetHash,
+            executionMode: options.executionMode ?? this.runtimeSnapshot.executionMode ?? 'manual-low-level',
+            plannerApplied: options.plannerApplied ?? this.runtimeSnapshot.plannerApplied ?? false,
+            tokenOptimizationApplied: options.tokenOptimizationApplied ?? this.runtimeSnapshot.tokenOptimizationApplied ?? false,
+            clientId: primary?.clientId ?? packet?.client?.clientId ?? this.runtimeSnapshot.clientId,
+            clientFamily: primary?.clientFamily ?? packet?.client?.family ?? this.runtimeSnapshot.clientFamily,
+            lastHeartbeatAt: Date.now(),
+            lastActivityAt: Date.now(),
+        });
+    }
+
+    recordExecutionLedger(
+        ledger: ExecutionLedger | undefined,
+        executionMode?: OrchestrationExecutionMode,
+    ): RuntimeRegistrySnapshot {
+        return this.persistRuntimeSnapshot({
+            executionLedger: ledger,
+            executionMode: executionMode ?? ledger?.executionMode ?? this.runtimeSnapshot.executionMode ?? 'manual-low-level',
+            plannerApplied: ledger?.plannerApplied ?? this.runtimeSnapshot.plannerApplied ?? false,
+            tokenOptimizationApplied: ledger?.tokenOptimizationApplied ?? this.runtimeSnapshot.tokenOptimizationApplied ?? false,
+            lastHeartbeatAt: Date.now(),
+            lastActivityAt: Date.now(),
+        });
+    }
+
+    updateExecutionMetadata(runId: string, patch: {
+        instructionPacket?: InstructionPacket;
+        executionLedger?: ExecutionLedger;
+    }): ExecutionRun | undefined {
+        const run = this.runs.get(runId);
+        if (!run) return undefined;
+        if (patch.instructionPacket !== undefined) {
+            run.instructionPacket = patch.instructionPacket;
+        }
+        if (patch.executionLedger !== undefined) {
+            run.executionLedger = patch.executionLedger;
+        }
+        this.syncExecutionMetadata(run);
+        return run;
     }
 
     listSkills(): SkillArtifact[] {
@@ -1464,6 +1631,8 @@ export class SubAgentRuntime {
             skillNames: automation.skillSelectors,
             connectorBindings: automation.connectors,
             workers: 2,
+            executionMode: 'manual-low-level',
+            manualOverrides: ['automation-runtime-entrypoint'],
         });
     }
 
@@ -1479,6 +1648,20 @@ export class SubAgentRuntime {
         const snapshot = this.federation.getSnapshot();
         this.recordFederationUsage(snapshot.activePeerLinks, snapshot.knownPeers.length, snapshot.tracesPublished, snapshot.relay);
         return snapshot;
+    }
+
+    previewGovernancePreflight(input: {
+        goal: string;
+        files: string[];
+        tokenCount: number;
+        isDestructive?: boolean;
+    }): ReturnType<GuardrailEngine['check']> {
+        return this.guardrails.check({
+            action: `execute: ${input.goal}`,
+            filesToModify: input.files,
+            tokenCount: input.tokenCount,
+            isDestructive: Boolean(input.isDestructive),
+        });
     }
 
     async storeMemoryAndDispatch(content: string, priority: number = 0.7, tags: string[] = [], parentId?: string, depth?: number): Promise<{
@@ -1600,6 +1783,8 @@ export class SubAgentRuntime {
             goal: goal ?? `Run workflow ${workflow.name}`,
             workflowSelectors: [workflow.name],
             workers: 2,
+            executionMode: 'manual-low-level',
+            manualOverrides: ['workflow-runtime-entrypoint'],
         });
     }
 
@@ -1715,6 +1900,10 @@ export class SubAgentRuntime {
             continuationDepth: Math.max(0, Number(input.continuationDepth ?? 0)),
             suppressedAutomationIds: dedupeStrings(input.suppressedAutomationIds ?? []),
             allowedToolsOverride: input.allowedToolsOverride,
+            executionMode: input.executionMode ?? 'manual-low-level',
+            manualOverrides: dedupeStrings(input.manualOverrides ?? []),
+            instructionPacket: input.instructionPacket,
+            executionLedger: input.executionLedger,
         };
 
         if (input.nxlScript && (!input.actions || input.actions.length === 0)) {
@@ -1990,6 +2179,7 @@ export class SubAgentRuntime {
             await session.create();
             manifest.worktreeDir = session.worktreeDir;
             this.writeWorktreeContext(session.worktreeDir, manifest.context);
+            this.writeWorktreePacket(session.worktreeDir, this.runs.get(runId)?.instructionPacket);
             manifest.files.forEach(file => this.sessionDNA?.recordFileAccess(file.path));
 
             const readSkills = manifest.inlineSkills.filter(skill => skill.riskClass === 'read');
@@ -2074,6 +2264,7 @@ export class SubAgentRuntime {
         try {
             await verifier.create();
             this.writeWorktreeContext(verifier.worktreeDir, manifest.context);
+            this.writeWorktreePacket(verifier.worktreeDir, this.runs.get(runId)?.instructionPacket);
             if (!target?.diff?.trim()) {
                 return {
                     workerId: manifest.targetWorkerId ?? 'unknown',
@@ -2393,6 +2584,69 @@ export class SubAgentRuntime {
         };
     }
 
+    private createManualLedger(task: ExecutionTask): ExecutionLedger {
+        const primaryClient = this.runtimeSnapshot.clients?.primary;
+        const ledger = createExecutionLedger({
+            sessionId: this.runtimeSnapshot.orchestration?.sessionId ?? `runtime-${this.runtimeId}`,
+            task: task.goal,
+            executionMode: task.executionMode,
+            clientId: primaryClient?.clientId,
+            clientFamily: primaryClient?.clientFamily,
+        });
+        markExecutionLedgerStep(ledger, 'identify-client-session', 'completed', {
+            summary: primaryClient?.displayName ?? 'Runtime-only execution',
+            details: {
+                clientId: primaryClient?.clientId ?? 'runtime',
+                source: primaryClient?.source ?? 'runtime',
+            },
+        });
+        markExecutionLedgerStep(ledger, 'recall-memory', 'skipped', {
+            reason: 'manual-low-level',
+            summary: 'Memory recall was bypassed by the caller.',
+        });
+        markExecutionLedgerStep(ledger, 'memory-stats', 'skipped', {
+            reason: 'manual-low-level',
+            summary: 'Memory stats were bypassed by the caller.',
+        });
+        markExecutionLedgerStep(ledger, 'catalog-shortlist', 'skipped', {
+            reason: 'manual-low-level',
+            summary: 'Catalog shortlist was not compiled outside the orchestrator.',
+        });
+        markExecutionLedgerStep(ledger, 'compile-instruction-packet', 'skipped', {
+            reason: 'manual-low-level',
+            summary: 'Instruction packet compilation was bypassed.',
+        });
+        markExecutionLedgerStep(ledger, 'structured-learning', 'skipped', {
+            reason: 'manual-low-level',
+            summary: 'Structured learning was not requested for this low-level path.',
+        });
+        return ledger;
+    }
+
+    private syncExecutionMetadata(run: ExecutionRun): void {
+        this.runs.set(run.runId, run);
+        const shouldPromoteExecutionSnapshot = !run.parentRunId || Boolean(run.instructionPacket);
+        if (shouldPromoteExecutionSnapshot) {
+            this.recordInstructionPacket(run.instructionPacket, {
+                executionMode: run.executionLedger?.executionMode ?? this.runtimeSnapshot.executionMode ?? 'manual-low-level',
+                plannerApplied: run.executionLedger?.plannerApplied ?? this.runtimeSnapshot.plannerApplied ?? false,
+                tokenOptimizationApplied: run.executionLedger?.tokenOptimizationApplied ?? this.runtimeSnapshot.tokenOptimizationApplied ?? false,
+            });
+            this.recordExecutionLedger(run.executionLedger, run.executionLedger?.executionMode);
+        }
+
+        const runtimeDir = path.join(run.artifactsPath, 'runtime');
+        fs.mkdirSync(runtimeDir, { recursive: true });
+        if (run.executionLedger) {
+            fs.writeFileSync(path.join(runtimeDir, 'execution-ledger.json'), JSON.stringify(run.executionLedger, null, 2), 'utf8');
+        }
+        if (run.instructionPacket) {
+            this.instructionGateway.persist(run.instructionPacket, this.repoRoot);
+            fs.writeFileSync(path.join(runtimeDir, 'packet.json'), JSON.stringify(run.instructionPacket, null, 2), 'utf8');
+            fs.writeFileSync(path.join(runtimeDir, 'packet.md'), renderInstructionPacketMarkdown(run.instructionPacket), 'utf8');
+        }
+    }
+
     private persistRuntimeSnapshot(patch: Partial<RuntimeRegistrySnapshot>): RuntimeRegistrySnapshot {
         const nextSnapshot: RuntimeRegistrySnapshot = {
             ...this.runtimeSnapshot,
@@ -2415,6 +2669,14 @@ export class SubAgentRuntime {
             tokens: patch.tokens ?? this.runtimeSnapshot?.tokens ?? createEmptyTokenSummary(),
             orchestration: patch.orchestration ?? this.runtimeSnapshot?.orchestration,
             clients: patch.clients ?? this.runtimeSnapshot?.clients,
+            clientId: patch.clientId ?? this.runtimeSnapshot?.clientId,
+            clientFamily: patch.clientFamily ?? this.runtimeSnapshot?.clientFamily,
+            instructionPacketHash: patch.instructionPacketHash ?? this.runtimeSnapshot?.instructionPacketHash,
+            instructionPacket: patch.instructionPacket ?? this.runtimeSnapshot?.instructionPacket,
+            executionMode: patch.executionMode ?? this.runtimeSnapshot?.executionMode ?? 'manual-low-level',
+            executionLedger: patch.executionLedger ?? this.runtimeSnapshot?.executionLedger,
+            plannerApplied: patch.plannerApplied ?? this.runtimeSnapshot?.plannerApplied ?? false,
+            tokenOptimizationApplied: patch.tokenOptimizationApplied ?? this.runtimeSnapshot?.tokenOptimizationApplied ?? false,
         };
         this.runtimeSnapshot = this.runtimeRegistry.write(nextSnapshot);
         return this.runtimeSnapshot;
@@ -2633,6 +2895,14 @@ export class SubAgentRuntime {
         fs.mkdirSync(runtimeDir, { recursive: true });
         fs.writeFileSync(path.join(runtimeDir, 'context.json'), JSON.stringify(context, null, 2), 'utf8');
         fs.writeFileSync(path.join(runtimeDir, 'context.md'), renderWorkerContextMarkdown(context), 'utf8');
+    }
+
+    private writeWorktreePacket(worktreeDir: string, packet?: InstructionPacket): void {
+        if (!packet) return;
+        const runtimeDir = path.join(worktreeDir, '.agent', 'runtime');
+        fs.mkdirSync(runtimeDir, { recursive: true });
+        fs.writeFileSync(path.join(runtimeDir, 'packet.json'), JSON.stringify(packet, null, 2), 'utf8');
+        fs.writeFileSync(path.join(runtimeDir, 'packet.md'), renderInstructionPacketMarkdown(packet), 'utf8');
     }
 
     private gatherSkillBindings(skills: SkillArtifact[], allowMutateSkills: boolean): SkillBinding[] {

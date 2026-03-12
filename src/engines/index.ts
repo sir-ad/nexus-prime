@@ -13,6 +13,25 @@ export type { MemoryItem } from './memory.js';
 
 export { OrchestratorEngine, createOrchestrator } from './orchestrator.js';
 export type { Agent, AgentType, Task } from './orchestrator.js';
+export {
+  InstructionGateway,
+  DEFAULT_REQUIRED_SEQUENCE,
+  createExecutionLedger,
+  markExecutionLedgerStep,
+  renderInstructionPacketMarkdown,
+  PACKET_TOKEN_LIMIT,
+} from './instruction-gateway.js';
+export type {
+  ClientInstructionEnvelope,
+  ExecutionLedger,
+  ExecutionLedgerStep,
+  ExecutionLedgerStepId,
+  GovernanceSnapshot,
+  InstructionPacket,
+  OrchestrationExecutionMode,
+  PacketCompileInput,
+  TokenPolicySnapshot,
+} from './instruction-gateway.js';
 
 export { CacheManager, createCacheManager } from './cache-manager.js';
 export type { CacheEntry, AgentDelta } from './cache-manager.js';

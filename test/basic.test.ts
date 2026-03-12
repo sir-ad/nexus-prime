@@ -25,11 +25,13 @@ function setupFixtureRepo(): string {
     }, null, 2),
     'utf8'
   );
+  fs.mkdirSync(path.join(repoRoot, 'src'), { recursive: true });
+  fs.writeFileSync(path.join(repoRoot, 'src', 'app.ts'), 'export const fixture = "ok";\n', 'utf8');
 
   execSync('git init -b main', { cwd: repoRoot, stdio: 'ignore' });
   execSync('git config user.name "Nexus Prime Test"', { cwd: repoRoot, stdio: 'ignore' });
   execSync('git config user.email "nexus-prime@test.local"', { cwd: repoRoot, stdio: 'ignore' });
-  execSync('git add README.md package.json', { cwd: repoRoot, stdio: 'ignore' });
+  execSync('git add README.md package.json src/app.ts', { cwd: repoRoot, stdio: 'ignore' });
   execSync('git commit -m "fixture"', { cwd: repoRoot, stdio: 'ignore' });
 
   return repoRoot;
@@ -51,6 +53,7 @@ async function test() {
 
   try {
     const { createNexusPrime } = await import('../dist/index.js');
+    const { createAdapter } = await import('../dist/agents/adapters.js');
     const nexus = createNexusPrime({ adapters: [] });
     await nexus.start();
     console.log('✅ Started\n');
@@ -66,7 +69,7 @@ async function test() {
 
     const planner = await runtime.planExecution({
       goal: 'Plan a bounded implementation task with release review',
-      files: ['README.md', 'package.json'],
+      files: ['README.md', 'package.json', 'src/app.ts'],
       crewSelectors: ['crew_implementation'],
       optimizationProfile: 'standard',
     });
@@ -78,7 +81,7 @@ async function test() {
     console.log(`✅ Created agent: ${coder.id}\n`);
 
     const result = await nexus.execute(coder.id, 'Apply a real runtime patch to the fixture repo', {
-      files: ['README.md', 'package.json'],
+      files: ['README.md', 'package.json', 'src/app.ts'],
       workers: 1,
       verifyCommands: ['npm run build'],
       skillNames: ['node-builder', 'orchestration-playbook'],
@@ -145,6 +148,12 @@ async function test() {
     assert.ok(result.execution.activeWorkflows.length > 0, 'workflows should be active');
     assert.ok(result.execution.activeHooks.length > 0, 'hooks should be active');
     assert.ok(result.execution.activeAutomations.length > 0, 'automations should be active');
+    assert.ok(result.execution.instructionPacket, 'execution should expose the compiled instruction packet');
+    assert.ok(result.execution.executionLedger, 'execution should expose the orchestration ledger');
+    assert.strictEqual(result.execution.executionLedger?.executionMode, 'autonomous', 'execution ledger should mark autonomous orchestration mode');
+    assert.strictEqual(result.execution.executionLedger?.plannerApplied, true, 'execution ledger should record planner application');
+    assert.strictEqual(result.execution.executionLedger?.tokenOptimizationApplied, true, 'execution ledger should record token optimization when 3+ files are in play');
+    assert.ok(result.execution.executionLedger?.steps.some((step) => step.id === 'compile-instruction-packet' && step.status === 'completed'), 'execution ledger should record instruction packet compilation');
     assert.strictEqual(result.execution.selectedBackends.memoryBackend, 'temporal-hyperbolic-memory');
     assert.strictEqual(result.execution.selectedBackends.compressionBackend, 'meta-compression');
     assert.strictEqual(result.execution.selectedBackends.dslCompiler, 'agentlang-neural-compiler');
@@ -165,6 +174,25 @@ async function test() {
     const coderContext = JSON.parse(fs.readFileSync(coderContextPath, 'utf8'));
     assert.ok(coderContext.specialist?.mission, 'persisted worker context should include specialist mission');
     assert.ok(Array.isArray(coderContext.activeSkills) && coderContext.activeSkills.length > 0, 'persisted worker context should include active skills');
+
+    const runtimePacketArtifactPath = path.join(result.execution.artifactsPath, 'runtime', 'packet.json');
+    const runtimeLedgerArtifactPath = path.join(result.execution.artifactsPath, 'runtime', 'execution-ledger.json');
+    assert.ok(fs.existsSync(runtimePacketArtifactPath), 'runtime packet artifact should be persisted');
+    assert.ok(fs.existsSync(runtimeLedgerArtifactPath), 'runtime execution ledger artifact should be persisted');
+    const runtimePacketArtifact = JSON.parse(fs.readFileSync(runtimePacketArtifactPath, 'utf8'));
+    const runtimeLedgerArtifact = JSON.parse(fs.readFileSync(runtimeLedgerArtifactPath, 'utf8'));
+    assert.strictEqual(runtimePacketArtifact.packetHash, result.execution.instructionPacket?.packetHash, 'runtime packet artifact should match the execution packet');
+    assert.strictEqual(runtimeLedgerArtifact.runId, result.execution.runId, 'runtime ledger artifact should match the execution run');
+
+    const workspacePacketPath = path.join(repoRoot, '.agent', 'runtime', 'packet.json');
+    const workspacePacketMarkdownPath = path.join(repoRoot, '.agent', 'runtime', 'packet.md');
+    assert.ok(fs.existsSync(workspacePacketPath), 'workspace packet json should be written for orchestrated runs');
+    assert.ok(fs.existsSync(workspacePacketMarkdownPath), 'workspace packet markdown should be written for orchestrated runs');
+    const workspacePacket = JSON.parse(fs.readFileSync(workspacePacketPath, 'utf8'));
+    assert.strictEqual(workspacePacket.packetHash, result.execution.instructionPacket?.packetHash, 'workspace packet should match the execution packet');
+    assert.ok(!workspacePacket.protocol.markdown.includes('### Available skills'), 'compiled packet should not dump the full installed skill catalog');
+    assert.ok(workspacePacket.catalogShortlist.skills.length <= 4, 'compiled packet should keep skill shortlist bounded');
+    assert.ok(new Set(workspacePacket.protocol.sections.map((section: any) => `${section.source}:${section.heading}:${section.content}`)).size === workspacePacket.protocol.sections.length, 'compiled packet should deduplicate repeated protocol sections');
 
     const workersRoot = path.join(result.execution.artifactsPath, 'workers');
     const commandArtifacts = fs.readdirSync(workersRoot)
@@ -187,13 +215,50 @@ async function test() {
     assert.strictEqual(usageSnapshot.usage.skills.status, 'used', 'runtime usage should mark skills as used');
     assert.strictEqual(usageSnapshot.usage.plan.status, 'used', 'runtime usage should mark plan as used');
     assert.strictEqual(usageSnapshot.usage.federation.status, 'used', 'runtime usage should mark federation as used');
+    assert.strictEqual(usageSnapshot.instructionPacketHash, result.execution.instructionPacket?.packetHash, 'runtime snapshot should persist the active instruction packet hash');
+    assert.strictEqual(usageSnapshot.executionMode, 'autonomous', 'runtime snapshot should persist autonomous execution mode');
+    assert.strictEqual(usageSnapshot.plannerApplied, true, 'runtime snapshot should persist planner application');
+    assert.strictEqual(usageSnapshot.tokenOptimizationApplied, true, 'runtime snapshot should persist token optimization application');
     assert.ok(result.execution.tokenTelemetry, 'execution should persist token telemetry');
     assert.ok(runtime.getTokenTelemetrySummary().totalRuns > 0, 'runtime should aggregate token telemetry across runs');
     assert.ok(runtime.getTokenTelemetryForRun(result.execution.runId), 'runtime should expose per-run token telemetry');
+    assert.strictEqual(runtime.getInstructionPacket()?.packetHash, result.execution.instructionPacket?.packetHash, 'runtime should expose the latest compiled instruction packet');
+    assert.strictEqual(runtime.getExecutionLedger()?.runId, result.execution.runId, 'runtime should expose the latest execution ledger');
     assert.strictEqual(orchestrator.getSessionState().lastRunId, result.execution.runId, 'orchestrator session state should track the last run');
     assert.ok(orchestrator.getSessionState().selectedSkills.length > 0, 'orchestrator should record selected skills');
     assert.ok(['single-pass', 'bounded-swarm', 'continuation-capable'].includes(orchestrator.getSessionState().mode), 'orchestrator should record an execution mode for the run');
     assert.strictEqual(runtime.getUsageSnapshot().clients?.primary?.clientId, 'codex', 'runtime snapshot should record Codex as the primary client when CODEX env is active');
+
+    const packet = runtime.getInstructionPacket();
+    assert.ok(packet, 'runtime should retain the instruction packet after execution');
+    const adapterExpectations: Array<[string, string]> = [
+      ['codex', 'markdown'],
+      ['claude-code', 'markdown'],
+      ['openclaw', 'skill-md'],
+      ['opencode', 'markdown'],
+      ['cursor', 'mdc'],
+      ['windsurf', 'windsurfrules'],
+    ];
+    for (const [adapterType, expectedFormat] of adapterExpectations) {
+      const adapter = createAdapter(adapterType as any) as any;
+      await adapter.connect();
+      await adapter.send({
+        id: `msg-${adapterType}`,
+        sender: 'test',
+        receiver: adapter.name,
+        type: 'control',
+        payload: {
+          action: 'sync',
+          data: { instructionPacket: packet },
+        },
+        timestamp: Date.now(),
+      });
+      const envelope = adapter.getLastEnvelope?.();
+      assert.ok(envelope, `${adapterType} should render an instruction envelope`);
+      assert.strictEqual(envelope.packetHash, packet?.packetHash, `${adapterType} should preserve the packet hash`);
+      assert.strictEqual(envelope.format, expectedFormat, `${adapterType} should render the expected client format`);
+      await adapter.disconnect();
+    }
 
     await nexus.stop();
     console.log('✅ Stopped\n');

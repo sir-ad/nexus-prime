@@ -56,6 +56,14 @@ const KNOWN_CLIENTS: ClientDescriptor[] = [
         recentPaths: [path.join(HOME, '.codex', 'sessions')],
     },
     {
+        clientId: 'cursor',
+        displayName: 'Cursor',
+        aliases: ['cursor'],
+        configPaths: [path.join(HOME, '.cursor')],
+        recentPaths: [path.join(HOME, '.cursor')],
+        adapterNames: ['cursor'],
+    },
+    {
         clientId: 'claude-code',
         displayName: 'Claude Code',
         aliases: ['claude', 'claude-code'],
@@ -77,6 +85,14 @@ const KNOWN_CLIENTS: ClientDescriptor[] = [
         aliases: ['opencode'],
         configPaths: [path.join(HOME, '.opencode')],
         recentPaths: [path.join(HOME, '.opencode', 'sessions')],
+    },
+    {
+        clientId: 'windsurf',
+        displayName: 'Windsurf',
+        aliases: ['windsurf'],
+        configPaths: [path.join(HOME, '.windsurf'), path.join(HOME, '.codeium', 'windsurf')],
+        recentPaths: [path.join(HOME, '.windsurf'), path.join(HOME, '.codeium', 'windsurf')],
+        adapterNames: ['windsurf'],
     },
     {
         clientId: 'mcp',
@@ -381,17 +397,21 @@ export class ClientRegistry {
 
     private detectCurrentClientId(): string | undefined {
         if (process.env.CODEX_HOME || process.env.CODEX_SESSION) return 'codex';
+        if (process.env.CURSOR_HOME || process.env.CURSOR_SESSION) return 'cursor';
         if (process.env.CLAUDE_CODE || process.env.CLAUDE_SESSION_ID || process.env.CLAUDE_PROJECT_DIR) return 'claude-code';
         if (process.env.OPENCODE_HOME) return 'opencode';
         if (process.env.OPENCLAW_HOME || process.env.ANTIGRAVITY_HOME) return 'antigravity';
+        if (process.env.WINDSURF_HOME || process.env.WINDSURF_SESSION) return 'windsurf';
         if (process.env.MCP_CLIENT_NAME) {
             return this.resolveDescriptor(process.env.MCP_CLIENT_NAME).clientId;
         }
         try {
             const ps = execSync(`ps -p ${process.ppid} -o comm=`, { encoding: 'utf8', timeout: 400 }).trim().toLowerCase();
             if (ps.includes('codex')) return 'codex';
+            if (ps.includes('cursor')) return 'cursor';
             if (ps.includes('claude')) return 'claude-code';
             if (ps.includes('opencode')) return 'opencode';
+            if (ps.includes('windsurf')) return 'windsurf';
             if (ps.includes('antigravity') || ps.includes('openclaw')) return 'antigravity';
         } catch {
             // ignore
@@ -403,6 +423,9 @@ export class ClientRegistry {
         if (clientId === 'codex' && (process.env.CODEX_HOME || process.env.CODEX_SESSION)) {
             return 'env:CODEX detected';
         }
+        if (clientId === 'cursor' && (process.env.CURSOR_HOME || process.env.CURSOR_SESSION)) {
+            return 'env:CURSOR detected';
+        }
         if (clientId === 'claude-code' && (process.env.CLAUDE_CODE || process.env.CLAUDE_SESSION_ID || process.env.CLAUDE_PROJECT_DIR)) {
             return 'env:CLAUDE detected';
         }
@@ -411,6 +434,9 @@ export class ClientRegistry {
         }
         if (clientId === 'antigravity' && (process.env.OPENCLAW_HOME || process.env.ANTIGRAVITY_HOME)) {
             return 'env:ANTIGRAVITY detected';
+        }
+        if (clientId === 'windsurf' && (process.env.WINDSURF_HOME || process.env.WINDSURF_SESSION)) {
+            return 'env:WINDSURF detected';
         }
         return undefined;
     }
@@ -501,6 +527,9 @@ export class ClientRegistry {
 function normalizeDisplayName(value: string): string {
     if (value === 'openclaw') return 'Antigravity';
     if (value === 'claude-code') return 'Claude Code';
+    if (value === 'cursor') return 'Cursor';
+    if (value === 'windsurf') return 'Windsurf';
+    if (value === 'opencode') return 'Opencode';
     if (value === 'mcp') return 'MCP';
     return value
         .split(/[-_\s]+/)

@@ -473,6 +473,9 @@ function detectCurrentClient(): { clientId: string; source: string } | null {
   if (process.env.CODEX_HOME || process.env.CODEX_SESSION) {
     return { clientId: 'codex', source: 'env' };
   }
+  if (process.env.CURSOR_HOME || process.env.CURSOR_SESSION) {
+    return { clientId: 'cursor', source: 'env' };
+  }
   if (process.env.CLAUDE_CODE || process.env.CLAUDE_SESSION_ID || process.env.CLAUDE_PROJECT_DIR) {
     return { clientId: 'claude-code', source: 'env' };
   }
@@ -481,6 +484,9 @@ function detectCurrentClient(): { clientId: string; source: string } | null {
   }
   if (process.env.OPENCLAW_HOME || process.env.ANTIGRAVITY_HOME) {
     return { clientId: 'antigravity', source: 'env' };
+  }
+  if (process.env.WINDSURF_HOME || process.env.WINDSURF_SESSION) {
+    return { clientId: 'windsurf', source: 'env' };
   }
   return null;
 }

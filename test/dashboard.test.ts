@@ -20,11 +20,13 @@ function setupFixtureRepo(): string {
     }, null, 2),
     'utf8'
   );
+  fs.mkdirSync(path.join(repoRoot, 'src'), { recursive: true });
+  fs.writeFileSync(path.join(repoRoot, 'src', 'app.ts'), 'export const dashboardFixture = true;\n', 'utf8');
 
   execSync('git init -b main', { cwd: repoRoot, stdio: 'ignore' });
   execSync('git config user.name "Nexus Prime Dashboard Test"', { cwd: repoRoot, stdio: 'ignore' });
   execSync('git config user.email "nexus-prime-dashboard@test.local"', { cwd: repoRoot, stdio: 'ignore' });
-  execSync('git add README.md package.json', { cwd: repoRoot, stdio: 'ignore' });
+  execSync('git add README.md package.json src/app.ts', { cwd: repoRoot, stdio: 'ignore' });
   execSync('git commit -m "fixture"', { cwd: repoRoot, stdio: 'ignore' });
 
   return repoRoot;
@@ -115,6 +117,8 @@ function assertHealthContract(health: any, address: string): void {
   assert.strictEqual(health.capabilities.orchestration, true, 'orchestration capability should be advertised');
   assert.strictEqual(health.capabilities.tokens, true, 'tokens capability should be advertised');
   assert.strictEqual(health.capabilities.clientPrimary, true, 'primary client capability should be advertised');
+  assert.strictEqual(health.capabilities.instructionPacket, true, 'instruction packet capability should be advertised');
+  assert.strictEqual(health.capabilities.orchestrationLedger, true, 'orchestration ledger capability should be advertised');
 }
 
 async function test() {
@@ -174,6 +178,21 @@ async function test() {
     optimizationProfile: 'max',
   });
   await runtimeTwo.storeMemoryAndDispatch('Dashboard secondary runtime memory store', 0.91, ['#dashboard', '#runtime-two']);
+  await orchestrator.orchestrate('Compile a dashboard instruction packet for the primary runtime', {
+    files: ['README.md', 'package.json', 'src/app.ts'],
+    workers: 1,
+    verifyCommands: ['npm run build'],
+    workflowSelectors: ['backend-execution-loop'],
+    hookSelectors: ['run-created-brief'],
+    automationSelectors: ['verified-followup-automation'],
+    actions: [
+      {
+        type: 'append_file',
+        path: 'README.md',
+        content: '\nDashboard orchestrated run.\n'
+      }
+    ]
+  });
 
   const makeServer = (runtimeProvider: any, orchestratorProvider: any) => new DashboardServer({
     runtimeProvider,
@@ -224,6 +243,8 @@ async function test() {
       usagePrimaryRes,
       usageSecondaryRes,
       orchestrationRes,
+      ledgerRes,
+      packetRes,
       tokenSummaryRes,
       tokenTimelineRes,
       primaryClientRes,
@@ -250,6 +271,8 @@ async function test() {
       fetch(`${primaryAddress}/api/usage?runtimeId=${encodeURIComponent(runtime.getRuntimeId())}`),
       fetch(`${primaryAddress}/api/usage?runtimeId=${encodeURIComponent(runtimeTwo.getRuntimeId())}`),
       fetch(`${primaryAddress}/api/orchestration/session`),
+      fetch(`${primaryAddress}/api/orchestration/ledger?runtimeId=${encodeURIComponent(runtime.getRuntimeId())}`),
+      fetch(`${primaryAddress}/api/instruction-packet?runtimeId=${encodeURIComponent(runtime.getRuntimeId())}`),
       fetch(`${primaryAddress}/api/tokens/summary`),
       fetch(`${primaryAddress}/api/tokens/timeline?limit=5`),
       fetch(`${primaryAddress}/api/clients/primary`),
@@ -277,6 +300,8 @@ async function test() {
     const usagePrimary = await usagePrimaryRes.json();
     const usageSecondary = await usageSecondaryRes.json();
     const orchestration = await orchestrationRes.json();
+    const ledger = await ledgerRes.json();
+    const packet = await packetRes.json();
     const tokenSummary = await tokenSummaryRes.json();
     const tokenTimeline = await tokenTimelineRes.json();
     const primaryClient = await primaryClientRes.json();
@@ -307,6 +332,7 @@ async function test() {
     assert.ok(html.includes('id="runtime-select"'), 'dashboard HTML should expose a runtime selector');
     assert.ok(html.includes('runtime-usage-summary'), 'dashboard HTML should expose runtime usage summary shell');
     assert.ok(html.includes('id="plan-button"'), 'dashboard HTML should expose planner preview action');
+    assert.ok(html.includes('No token data yet for this runtime'), 'dashboard HTML should explain empty token telemetry state clearly');
     assert.ok(html.includes('data-event-filter="hooks"'), 'dashboard HTML should expose hooks event filter');
     assert.ok(html.includes('data-event-filter="automations"'), 'dashboard HTML should expose automations event filter');
     assert.ok(html.includes('data-event-filter="shield"'), 'dashboard HTML should expose shield event filter');
@@ -324,9 +350,18 @@ async function test() {
     assert.strictEqual(usagePrimary.runtimeId, runtime.getRuntimeId(), 'usage API should resolve the primary runtime');
     assert.strictEqual(usageSecondary.runtimeId, runtimeTwo.getRuntimeId(), 'usage API should resolve the secondary runtime');
     assert.strictEqual(usagePrimary.usage.skills.status, 'used', 'primary runtime usage should record skill usage');
+    assert.strictEqual(usagePrimary.executionMode, 'autonomous', 'primary runtime usage should record autonomous orchestration mode');
+    assert.strictEqual(usagePrimary.plannerApplied, true, 'primary runtime usage should record planner application');
+    assert.strictEqual(usagePrimary.tokenOptimizationApplied, true, 'primary runtime usage should record token optimization application');
     assert.strictEqual(usageSecondary.usage.plan.status, 'used', 'secondary runtime usage should record planning usage');
     assert.strictEqual(usageSecondary.usage.memories.status, 'used', 'secondary runtime usage should record memory usage');
     assert.ok(orchestration.sessionId, 'orchestration session API should expose a session id');
+    assert.strictEqual(ledger.executionMode, 'autonomous', 'orchestration ledger API should expose autonomous execution mode');
+    assert.ok(Array.isArray(ledger.steps) && ledger.steps.some((step: any) => step.id === 'planner-selection' && step.status === 'completed'), 'orchestration ledger should include planner completion');
+    assert.ok(Array.isArray(ledger.steps) && ledger.steps.some((step: any) => step.id === 'token-optimization' && step.status === 'completed'), 'orchestration ledger should include token optimization completion');
+    assert.ok(packet.packetHash, 'instruction packet API should expose the compiled packet hash');
+    assert.ok(Array.isArray(packet.requiredSequence) && packet.requiredSequence.includes('compile-instruction-packet'), 'instruction packet API should expose the required execution sequence');
+    assert.ok(Array.isArray(packet.protocol?.sources) && packet.protocol.sources.includes('AGENTS.md'), 'instruction packet API should report protocol sources');
     assert.ok(tokenSummary.totalRuns > 0, 'tokens summary API should expose persisted run telemetry');
     assert.ok(Array.isArray(tokenTimeline) && tokenTimeline.length > 0, 'tokens timeline API should expose recent runs');
     assert.strictEqual(primaryClient.clientId, 'codex', 'primary client API should prefer Codex when CODEX env is active');
@@ -436,6 +471,9 @@ async function test() {
     const registryDir = path.join(stateDir, 'runtime-registry');
     const primarySnapshotPath = path.join(registryDir, `${runtime.getRuntimeId()}.json`);
     const snapshot = JSON.parse(fs.readFileSync(primarySnapshotPath, 'utf8'));
+    assert.strictEqual(snapshot.executionMode, 'manual-low-level', 'runtime registry snapshot should mark explicit low-level automation runs as manual');
+    assert.ok(Array.isArray(snapshot.executionLedger?.steps), 'runtime registry snapshot should persist the latest execution ledger');
+    assert.ok(snapshot.executionLedger.steps.some((step: any) => step.id === 'compile-instruction-packet' && step.status === 'skipped' && step.reason === 'manual-low-level'), 'manual execution snapshots should preserve packet bypass reasons');
     snapshot.lastHeartbeatAt = Date.now() - (5 * 60 * 1000);
     fs.writeFileSync(primarySnapshotPath, JSON.stringify(snapshot, null, 2), 'utf8');
     const staleRuntimes = await fetchJson(`${primaryAddress}/api/runtimes`);

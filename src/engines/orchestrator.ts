@@ -21,6 +21,15 @@ import type {
 import { SessionDNAManager } from './session-dna.js';
 import type { ClientRecord, ClientRegistry } from './client-registry.js';
 import {
+  DEFAULT_REQUIRED_SEQUENCE,
+  InstructionGateway,
+  createExecutionLedger,
+  markExecutionLedgerStep,
+  type ExecutionLedger,
+  type GovernanceSnapshot,
+  type InstructionPacket,
+} from './instruction-gateway.js';
+import {
   createSubAgentRuntime,
   type ExecutionRun,
   type ExecutionTask,
@@ -109,6 +118,7 @@ export class OrchestratorEngine {
   private sessionDNA?: SessionDNAManager;
   private repoRoot: string;
   private tokenEngine: TokenSupremacyEngine;
+  private instructionGateway: InstructionGateway;
   private sessionsDir: string;
   private sessionState: SessionAutonomyState;
 
@@ -122,6 +132,7 @@ export class OrchestratorEngine {
     this.sessionDNA = options.sessionDNA;
     this.repoRoot = options.repoRoot ?? process.cwd();
     this.tokenEngine = new TokenSupremacyEngine();
+    this.instructionGateway = new InstructionGateway(this.repoRoot);
     this.sessionsDir = path.join(resolveNexusStateDir(), 'autonomy-sessions');
     fs.mkdirSync(this.sessionsDir, { recursive: true });
     this.sessionState = this.loadSessionState();
@@ -172,9 +183,37 @@ export class OrchestratorEngine {
     const intent = this.classifyIntent(task);
     const phases = this.decomposeTask(task);
     const primaryClient = this.resolvePrimaryClient();
+    const ledger = createExecutionLedger({
+      sessionId: this.sessionState.sessionId,
+      task,
+      executionMode: 'autonomous',
+      clientId: primaryClient?.clientId,
+      clientFamily: primaryClient?.clientFamily,
+    });
+    markExecutionLedgerStep(ledger, 'identify-client-session', 'completed', {
+      summary: primaryClient?.displayName ?? 'No explicit client detected',
+      details: {
+        clientId: primaryClient?.clientId ?? 'unknown',
+        source: primaryClient?.source ?? 'env',
+      },
+    });
     const latestDNA = SessionDNAManager.loadLatest();
     const memoryMatches = await this.memory.recall(task, 8);
+    markExecutionLedgerStep(ledger, 'recall-memory', 'completed', {
+      summary: `Recalled ${memoryMatches.length} memory match(es).`,
+      details: { matches: memoryMatches.slice(0, 4) },
+    });
     nexusEventBus.emit('memory.recall', { query: task, count: memoryMatches.length });
+    const memoryStats = this.memory.getStats();
+    markExecutionLedgerStep(ledger, 'memory-stats', 'completed', {
+      summary: `Loaded memory stats (${memoryStats.cortex} cortex / ${memoryStats.hippocampus} hippocampus).`,
+      details: {
+        prefrontal: memoryStats.prefrontal,
+        hippocampus: memoryStats.hippocampus,
+        cortex: memoryStats.cortex,
+        totalLinks: memoryStats.totalLinks,
+      },
+    });
 
     const planner = await this.runtime.planExecution({
       goal: task,
@@ -186,12 +225,25 @@ export class OrchestratorEngine {
       workers: options.workers,
       optimizationProfile: options.optimizationProfile,
     });
+    markExecutionLedgerStep(ledger, 'planner-selection', 'completed', {
+      summary: `Planner selected ${planner.selectedCrew?.name ?? 'baseline'}.`,
+      details: {
+        crew: planner.selectedCrew?.crewId ?? null,
+        specialists: planner.selectedSpecialists.map((specialist) => specialist.specialistId),
+        workflows: planner.selectedWorkflows,
+        skills: planner.selectedSkills,
+      },
+    });
 
     const candidateFiles = options.files?.length
       ? options.files
       : this.discoverCandidateFiles(task);
+    markExecutionLedgerStep(ledger, 'candidate-file-discovery', 'completed', {
+      summary: `${candidateFiles.length} candidate file(s) discovered.`,
+      details: { files: candidateFiles.slice(0, 24) },
+    });
     const fileRefs = candidateFiles.map((filePath) => this.toFileRef(filePath)).filter((file): file is FileRef => Boolean(file));
-    const tokenPlan = fileRefs.length > 0 ? this.tokenEngine.plan(task, fileRefs) : undefined;
+    const tokenPlan = fileRefs.length >= 3 ? this.tokenEngine.plan(task, fileRefs) : undefined;
     const plannedFiles = tokenPlan
       ? tokenPlan.files.filter((entry) => entry.action !== 'skip').map((entry) => entry.file.path)
       : candidateFiles;
@@ -230,8 +282,47 @@ export class OrchestratorEngine {
     const selectedCrew = options.crewSelectors?.length
       ? options.crewSelectors[0]
       : planner.selectedCrew?.crewId;
+    markExecutionLedgerStep(ledger, 'catalog-shortlist', 'completed', {
+      summary: 'Built orchestration shortlist across catalogs.',
+      details: {
+        selectedCrew,
+        specialists: selectedSpecialists,
+        skills: selectedSkills,
+        workflows: selectedWorkflows,
+        hooks: selectedHooks,
+        automations: selectedAutomations,
+      },
+    });
+    if (tokenPlan) {
+      markExecutionLedgerStep(ledger, 'token-optimization', 'completed', {
+        summary: `Optimizer routed ${tokenPlan.files.length} files with ${tokenPlan.savings} estimated token savings.`,
+        details: {
+          inputTokens: tokenPlan.totalEstimatedTokens + tokenPlan.savings,
+          outputTokens: tokenPlan.totalEstimatedTokens,
+          selectedFiles: plannedFiles,
+        },
+      });
+    } else {
+      markExecutionLedgerStep(ledger, 'token-optimization', 'skipped', {
+        reason: fileRefs.length < 3 ? 'candidate-files-below-threshold' : 'no-file-refs',
+        summary: 'Token optimization only auto-runs in the orchestrator when 3+ files are in play.',
+      });
+    }
     const workerCount = this.decideWorkers(options.workers, planner.swarmDecision.workers, phases.length, intent, this.sessionState.repeatedFailures);
     const mode = this.determineMode(intent, phases.length, workerCount);
+    const governance = this.runtime.previewGovernancePreflight({
+      goal: task,
+      files: plannedFiles,
+      tokenCount: 2500 + plannedFiles.length * 300,
+      isDestructive: false,
+    });
+    markExecutionLedgerStep(ledger, 'governance-preflight', governance.passed ? 'completed' : 'blocked', {
+      summary: `Governance preflight score ${governance.score}.`,
+      details: {
+        passed: governance.passed,
+        violations: governance.violations.map((violation) => violation.id),
+      },
+    });
 
     const sessionState: SessionAutonomyState = {
       ...this.sessionState,
@@ -282,6 +373,60 @@ export class OrchestratorEngine {
       });
     }
 
+    const instructionPacket = this.instructionGateway.compile({
+      runtimeId: this.runtime.getRuntimeId(),
+      sessionId: sessionState.sessionId,
+      goal: task,
+      executionMode: 'autonomous',
+      objectiveHistory: sessionState.objectiveHistory,
+      phases,
+      requiredSequence: DEFAULT_REQUIRED_SEQUENCE,
+      client: primaryClient,
+      selectedCrew: planner.selectedCrew,
+      selectedSpecialists: planner.selectedSpecialists,
+      selectedSkills: this.runtime.listSkills().filter((skill) => selectedSkills.includes(skill.name)),
+      selectedWorkflows: this.runtime.listWorkflows().filter((workflow) => selectedWorkflows.includes(workflow.name)),
+      selectedHooks: this.runtime.listHooks().filter((hook) => selectedHooks.includes(hook.name)),
+      selectedAutomations: this.runtime.listAutomations().filter((automation) => selectedAutomations.includes(automation.name)),
+      catalogShortlist: {
+        crews: selectedCrew ? [selectedCrew] : [],
+        specialists: selectedSpecialists,
+        skills: selectedSkills,
+        workflows: selectedWorkflows,
+        hooks: selectedHooks,
+        automations: selectedAutomations,
+      },
+      governance: this.toGovernanceSnapshot(governance),
+      federation: this.runtime.getUsageSnapshot().federation,
+      tokenPolicy: {
+        applied: Boolean(tokenPlan),
+        reason: tokenPlan ? 'orchestrator-selected' : (fileRefs.length < 3 ? 'candidate-files-below-threshold' : 'no-file-refs'),
+        candidateFiles,
+        selectedFiles: plannedFiles,
+        estimatedSavings: Number(tokenPlan?.savings ?? 0),
+        estimatedCompressionPct: tokenPlan && tokenPlan.totalEstimatedTokens + tokenPlan.savings > 0
+          ? Math.round((tokenPlan.savings / (tokenPlan.totalEstimatedTokens + tokenPlan.savings)) * 100)
+          : 0,
+      },
+      memoryMatches,
+      memoryStats,
+      manualOverrides: [],
+    });
+    this.instructionGateway.persist(instructionPacket, this.repoRoot);
+    markExecutionLedgerStep(ledger, 'compile-instruction-packet', 'completed', {
+      summary: `Compiled instruction packet ${instructionPacket.packetHash}.`,
+      details: {
+        estimatedTokens: instructionPacket.estimatedTokens,
+      },
+    });
+    ledger.packetHash = instructionPacket.packetHash;
+    this.runtime.recordInstructionPacket(instructionPacket, {
+      executionMode: 'autonomous',
+      plannerApplied: ledger.plannerApplied,
+      tokenOptimizationApplied: ledger.tokenOptimizationApplied,
+    });
+    this.runtime.recordExecutionLedger(ledger, 'autonomous');
+
     army.forEach((agent) => {
       agent.state = 'running';
     });
@@ -298,6 +443,10 @@ export class OrchestratorEngine {
       crewSelectors: options.crewSelectors?.length ? options.crewSelectors : selectedCrew ? [selectedCrew] : [],
       specialistSelectors: options.specialistSelectors?.length ? options.specialistSelectors : selectedSpecialists,
       optimizationProfile: options.optimizationProfile ?? planner.optimizationProfile,
+      executionMode: 'autonomous',
+      manualOverrides: [],
+      instructionPacket,
+      executionLedger: ledger,
     });
     this.lastRun = run;
 
@@ -323,6 +472,35 @@ export class OrchestratorEngine {
     this.persistSessionState();
     this.runtime.recordOrchestrationSnapshot(this.toRuntimeOrchestrationSnapshot(this.sessionState));
     this.runtime.recordPrimaryClient(primaryClient, this.listDetectedClients());
+    markExecutionLedgerStep(ledger, 'runtime-execution', run.state === 'failed' ? 'failed' : 'completed', {
+      summary: run.result,
+      details: {
+        runId: run.runId,
+        state: run.state,
+        verifiedWorkers: run.workerResults.filter((worker) => worker.verified).length,
+      },
+    });
+    await this.runtime.storeMemoryAndDispatch(
+      `Orchestrated run ${run.runId}: ${task} -> ${run.state} (${run.result})`,
+      run.state === 'merged' ? 0.88 : 0.72,
+      ['#orchestrator', '#session', `#${run.state}`],
+    );
+    markExecutionLedgerStep(ledger, 'structured-learning', 'completed', {
+      summary: 'Stored orchestrator session learning and refreshed runtime metadata.',
+      details: { runId: run.runId },
+    });
+    run.executionLedger = ledger;
+    run.instructionPacket = instructionPacket;
+    this.runtime.recordExecutionLedger(ledger, 'autonomous');
+    this.runtime.recordInstructionPacket(instructionPacket, {
+      executionMode: 'autonomous',
+      plannerApplied: ledger.plannerApplied,
+      tokenOptimizationApplied: ledger.tokenOptimizationApplied,
+    });
+    this.runtime.updateExecutionMetadata(run.runId, {
+      instructionPacket,
+      executionLedger: ledger,
+    });
 
     return run;
   }
@@ -429,6 +607,19 @@ export class OrchestratorEngine {
         lastSeen: Date.now(),
       };
     }
+    if (process.env.CURSOR_HOME || process.env.CURSOR_SESSION) {
+      return {
+        clientId: 'cursor',
+        displayName: 'Cursor',
+        state: 'primaryActive',
+        source: 'manual',
+        inferred: false,
+        confidence: 1,
+        evidence: ['env:CURSOR detected'],
+        metadata: {},
+        lastSeen: Date.now(),
+      };
+    }
     if (process.env.CLAUDE_CODE || process.env.CLAUDE_SESSION_ID || process.env.CLAUDE_PROJECT_DIR) {
       return {
         clientId: 'claude-code',
@@ -442,12 +633,52 @@ export class OrchestratorEngine {
         lastSeen: Date.now(),
       };
     }
+    if (process.env.OPENCODE_HOME) {
+      return {
+        clientId: 'opencode',
+        displayName: 'Opencode',
+        state: 'primaryActive',
+        source: 'manual',
+        inferred: false,
+        confidence: 1,
+        evidence: ['env:OPENCODE detected'],
+        metadata: {},
+        lastSeen: Date.now(),
+      };
+    }
+    if (process.env.OPENCLAW_HOME || process.env.ANTIGRAVITY_HOME) {
+      return {
+        clientId: 'antigravity',
+        displayName: 'Antigravity',
+        state: 'primaryActive',
+        source: 'manual',
+        inferred: false,
+        confidence: 1,
+        evidence: ['env:ANTIGRAVITY detected'],
+        metadata: {},
+        lastSeen: Date.now(),
+      };
+    }
+    if (process.env.WINDSURF_HOME || process.env.WINDSURF_SESSION) {
+      return {
+        clientId: 'windsurf',
+        displayName: 'Windsurf',
+        state: 'primaryActive',
+        source: 'manual',
+        inferred: false,
+        confidence: 1,
+        evidence: ['env:WINDSURF detected'],
+        metadata: {},
+        lastSeen: Date.now(),
+      };
+    }
     return undefined;
   }
 
   private toClientSnapshot(client: ClientRecord): RuntimePrimaryClientSnapshot {
     return {
       clientId: client.clientId,
+      clientFamily: this.toClientFamily(client.clientId),
       displayName: client.displayName,
       state: client.state as RuntimePrimaryClientSnapshot['state'],
       source: client.source,
@@ -477,6 +708,21 @@ export class OrchestratorEngine {
       latestSessionDNA: state.latestSessionDNA,
       lastUpdatedAt: state.updatedAt,
     };
+  }
+
+  private toGovernanceSnapshot(result: ReturnType<SubAgentRuntime['previewGovernancePreflight']>): GovernanceSnapshot {
+    return {
+      passed: result.passed,
+      score: result.score,
+      violations: result.violations.map((violation) => violation.id),
+      suggestions: result.warnings.map((warning) => warning.id),
+    };
+  }
+
+  private toClientFamily(clientId?: string): string {
+    const normalized = String(clientId ?? 'codex').toLowerCase();
+    if (normalized === 'openclaw' || normalized === 'antigravity') return 'antigravity';
+    return normalized;
   }
 
   private classifyIntent(task: string): AutonomyIntent {

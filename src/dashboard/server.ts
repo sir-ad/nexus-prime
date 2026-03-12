@@ -35,6 +35,8 @@ const REQUIRED_CAPABILITIES = {
     orchestration: true,
     tokens: true,
     clientPrimary: true,
+    instructionPacket: true,
+    orchestrationLedger: true,
 } as const;
 
 const DEFAULT_SKILLS: Array<{ name: string; instructions: string; riskClass: 'read' | 'orchestrate' | 'mutate'; scope: 'session' | 'worker' | 'global' }> = [
@@ -266,6 +268,18 @@ export class DashboardServer {
             const snapshot = this.resolveRuntimeSnapshot(url);
             const orchestrator = this.getOrchestrator();
             this.respondJson(res, snapshot?.orchestration ?? orchestrator?.getSessionState() ?? {});
+            return;
+        }
+
+        if (req.method === 'GET' && url.pathname === '/api/orchestration/ledger') {
+            const snapshot = this.resolveRuntimeSnapshot(url);
+            this.respondJson(res, snapshot?.executionLedger ?? this.getRuntime()?.getExecutionLedger() ?? {});
+            return;
+        }
+
+        if (req.method === 'GET' && url.pathname === '/api/instruction-packet') {
+            const snapshot = this.resolveRuntimeSnapshot(url);
+            this.respondJson(res, snapshot?.instructionPacket ?? this.getRuntime()?.getInstructionPacket() ?? {});
             return;
         }
 

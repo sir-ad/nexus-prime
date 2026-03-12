@@ -1,6 +1,11 @@
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
+import type {
+    ExecutionLedger,
+    InstructionPacket,
+    OrchestrationExecutionMode,
+} from './instruction-gateway.js';
 
 export type RuntimeUsageCategory =
     | 'memories'
@@ -106,6 +111,7 @@ export interface RuntimeOrchestrationSnapshot {
 
 export interface RuntimePrimaryClientSnapshot {
     clientId: string;
+    clientFamily?: string;
     displayName: string;
     state: 'primaryActive' | 'active' | 'idle' | 'installed' | 'offline';
     source: string;
@@ -135,6 +141,14 @@ export interface RuntimeRegistrySnapshot {
     tokens?: RuntimeTokenSummarySnapshot;
     orchestration?: RuntimeOrchestrationSnapshot;
     clients?: RuntimeClientsSnapshot;
+    clientId?: string;
+    clientFamily?: string;
+    instructionPacketHash?: string;
+    instructionPacket?: InstructionPacket;
+    executionMode?: OrchestrationExecutionMode;
+    executionLedger?: ExecutionLedger;
+    plannerApplied?: boolean;
+    tokenOptimizationApplied?: boolean;
 }
 
 export interface ListedRuntimeSnapshot extends RuntimeRegistrySnapshot {

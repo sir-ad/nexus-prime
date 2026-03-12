@@ -19,6 +19,7 @@ function test() {
   const architectureHtml = readDoc('architecture-diagrams.html');
   const readme = fs.readFileSync(path.join(process.cwd(), 'README.md'), 'utf8');
   const agents = fs.readFileSync(path.join(process.cwd(), 'AGENTS.md'), 'utf8');
+  const agentReadme = fs.readFileSync(path.join(process.cwd(), '.agent', 'README.md'), 'utf8');
   const packageJson = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'package.json'), 'utf8'));
 
   expectIncludes(indexHtml, 'href="#documentation"', 'landing page should link to the documentation section');
@@ -41,7 +42,12 @@ function test() {
   expectIncludes(agents, 'nexus_list_hooks', 'AGENTS should document hook discovery');
   expectIncludes(agents, 'nexus_list_automations', 'AGENTS should document automation discovery');
   expectIncludes(agents, '.agent/runtime/context.json', 'AGENTS should document worker runtime context handoff');
+  expectIncludes(agents, '.agent/runtime/packet.json', 'AGENTS should document the compiled instruction packet handoff');
+  expectIncludes(agentReadme, '.agent/rules/*', '.agent README should document the durable rule source');
+  expectIncludes(agentReadme, '.agent/runtime/packet.json', '.agent README should document the compiled packet output');
+  assert.ok(agents.split('\n').length <= 160, 'AGENTS should remain compact enough for humans');
   assert.ok(!agents.includes('Available MCP Tools (44 total'), 'AGENTS should avoid stale hardcoded tool totals');
+  assert.ok(!agents.includes('### Available skills'), 'AGENTS should not embed a full static skill inventory');
   assert.strictEqual(packageJson.homepage, 'https://sir-ad.github.io/nexus-prime/', 'package homepage should point to GitHub Pages');
 
   console.log('✅ Docs website navigation and metadata are wired correctly\n');
