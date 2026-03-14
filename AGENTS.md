@@ -65,3 +65,4 @@ nexus_orchestrate(prompt="<task>", files=[optional hard constraints])
 - Before risky mutation, call `nexus_mindkit_check(...)`.
 - Worker context lives in `.agent/runtime/context.json`; the compiled packet lives in `.agent/runtime/packet.json`.
 <!-- nexus-prime:codex-bootstrap:end -->
+
