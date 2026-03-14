@@ -164,21 +164,6 @@ flowchart TD
 
 </details>
 
-<details>
-<summary><b>🚢 Diagram: repo change → QA gate → GitHub release → npm publish</b></summary>
-
-```mermaid
-flowchart LR
-    Change["Repo changes"] --> Generate["Generate registry + catalog"]
-    Generate --> QA["qa:release"]
-    QA --> Tag["Tag v3.12.0"]
-    Tag --> Release["GitHub release"]
-    Release --> Publish["release.published workflow"]
-    Publish --> Npm["npm publish --provenance"]
-```
-
-</details>
-
 <div align="center">
   <img src="./docs/assets/screenshots/dashboard_knowledge_trace.png" alt="Nexus Prime dashboard showing session-first RAG collections, source mix, provenance, and by-source token allocation" width="1600" height="1280">
   <br>
