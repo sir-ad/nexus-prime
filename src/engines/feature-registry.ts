@@ -143,7 +143,7 @@ export function buildFeatureRegistry(workspaceRoot: string = process.cwd()): Fea
 
     return {
         generatedAt: new Date().toISOString(),
-        generatedFor: workspaceRoot,
+        generatedFor: path.basename(workspaceRoot),
         counts: {
             mcpSurfaces: MCP_SURFACES.length,
             clientTargets: CLIENT_BOOTSTRAP_TARGETS.length,

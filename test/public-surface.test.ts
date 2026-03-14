@@ -9,7 +9,7 @@ const PUBLIC_ROOTS = [
   path.join('.github', 'workflows'),
 ];
 
-const TEXT_EXTENSIONS = new Set(['.md', '.html', '.svg', '.yml', '.yaml', '.txt']);
+const TEXT_EXTENSIONS = new Set(['.md', '.html', '.json', '.svg', '.yml', '.yaml', '.txt']);
 
 const BLOCKED_PATTERNS: Array<{ pattern: RegExp; message: string }> = [
   { pattern: /\/Users\//g, message: 'public surfaces should not leak macOS home-directory paths' },
@@ -83,6 +83,7 @@ function test() {
   const docsRoot = path.join(process.cwd(), 'docs');
   const indexHtml = fs.readFileSync(path.join(docsRoot, 'index.html'), 'utf8');
   const catalogHtml = fs.readFileSync(path.join(docsRoot, 'catalog.html'), 'utf8');
+  const comparisonHtml = fs.readFileSync(path.join(docsRoot, 'comparison.html'), 'utf8');
   const knowledgeHtml = fs.readFileSync(path.join(docsRoot, 'knowledge-base.html'), 'utf8');
   const integrationsHtml = fs.readFileSync(path.join(docsRoot, 'integrations.html'), 'utf8');
   const architectureHtml = fs.readFileSync(path.join(docsRoot, 'architecture-diagrams.html'), 'utf8');
@@ -97,6 +98,8 @@ function test() {
   assert.ok(indexHtml.includes('dashboard_runtime_sequence.png'), 'landing page should reference the runtime sequence screenshot');
   assert.ok(indexHtml.includes('dashboard_knowledge_trace.png'), 'landing page should reference the current knowledge screenshot');
   assert.ok(catalogHtml.includes('./assets/feature-registry.json'), 'catalog page should load the generated feature registry asset');
+  assert.ok(comparisonHtml.includes('rel="canonical"'), 'comparison page should declare a canonical URL');
+  assert.ok(comparisonHtml.includes('./assets/competitive-landscape.json'), 'comparison page should load the competitive landscape snapshot');
   assert.ok(knowledgeHtml.includes('rel="canonical"'), 'knowledge base should declare a canonical URL');
   assert.ok(integrationsHtml.includes('rel="canonical"'), 'integrations should declare a canonical URL');
   assert.ok(architectureHtml.includes('rel="canonical"'), 'architecture page should declare a canonical URL');

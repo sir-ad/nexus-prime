@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Comparison | Nexus Prime</title>
+  <meta name="description" content="How Nexus Prime differs from other open-source multi-agent control planes, developer orchestrators, and broader orchestration frameworks." />
+  <link rel="canonical" href="https://sir-ad.github.io/nexus-prime/comparison.html" />
+  <meta property="og:title" content="Comparison | Nexus Prime" />
+  <meta property="og:description" content="A tiered market map comparing Nexus Prime with direct developer orchestrators, broader multi-agent frameworks, and adjacent orchestration stacks." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://sir-ad.github.io/nexus-prime/comparison.html" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <style>
+    :root {
+      --green: #00ff88;
+      --cyan: #00d4ff;
+      --amber: #fbbf24;
+      --purple: #8b5cf6;
+      --bg: #040810;
+      --surface: rgba(13, 24, 40, 0.82);
+      --surface-soft: rgba(13, 24, 40, 0.58);
+      --border: rgba(0, 255, 136, 0.12);
+      --text: #e2f5ff;
+      --text-dim: #7a9bb0;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: 'Inter', sans-serif;
+      background: radial-gradient(circle at top, rgba(0, 212, 255, 0.08), transparent 38%), var(--bg);
+      color: var(--text);
+      line-height: 1.65;
+    }
+
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      padding: 16px 32px;
+      background: rgba(4, 8, 16, 0.9);
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(18px);
+    }
+
+    .nav-logo {
+      color: var(--green);
+      text-decoration: none;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 20px;
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+
+    .nav-links a,
+    .mobile-links a,
+    footer a {
+      color: var(--text-dim);
+      text-decoration: none;
+    }
+
+    .nav-links a.active,
+    .nav-links a:hover,
+    .mobile-links a:hover,
+    footer a:hover {
+      color: var(--green);
+    }
+
+    .nav-cta {
+      color: var(--bg);
+      background: var(--green);
+      padding: 10px 16px;
+      border-radius: 8px;
+      text-decoration: none;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+      font-weight: 700;
+    }
+
+    .mobile-nav {
+      display: none;
+      width: 100%;
+      margin-top: 12px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: rgba(13, 24, 40, 0.94);
+    }
+
+    .mobile-nav summary {
+      list-style: none;
+      cursor: pointer;
+      padding: 12px 16px;
+      color: var(--green);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .mobile-nav summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .mobile-links {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 0 16px 16px;
+    }
+
+    main {
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 96px 32px 56px;
+    }
+
+    .hero,
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 28px;
+      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.32);
+    }
+
+    .hero {
+      display: grid;
+      gap: 18px;
+      margin-bottom: 24px;
+    }
+
+    .eyebrow {
+      color: var(--cyan);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(2.2rem, 4vw, 3.8rem);
+      line-height: 1.08;
+    }
+
+    .hero p,
+    .panel p,
+    .meta {
+      color: var(--text-dim);
+    }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .chip {
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--surface-soft);
+      color: var(--text);
+      font-size: 0.82rem;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .section-grid,
+    .verdict-grid,
+    .decision-grid,
+    .wins-grid {
+      display: grid;
+      gap: 20px;
+      margin-top: 24px;
+    }
+
+    .verdict-grid,
+    .decision-grid {
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    }
+
+    .wins-grid {
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    }
+
+    .section-card {
+      background: var(--surface-soft);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 22px;
+    }
+
+    .section-card h2,
+    .section-card h3,
+    .panel h2 {
+      margin: 0 0 8px;
+      font-size: 1.25rem;
+    }
+
+    .section-card ul,
+    .panel ul {
+      margin: 14px 0 0 18px;
+      color: var(--text-dim);
+      padding: 0;
+    }
+
+    .section-card li,
+    .panel li {
+      margin-bottom: 10px;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      margin-top: 16px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 980px;
+      font-size: 0.94rem;
+    }
+
+    th,
+    td {
+      text-align: left;
+      padding: 12px 10px;
+      border-bottom: 1px solid rgba(122, 155, 176, 0.16);
+      vertical-align: top;
+    }
+
+    th {
+      color: var(--cyan);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.78rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    td strong {
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    .project-meta {
+      font-size: 0.8rem;
+      color: var(--text-dim);
+    }
+
+    .project-link {
+      color: var(--text);
+      text-decoration: none;
+    }
+
+    .project-link:hover {
+      color: var(--green);
+    }
+
+    .empty {
+      padding: 18px;
+      border: 1px dashed rgba(122, 155, 176, 0.28);
+      border-radius: 14px;
+      color: var(--text-dim);
+    }
+
+    .cta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 18px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 16px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      text-decoration: none;
+      color: var(--text);
+      background: var(--surface-soft);
+      font-weight: 600;
+    }
+
+    .btn.primary {
+      color: var(--bg);
+      background: var(--green);
+    }
+
+    .meta strong {
+      color: var(--text);
+    }
+
+    footer {
+      max-width: 1240px;
+      margin: 0 auto 32px;
+      padding: 0 32px;
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+      color: var(--text-dim);
+    }
+
+    @media (max-width: 860px) {
+      .nav-links,
+      .nav-cta {
+        display: none;
+      }
+
+      .mobile-nav {
+        display: block;
+      }
+
+      nav {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      main,
+      footer {
+        padding-left: 20px;
+        padding-right: 20px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <nav>
+    <a class="nav-logo" href="./index.html">nexus-prime</a>
+    <ul class="nav-links">
+      <li><a href="./index.html">Overview</a></li>
+      <li><a href="./catalog.html">Catalog</a></li>
+      <li><a href="./comparison.html" class="active">Comparison</a></li>
+      <li><a href="./knowledge-base.html">Knowledge Base</a></li>
+      <li><a href="./integrations.html">Integrations</a></li>
+      <li><a href="./architecture-diagrams.html">Architecture</a></li>
+    </ul>
+    <a class="nav-cta" href="./integrations.html">Setup Clients →</a>
+    <details class="mobile-nav">
+      <summary>Menu</summary>
+      <div class="mobile-links">
+        <a href="./index.html">Overview</a>
+        <a href="./catalog.html">Catalog</a>
+        <a href="./comparison.html">Comparison</a>
+        <a href="./knowledge-base.html">Knowledge Base</a>
+        <a href="./integrations.html">Integrations</a>
+        <a href="./architecture-diagrams.html">Architecture</a>
+        <a href="https://github.com/sir-ad/nexus-prime" target="_blank" rel="noopener">GitHub</a>
+      </div>
+    </details>
+  </nav>
+
+  <main>
+    <section class="hero">
+      <div class="eyebrow">Competitive Landscape</div>
+      <h1>How Nexus Prime differs from other multi-agent control planes and frameworks</h1>
+      <p>This page compares Nexus Prime against open-source multi-agent control planes, developer orchestrators, and broader frameworks using a frozen GitHub snapshot plus official repo positioning. The goal is not to flatten everything into one bucket. It is to help agent builders choose the right layer.</p>
+      <div class="chips">
+        <span class="chip">Bootstrap-first MCP entry</span>
+        <span class="chip">Worktree-backed execution</span>
+        <span class="chip">Persisted runtime truth</span>
+        <span class="chip">Session-first RAG gate</span>
+        <span class="chip">Source-aware token budgeting</span>
+      </div>
+    </section>
+
+    <section class="verdict-grid">
+      <article class="section-card">
+        <h2>Closest peers</h2>
+        <p>Nexus Prime is closest to developer control planes and repo-adjacent orchestrators, not to general-purpose agent SDKs.</p>
+      </article>
+      <article class="section-card">
+        <h2>Where Nexus fits</h2>
+        <p>It sits between the client and the repo: bootstrap first, orchestrate second, verify in worktrees, and persist runtime truth afterward.</p>
+      </article>
+      <article class="section-card">
+        <h2>Where frameworks win</h2>
+        <p>AutoGen, LangGraph, CrewAI, CAMEL, and similar stacks are broader when you want to embed agents inside your own products or app platforms.</p>
+      </article>
+      <article class="section-card">
+        <h2>Where Nexus wins</h2>
+        <p>Nexus is more opinionated about runtime discipline: worktree execution, memory fabric, token budgeting, and operator-visible truth are first-class.</p>
+      </article>
+      <article class="section-card">
+        <h2>Why this comparison exists</h2>
+        <p>Agent builders evaluating orchestration stacks need a market map that separates control planes, frameworks, and narrower specialist substrates.</p>
+      </article>
+    </section>
+
+    <section class="panel" style="margin-top: 24px;">
+      <h2>Methodology</h2>
+      <p class="meta" id="methodology">Loading snapshot methodology...</p>
+      <div class="chips" id="snapshot-meta"></div>
+      <p class="meta" style="margin-top: 16px;">Excluded: tutorials, wrappers, language ports, papers-only repos, websites-only repos, and domain apps that are not general orchestration products. Star counts are point-in-time values from the snapshot date, not live browser fetches.</p>
+    </section>
+
+    <section class="section-grid" style="margin-top: 24px;">
+      <article class="panel">
+        <h2>Tier 1: direct control planes / developer orchestrators</h2>
+        <p class="meta">These are the closest products to Nexus Prime: repo-adjacent control planes and developer orchestration layers that shape how coding agents are coordinated.</p>
+        <div id="tier1-table" class="table-wrap"><div class="empty">Loading Tier 1 comparison...</div></div>
+      </article>
+
+      <div class="wins-grid">
+        <article class="panel">
+          <h2>Where Nexus Prime wins</h2>
+          <ul>
+            <li>Bootstrap-first MCP entry instead of starting from ad-hoc tool selection.</li>
+            <li>Worktree-backed execution and verifier lanes are built into the runtime contract.</li>
+            <li>Persisted runtime truth keeps the dashboard and API grounded in what actually happened.</li>
+            <li>Session-first RAG and token budgeting are visible, bounded, and recorded in provenance.</li>
+            <li>Client bootstrap surfaces reduce setup friction across Codex, Cursor, Claude Code, Opencode, Windsurf, and Antigravity/OpenClaw.</li>
+          </ul>
+        </article>
+        <article class="panel">
+          <h2>Where others win</h2>
+          <ul>
+            <li>OpenHands wins if you want a much larger AI-driven development product footprint and community size.</li>
+            <li>Ruflo and Shannon win when you want stronger pre-packaged orchestration topologies or production orchestration scaffolding out of the box.</li>
+            <li>AutoGen, LangGraph, and CrewAI win when you want a framework embedded inside your own application code rather than a repo-first control plane.</li>
+            <li>Tier 3 tools win when your execution substrate is the real point, such as Snowflake-native orchestration or multimodal microservices.</li>
+          </ul>
+        </article>
+      </div>
+
+      <article class="panel">
+        <h2>Tier 2: broader multi-agent frameworks / platforms</h2>
+        <p class="meta">This tier matters when the buyer is evaluating a framework for building agentic systems, not only a developer control plane for coding-agent operations.</p>
+        <div id="tier2-table" class="table-wrap"><div class="empty">Loading Tier 2 comparison...</div></div>
+      </article>
+
+      <article class="panel">
+        <h2>Tier 3: adjacent / specialized but still qualifying</h2>
+        <p class="meta">These are real overlaps, but they usually optimize for a narrower substrate, API style, or domain-specific orchestration shape.</p>
+        <div id="tier3-table" class="table-wrap"><div class="empty">Loading Tier 3 comparison...</div></div>
+      </article>
+
+      <article class="panel">
+        <h2>Choose X when...</h2>
+        <div class="decision-grid">
+          <div class="section-card">
+            <h3>Choose Nexus Prime</h3>
+            <p>You want a local-first MCP control plane for coding agents with bootstrap-first execution, worktree-backed runs, session RAG, token budgeting, and persisted runtime truth.</p>
+          </div>
+          <div class="section-card">
+            <h3>Choose a Tier 1 dev orchestrator</h3>
+            <p>You want repo-adjacent orchestration for coding agents, but you prefer another product's topology, role model, or automation posture.</p>
+          </div>
+          <div class="section-card">
+            <h3>Choose AutoGen or LangGraph</h3>
+            <p>You are embedding agent orchestration into your own application runtime and want a flexible framework or graph runtime more than an operator-facing control plane.</p>
+          </div>
+          <div class="section-card">
+            <h3>Choose CrewAI, CAMEL, MetaGPT, or Swarms</h3>
+            <p>You want broader framework abstractions, crew metaphors, role systems, or multi-agent experimentation surfaces.</p>
+          </div>
+          <div class="section-card">
+            <h3>Choose a Tier 3 specialist</h3>
+            <p>Your real buying criterion is a narrower substrate like Snowflake-native orchestration, context-central APIs, simulation/auditing, or multimodal microservices.</p>
+          </div>
+        </div>
+      </article>
+
+      <article class="panel">
+        <h2>Keep moving</h2>
+        <p>If this comparison puts Nexus Prime in the right bucket, the fastest next step is still the same: install it, let it bootstrap the repo, and inspect the runtime truth after the first orchestrated run.</p>
+        <div class="cta-row">
+          <a class="btn primary" href="./index.html#install">Install Nexus Prime</a>
+          <a class="btn" href="./knowledge-base.html">Read the runtime contract</a>
+          <a class="btn" href="https://github.com/sir-ad/nexus-prime" target="_blank" rel="noopener">Open the repository</a>
+        </div>
+      </article>
+    </section>
+  </main>
+
+  <footer>
+    <div>MIT License © 2026 Sir-Ad.</div>
+    <div>
+      <a href="./index.html">Overview</a> ·
+      <a href="./catalog.html">Catalog</a> ·
+      <a href="./comparison.html">Comparison</a> ·
+      <a href="./knowledge-base.html">Knowledge Base</a> ·
+      <a href="./integrations.html">Integrations</a> ·
+      <a href="./architecture-diagrams.html">Architecture</a>
+    </div>
+  </footer>
+
+  <script>
+    const TIER_TABLE_IDS = {
+      tier1: 'tier1-table',
+      tier2: 'tier2-table',
+      tier3: 'tier3-table',
+    };
+
+    function formatNumber(value) {
+      return new Intl.NumberFormat('en-US').format(Number(value || 0));
+    }
+
+    function formatDate(value) {
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return String(value || '');
+      return date.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+    }
+
+    function escapeHtml(value) {
+      return String(value || '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;');
+    }
+
+    function renderProjectCell(repo) {
+      const sources = (repo.sources || []).map((source, index) => (
+        `<a href="${source}" target="_blank" rel="noopener">source ${index + 1}</a>`
+      )).join(' · ');
+      return `
+        <strong><a class="project-link" href="${repo.url}" target="_blank" rel="noopener">${escapeHtml(repo.name)}</a></strong>
+        <div class="project-meta">${escapeHtml(repo.category)}</div>
+        <div class="project-meta">${sources}</div>
+      `;
+    }
+
+    function renderRows(repos) {
+      return repos.map((repo) => `
+        <tr>
+          <td>${renderProjectCell(repo)}</td>
+          <td>${formatNumber(repo.stars)}</td>
+          <td>${escapeHtml(repo.audience)}</td>
+          <td>${escapeHtml(repo.orchestrationModel)}</td>
+          <td>${escapeHtml(repo.executionSubstrate)}</td>
+          <td>${escapeHtml(repo.memoryContextModel)}</td>
+          <td>${escapeHtml(repo.operatorSurface)}</td>
+          <td>${escapeHtml(repo.bestAt)}</td>
+          <td>${escapeHtml(repo.tradeoff)}</td>
+        </tr>
+      `).join('');
+    }
+
+    function renderTable(repos) {
+      if (!repos.length) {
+        return '<div class="empty">No projects found for this tier.</div>';
+      }
+      return `
+        <table>
+          <thead>
+            <tr>
+              <th>Project</th>
+              <th>Stars</th>
+              <th>Primary audience</th>
+              <th>Orchestration model</th>
+              <th>Execution substrate</th>
+              <th>Memory / context posture</th>
+              <th>Operator surface</th>
+              <th>Best fit</th>
+              <th>Tradeoff</th>
+            </tr>
+          </thead>
+          <tbody>${renderRows(repos)}</tbody>
+        </table>
+      `;
+    }
+
+    async function loadLandscape() {
+      const response = await fetch('./assets/competitive-landscape.json', { cache: 'no-store' });
+      if (!response.ok) {
+        throw new Error(`Unable to load competitive landscape snapshot (${response.status})`);
+      }
+      return response.json();
+    }
+
+    loadLandscape()
+      .then((landscape) => {
+        document.getElementById('methodology').innerHTML = `
+          Snapshot date: <strong>${escapeHtml(formatDate(landscape.snapshotDate))}</strong>.<br>
+          ${escapeHtml(landscape.inclusionRule)}
+        `;
+
+        const snapshotMeta = document.getElementById('snapshot-meta');
+        const tierCounts = (landscape.tiers || []).map((tier) => {
+          const count = (landscape.repos || []).filter((repo) => repo.tier === tier.id).length;
+          return `<span class="chip">${escapeHtml(tier.label)}: ${count}</span>`;
+        }).join('');
+        snapshotMeta.innerHTML = `
+          <span class="chip">Snapshot date: ${escapeHtml(landscape.snapshotDate)}</span>
+          <span class="chip">Comparison set threshold: 50+ GitHub stars</span>
+          ${tierCounts}
+        `;
+
+        for (const tier of landscape.tiers || []) {
+          const repos = (landscape.repos || []).filter((repo) => repo.tier === tier.id);
+          const mount = document.getElementById(TIER_TABLE_IDS[tier.id]);
+          if (!mount) continue;
+          mount.innerHTML = renderTable(repos);
+        }
+      })
+      .catch((error) => {
+        document.getElementById('methodology').textContent = error.message;
+        for (const id of Object.values(TIER_TABLE_IDS)) {
+          const mount = document.getElementById(id);
+          if (mount) {
+            mount.innerHTML = `<div class="empty">${escapeHtml(error.message)}</div>`;
+          }
+        }
+      });
+  </script>
+</body>
+
+</html>

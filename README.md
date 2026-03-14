@@ -28,7 +28,7 @@
 **Nexus Prime** is a local-first MCP control plane for coding agents. It gives clients a default path that starts with bootstrap context, flows through orchestrated execution, and ends with persisted runtime truth instead of ad-hoc tool chaining.
 
 **Website:** [sir-ad.github.io/nexus-prime](https://sir-ad.github.io/nexus-prime/)<br>
-**Documentation:** [Catalog](https://sir-ad.github.io/nexus-prime/catalog.html) · [Knowledge Base](https://sir-ad.github.io/nexus-prime/knowledge-base.html) · [Integrations](https://sir-ad.github.io/nexus-prime/integrations.html) · [Architecture Diagrams](https://sir-ad.github.io/nexus-prime/architecture-diagrams.html)
+**Documentation:** [Catalog](https://sir-ad.github.io/nexus-prime/catalog.html) · [Comparison](https://sir-ad.github.io/nexus-prime/comparison.html) · [Knowledge Base](https://sir-ad.github.io/nexus-prime/knowledge-base.html) · [Integrations](https://sir-ad.github.io/nexus-prime/integrations.html) · [Architecture Diagrams](https://sir-ad.github.io/nexus-prime/architecture-diagrams.html)
 
 ## What Nexus Prime is
 
@@ -84,6 +84,7 @@ Use `nexus_plan_execution` only when you explicitly want the ledger before mutat
 </div>
 
 - [Catalog](https://sir-ad.github.io/nexus-prime/catalog.html): generated registry for MCP surfaces, client targets, dashboard capabilities, runtime subsystems, and release gates.
+- [Comparison](https://sir-ad.github.io/nexus-prime/comparison.html): tiered market map for direct developer orchestrators, broader multi-agent frameworks, and adjacent specialist stacks.
 - [Knowledge Base](https://sir-ad.github.io/nexus-prime/knowledge-base.html): runtime contract, packets, ledgers, memory, token telemetry, and guardrails.
 - [Integrations](https://sir-ad.github.io/nexus-prime/integrations.html): verified setup for Codex, Cursor, Claude Code, Opencode, Windsurf, and Antigravity/OpenClaw.
 - [Architecture Diagrams](https://sir-ad.github.io/nexus-prime/architecture-diagrams.html): shipped diagrams for the control plane, worktree lifecycle, memory fabric, RAG gate, token budget, runtime truth, and release pipeline.
@@ -225,11 +226,21 @@ Memory inventory ready.
 - Zettelkasten links: persisted graph relationships
 ```
 
+## Competitive Landscape
+
+The comparison exists so agent builders can separate direct control planes from broader frameworks before they evaluate Nexus Prime on the wrong axis.
+
+- Nexus Prime is closest to repo-adjacent control planes that own bootstrap, orchestration, worktree execution, and persisted runtime truth.
+- Broader frameworks like AutoGen, LangGraph, CrewAI, CAMEL, and MetaGPT are stronger when you want to embed orchestration inside your own application stack.
+- Specialized orchestrators still matter, but Nexus stays differentiated on bootstrap-first MCP entry, session-first RAG, source-aware token budgeting, and generated client bootstrap.
+
+Read the full tiered market map: [Comparison](https://sir-ad.github.io/nexus-prime/comparison.html)
+
 <!-- feature-registry:start -->
 <details>
 <summary><b>🧭 Platform Feature Registry</b></summary>
 
-Generated from shared feature metadata at 2026-03-14T13:10:06.287Z.
+Generated from shared feature metadata at 2026-03-14T14:43:20.108Z.
 
 Inventory Snapshot: 109 skills · 64 workflows · 5 hooks · 3 automations · 7 crews · 139 specialists
 

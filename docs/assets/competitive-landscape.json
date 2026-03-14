@@ -1,0 +1,498 @@
+{
+  "snapshotDate": "2026-03-14",
+  "inclusionRule": "Includes open-source multi-agent frameworks, orchestration platforms, and control planes with at least 50 GitHub stars at snapshot time. Nexus Prime is included as the focal baseline even though the star threshold applies to the comparison set rather than the product being evaluated.",
+  "tiers": [
+    {
+      "id": "tier1",
+      "label": "Tier 1 · Direct control planes / developer orchestrators",
+      "description": "The closest group to Nexus Prime: repo-adjacent control planes and developer orchestration layers that shape how coding agents execute, verify, or collaborate."
+    },
+    {
+      "id": "tier2",
+      "label": "Tier 2 · Broader multi-agent frameworks / platforms",
+      "description": "Multi-agent frameworks and platforms that help teams build agentic systems, but are usually broader application frameworks rather than a repo-first control plane."
+    },
+    {
+      "id": "tier3",
+      "label": "Tier 3 · Adjacent / specialized frameworks",
+      "description": "Qualifying projects with a narrower substrate, domain, or execution posture that still overlap with multi-agent orchestration decisions."
+    }
+  ],
+  "repos": [
+    {
+      "name": "OpenHands",
+      "repo": "OpenHands/OpenHands",
+      "tier": "tier1",
+      "category": "AI-driven development platform",
+      "audience": "Developers who want a general autonomous software-development agent",
+      "orchestrationModel": "AI-driven development agent platform for planning and executing coding tasks",
+      "executionSubstrate": "Managed development runtime for browsing, coding, and tool execution",
+      "memoryContextModel": "Task and session context centered on the active development run",
+      "operatorSurface": "Web app, CLI, SDK, hosted and self-hosted surfaces",
+      "bestAt": "General autonomous development workflows and issue-to-code execution",
+      "tradeoff": "Less centered on a bootstrap-first MCP control plane for external coding clients",
+      "stars": 69099,
+      "url": "https://github.com/OpenHands/OpenHands",
+      "sources": [
+        "https://github.com/OpenHands/OpenHands",
+        "https://openhands.dev"
+      ]
+    },
+    {
+      "name": "Ruflo",
+      "repo": "ruvnet/ruflo",
+      "tier": "tier1",
+      "category": "Agent orchestration platform",
+      "audience": "Claude and Codex teams that want packaged multi-agent coordination",
+      "orchestrationModel": "Swarm-oriented orchestration platform with predefined coordination surfaces",
+      "executionSubstrate": "Agent swarms, autonomous workflows, and packaged orchestration modules",
+      "memoryContextModel": "RAG integration and self-learning swarm context",
+      "operatorSurface": "CLI, configs, orchestrator packages, client integrations",
+      "bestAt": "Packaged multi-agent coordination with strong swarm scaffolding",
+      "tradeoff": "More topology-centric than a repo-first control plane with persisted runtime truth",
+      "stars": 20986,
+      "url": "https://github.com/ruvnet/ruflo",
+      "sources": [
+        "https://github.com/ruvnet/ruflo",
+        "https://Cognitum.One"
+      ]
+    },
+    {
+      "name": "Shannon",
+      "repo": "Kocoro-lab/Shannon",
+      "tier": "tier1",
+      "category": "Production orchestration framework",
+      "audience": "Engineering teams that want production-oriented multi-agent orchestration",
+      "orchestrationModel": "Production-oriented orchestration with approval, observability, and multiple execution strategies",
+      "executionSubstrate": "Framework-managed multi-agent runs and production workflow policies",
+      "memoryContextModel": "Context governance and production execution state",
+      "operatorSurface": "CLI, framework runtime, docs, and operational controls",
+      "bestAt": "Production-minded orchestration with strong approval and observability posture",
+      "tradeoff": "Less focused on MCP-first client bootstrap and dashboard-led runtime truth",
+      "stars": 1179,
+      "url": "https://github.com/Kocoro-lab/Shannon",
+      "sources": [
+        "https://github.com/Kocoro-lab/Shannon",
+        "https://shannon.run"
+      ]
+    },
+    {
+      "name": "Metaswarm",
+      "repo": "dsifry/metaswarm",
+      "tier": "tier1",
+      "category": "Developer orchestration scaffold",
+      "audience": "CLI power users working across Claude Code, Gemini CLI, and Codex CLI",
+      "orchestrationModel": "Self-improving multi-agent orchestration scaffold with TDD and quality gates",
+      "executionSubstrate": "CLI-oriented development harness and command-driven agent flows",
+      "memoryContextModel": "Spec, task, and improvement-loop context",
+      "operatorSurface": "CLI commands and repo-level scaffolding",
+      "bestAt": "Spec and TDD-oriented multi-agent coding flows",
+      "tradeoff": "Lighter runtime truth and operator surface than a fuller control plane",
+      "stars": 121,
+      "url": "https://github.com/dsifry/metaswarm",
+      "sources": [
+        "https://github.com/dsifry/metaswarm",
+        "https://github.com/dsifry/metaswarm#readme"
+      ]
+    },
+    {
+      "name": "kata-orchestrator",
+      "repo": "gannonh/kata-orchestrator",
+      "tier": "tier1",
+      "category": "Spec-driven orchestrator",
+      "audience": "Spec-driven engineering teams",
+      "orchestrationModel": "Agent orchestration for spec-driven development",
+      "executionSubstrate": "Task and spec pipeline around coding agents",
+      "memoryContextModel": "Spec, task, and workflow context",
+      "operatorSurface": "CLI and workflow scripts",
+      "bestAt": "Spec-driven development loops and repeatable task breakdown",
+      "tradeoff": "Narrower operator surface than a broader control plane",
+      "stars": 105,
+      "url": "https://github.com/gannonh/kata-orchestrator",
+      "sources": [
+        "https://github.com/gannonh/kata-orchestrator",
+        "https://kata.sh/"
+      ]
+    },
+    {
+      "name": "multi-agent-squad",
+      "repo": "bijutharakan/multi-agent-squad",
+      "tier": "tier1",
+      "category": "Development automation orchestrator",
+      "audience": "Claude Code teams that want specialized agent squads and Git automation",
+      "orchestrationModel": "Specialized multi-agent development orchestration with automated workflow steps",
+      "executionSubstrate": "CLI plus Git-oriented development automation",
+      "memoryContextModel": "Execution context around squad tasks and automation state",
+      "operatorSurface": "CLI, repo automation, and squad scaffolding",
+      "bestAt": "Claude Code-centric development automation with specialist agents",
+      "tradeoff": "More toolchain-specific and narrower than a general MCP control plane",
+      "stars": 80,
+      "url": "https://github.com/bijutharakan/multi-agent-squad",
+      "sources": [
+        "https://github.com/bijutharakan/multi-agent-squad",
+        "https://github.com/bijutharakan/multi-agent-squad#readme"
+      ]
+    },
+    {
+      "name": "AssemblyZero",
+      "repo": "martymcenroe/AssemblyZero",
+      "tier": "tier1",
+      "category": "Parameterized dev orchestrator",
+      "audience": "Developers who want configurable multi-agent development routing",
+      "orchestrationModel": "Parameterized multi-agent orchestration framework for coding agents",
+      "executionSubstrate": "CLI-oriented harness with configurable orchestration parameters",
+      "memoryContextModel": "Task and session context around the configured agent flow",
+      "operatorSurface": "CLI and project configuration",
+      "bestAt": "Fast configurable routing across coding agents",
+      "tradeoff": "Smaller control-plane and persistence surface than Nexus Prime",
+      "stars": 62,
+      "url": "https://github.com/martymcenroe/AssemblyZero",
+      "sources": [
+        "https://github.com/martymcenroe/AssemblyZero",
+        "https://github.com/martymcenroe/AssemblyZero#readme"
+      ]
+    },
+    {
+      "name": "Nexus Prime",
+      "repo": "sir-ad/nexus-prime",
+      "tier": "tier1",
+      "category": "MCP control plane",
+      "audience": "Agent builders and operator-heavy coding teams",
+      "orchestrationModel": "Bootstrap-first MCP entry that routes into one orchestrator-owned execution contract",
+      "executionSubstrate": "Local repo plus worktree-backed runtime and verifier lanes",
+      "memoryContextModel": "Persisted memory fabric, session-first RAG gate, and source-aware token budgeting",
+      "operatorSurface": "MCP, dashboard, runtime truth APIs, generated client bootstrap",
+      "bestAt": "Repo-grounded coding-agent operations with runtime truth and operator visibility",
+      "tradeoff": "More opinionated than lightweight scaffolds that only expose agent harnesses or SDK primitives",
+      "stars": 1,
+      "url": "https://github.com/sir-ad/nexus-prime",
+      "sources": [
+        "https://github.com/sir-ad/nexus-prime",
+        "https://nexus-prime.cfd/"
+      ]
+    },
+    {
+      "name": "MetaGPT",
+      "repo": "FoundationAgents/MetaGPT",
+      "tier": "tier2",
+      "category": "Role-specialized framework",
+      "audience": "Teams exploring software-company-style agent collaboration",
+      "orchestrationModel": "Multi-agent framework built around role-specialized software-company metaphors",
+      "executionSubstrate": "Framework-managed agent roles and collaborative task flows",
+      "memoryContextModel": "Role, artifact, and project context",
+      "operatorSurface": "Framework APIs, examples, and docs",
+      "bestAt": "Software-company-style multi-agent collaboration",
+      "tradeoff": "Heavier role topology and less control-plane discipline for external coding clients",
+      "stars": 65146,
+      "url": "https://github.com/FoundationAgents/MetaGPT",
+      "sources": [
+        "https://github.com/FoundationAgents/MetaGPT",
+        "https://mgx.dev/"
+      ]
+    },
+    {
+      "name": "AutoGen",
+      "repo": "microsoft/autogen",
+      "tier": "tier2",
+      "category": "Agentic application framework",
+      "audience": "Developers embedding agents into products or internal tools",
+      "orchestrationModel": "Programming framework for agentic AI and multi-agent applications",
+      "executionSubstrate": "SDK and framework runtime inside application code",
+      "memoryContextModel": "Framework-managed conversation, state, and workflow context",
+      "operatorSurface": "SDK, docs, and platform extensions",
+      "bestAt": "Building agentic applications and custom multi-agent systems",
+      "tradeoff": "Framework-first, so teams still assemble their own repo/runtime control plane",
+      "stars": 55601,
+      "url": "https://github.com/microsoft/autogen",
+      "sources": [
+        "https://github.com/microsoft/autogen",
+        "https://microsoft.github.io/autogen/"
+      ]
+    },
+    {
+      "name": "CrewAI",
+      "repo": "crewAIInc/crewAI",
+      "tier": "tier2",
+      "category": "Crew-style framework",
+      "audience": "Teams that want role-based autonomous agent crews",
+      "orchestrationModel": "Role-playing autonomous AI agents working as crews",
+      "executionSubstrate": "Framework and platform surfaces for crew execution",
+      "memoryContextModel": "Agent and task context inside crew flows",
+      "operatorSurface": "Framework APIs, docs, and hosted product surfaces",
+      "bestAt": "Crew-style task orchestration and role-based agent collaboration",
+      "tradeoff": "Less focused on runtime truth and repo-grounded coding execution",
+      "stars": 46036,
+      "url": "https://github.com/crewAIInc/crewAI",
+      "sources": [
+        "https://github.com/crewAIInc/crewAI",
+        "https://crewai.com"
+      ]
+    },
+    {
+      "name": "ChatDev",
+      "repo": "OpenBMB/ChatDev",
+      "tier": "tier2",
+      "category": "Multi-agent collaboration platform",
+      "audience": "Teams exploring collaborative multi-agent software work",
+      "orchestrationModel": "LLM-powered multi-agent collaboration for software tasks",
+      "executionSubstrate": "Framework and platform surfaces for collaborative agent work",
+      "memoryContextModel": "Project and artifact context across collaborating agents",
+      "operatorSurface": "Framework, docs, and platform positioning",
+      "bestAt": "Collaborative software-agent experiments and workflows",
+      "tradeoff": "Less focused on a local-first control plane for external coding clients",
+      "stars": 31625,
+      "url": "https://github.com/OpenBMB/ChatDev",
+      "sources": [
+        "https://github.com/OpenBMB/ChatDev",
+        "https://arxiv.org/abs/2307.07924"
+      ]
+    },
+    {
+      "name": "LangGraph",
+      "repo": "langchain-ai/langgraph",
+      "tier": "tier2",
+      "category": "Graph orchestration framework",
+      "audience": "Application teams building long-running stateful agents",
+      "orchestrationModel": "Graph-based orchestration for resilient language agents",
+      "executionSubstrate": "Stateful graph runtime inside app stacks",
+      "memoryContextModel": "Checkpointed graph state and durable execution context",
+      "operatorSurface": "SDK, docs, and LangGraph platform tooling",
+      "bestAt": "Durable graph-based agent workflows",
+      "tradeoff": "Lower-level framework that requires more assembly around operator surfaces",
+      "stars": 26375,
+      "url": "https://github.com/langchain-ai/langgraph",
+      "sources": [
+        "https://github.com/langchain-ai/langgraph",
+        "https://docs.langchain.com/oss/python/langgraph/"
+      ]
+    },
+    {
+      "name": "CAMEL",
+      "repo": "camel-ai/camel",
+      "tier": "tier2",
+      "category": "Multi-agent research and framework stack",
+      "audience": "Researchers and builders exploring large-scale agent systems",
+      "orchestrationModel": "Multi-agent framework oriented around large-scale agent experimentation",
+      "executionSubstrate": "SDK, framework runtime, and research-oriented modules",
+      "memoryContextModel": "Agent memory and task state patterns inside the framework",
+      "operatorSurface": "Docs, SDK, and experimentation surfaces",
+      "bestAt": "Broad multi-agent experimentation and scaling work",
+      "tradeoff": "Less opinionated about repo-grounded runtime operations",
+      "stars": 16337,
+      "url": "https://github.com/camel-ai/camel",
+      "sources": [
+        "https://github.com/camel-ai/camel",
+        "https://docs.camel-ai.org/"
+      ]
+    },
+    {
+      "name": "Swarms",
+      "repo": "kyegomez/swarms",
+      "tier": "tier2",
+      "category": "Enterprise multi-agent framework",
+      "audience": "Teams wanting a broad multi-agent orchestration surface",
+      "orchestrationModel": "Enterprise-grade production-ready multi-agent orchestration framework",
+      "executionSubstrate": "Framework runtime across multiple agent orchestration modes",
+      "memoryContextModel": "Framework-managed agent state and orchestration context",
+      "operatorSurface": "SDK, docs, and product ecosystem",
+      "bestAt": "Broad orchestration coverage and flexible swarm patterns",
+      "tradeoff": "Breadth over the tighter repo-first discipline of a control plane",
+      "stars": 5881,
+      "url": "https://github.com/kyegomez/swarms",
+      "sources": [
+        "https://github.com/kyegomez/swarms",
+        "https://docs.swarms.world"
+      ]
+    },
+    {
+      "name": "Agency Swarm",
+      "repo": "VRSEN/agency-swarm",
+      "tier": "tier2",
+      "category": "Agency-style orchestration framework",
+      "audience": "Teams wanting reliable multi-agent orchestration around agency patterns",
+      "orchestrationModel": "Reliable multi-agent orchestration with structured agency communication",
+      "executionSubstrate": "Framework runtime and agent communication flows",
+      "memoryContextModel": "Agent thread and task context",
+      "operatorSurface": "Python framework and docs",
+      "bestAt": "Structured agency patterns and directed agent collaboration",
+      "tradeoff": "Less local-first runtime truth and client bootstrap surface",
+      "stars": 4058,
+      "url": "https://github.com/VRSEN/agency-swarm",
+      "sources": [
+        "https://github.com/VRSEN/agency-swarm",
+        "https://agency-swarm.ai/"
+      ]
+    },
+    {
+      "name": "BotSharp",
+      "repo": "SciSharp/BotSharp",
+      "tier": "tier2",
+      "category": ".NET multi-agent framework",
+      "audience": ".NET teams building AI agents and multi-agent systems",
+      "orchestrationModel": "AI multi-agent framework in .NET",
+      "executionSubstrate": ".NET runtime and framework stack",
+      "memoryContextModel": "Bot, task, and application context",
+      "operatorSurface": ".NET SDK, docs, and service surfaces",
+      "bestAt": ".NET-native agent systems and multi-agent applications",
+      "tradeoff": "Different stack and fewer repo-first MCP surfaces",
+      "stars": 3027,
+      "url": "https://github.com/SciSharp/BotSharp",
+      "sources": [
+        "https://github.com/SciSharp/BotSharp",
+        "https://botsharp.readthedocs.io"
+      ]
+    },
+    {
+      "name": "LLMStack",
+      "repo": "trypromptly/LLMStack",
+      "tier": "tier2",
+      "category": "No-code platform",
+      "audience": "Teams building agent workflows and apps without heavy code investment",
+      "orchestrationModel": "No-code multi-agent framework for workflows and applications",
+      "executionSubstrate": "Platform and workflow builder with data integration",
+      "memoryContextModel": "App and data context managed by the platform",
+      "operatorSurface": "Web platform, docs, and hosted workflows",
+      "bestAt": "No-code and low-code agent workflows with business data",
+      "tradeoff": "Less repo-grounded developer control-plane depth",
+      "stars": 2297,
+      "url": "https://github.com/trypromptly/LLMStack",
+      "sources": [
+        "https://github.com/trypromptly/LLMStack",
+        "https://llmstack.trypromptly.com"
+      ]
+    },
+    {
+      "name": "agentUniverse",
+      "repo": "agentuniverse-ai/agentUniverse",
+      "tier": "tier2",
+      "category": "Application framework",
+      "audience": "Developers who want to build multi-agent apps quickly",
+      "orchestrationModel": "LLM multi-agent framework for building applications",
+      "executionSubstrate": "Framework runtime and application-building toolkit",
+      "memoryContextModel": "App and agent context inside the framework",
+      "operatorSurface": "Framework APIs and docs",
+      "bestAt": "Quick multi-agent application assembly",
+      "tradeoff": "Less operator-facing runtime truth than Nexus Prime",
+      "stars": 2144,
+      "url": "https://github.com/agentuniverse-ai/agentUniverse",
+      "sources": [
+        "https://github.com/agentuniverse-ai/agentUniverse",
+        "https://github.com/agentuniverse-ai/agentUniverse#readme"
+      ]
+    },
+    {
+      "name": "Arbiter",
+      "repo": "harnesslabs/arbiter",
+      "tier": "tier3",
+      "category": "Simulation and auditing framework",
+      "audience": "Teams focused on design, simulation, and auditing use cases",
+      "orchestrationModel": "Multi-agent framework for design, simulation, and auditing",
+      "executionSubstrate": "Framework runtime for evaluation-heavy agent flows",
+      "memoryContextModel": "Simulation and audit context",
+      "operatorSurface": "Framework docs and task-oriented surfaces",
+      "bestAt": "Design, simulation, and audit-heavy scenarios",
+      "tradeoff": "More specialized than a general coding-agent control plane",
+      "stars": 729,
+      "url": "https://github.com/harnesslabs/arbiter",
+      "sources": [
+        "https://github.com/harnesslabs/arbiter",
+        "https://github.com/harnesslabs/arbiter#readme"
+      ]
+    },
+    {
+      "name": "AIEvo",
+      "repo": "antgroup/aievo",
+      "tier": "tier3",
+      "category": "Application framework",
+      "audience": "Developers building multi-agent apps in the Ant ecosystem",
+      "orchestrationModel": "Multi-agent framework for creating multi-agent applications",
+      "executionSubstrate": "Framework runtime and application-building toolkit",
+      "memoryContextModel": "Application-level task and agent context",
+      "operatorSurface": "Framework docs and repo-level examples",
+      "bestAt": "General multi-agent app construction in that ecosystem",
+      "tradeoff": "Smaller community and less operator surface than larger frameworks",
+      "stars": 97,
+      "url": "https://github.com/antgroup/aievo",
+      "sources": [
+        "https://github.com/antgroup/aievo",
+        "https://github.com/antgroup/aievo#readme"
+      ]
+    },
+    {
+      "name": "Yacana",
+      "repo": "rememberSoftwares/yacana",
+      "tier": "tier3",
+      "category": "Task-driven building blocks",
+      "audience": "Builders who want task-driven multi-agent primitives",
+      "orchestrationModel": "Task-driven LLM multi-agent building blocks",
+      "executionSubstrate": "Framework primitives and composable orchestration blocks",
+      "memoryContextModel": "Task-driven context within the framework",
+      "operatorSurface": "Framework docs and examples",
+      "bestAt": "Composable multi-agent primitives",
+      "tradeoff": "More building blocks and fewer operator-facing control-plane surfaces",
+      "stars": 82,
+      "url": "https://github.com/rememberSoftwares/yacana",
+      "sources": [
+        "https://github.com/rememberSoftwares/yacana",
+        "https://github.com/rememberSoftwares/yacana#readme"
+      ]
+    },
+    {
+      "name": "ContextAgent",
+      "repo": "context-machine-lab/ContextAgent",
+      "tier": "tier3",
+      "category": "Context-centric framework",
+      "audience": "Builders who want a context-central multi-agent API",
+      "orchestrationModel": "Context-central multi-agent framework with a PyTorch-like API",
+      "executionSubstrate": "SDK and framework runtime for context-centric systems",
+      "memoryContextModel": "Central context model as the coordination layer",
+      "operatorSurface": "SDK, docs, and examples",
+      "bestAt": "Context-centric agent composition",
+      "tradeoff": "Less opinionated about runtime operations and developer control planes",
+      "stars": 74,
+      "url": "https://github.com/context-machine-lab/ContextAgent",
+      "sources": [
+        "https://github.com/context-machine-lab/ContextAgent",
+        "https://context-machine-lab.github.io/ContextAgent/"
+      ]
+    },
+    {
+      "name": "Snowflake Orchestration Framework",
+      "repo": "Snowflake-Labs/orchestration-framework",
+      "tier": "tier3",
+      "category": "Snowflake-native framework",
+      "audience": "Snowflake teams building agents around Snowflake services",
+      "orchestrationModel": "Multi-agent framework with native Snowflake support",
+      "executionSubstrate": "Snowflake-native services and orchestration stack",
+      "memoryContextModel": "Snowflake data and execution context",
+      "operatorSurface": "Framework docs and Snowflake-oriented integration points",
+      "bestAt": "Agent systems that live close to Snowflake",
+      "tradeoff": "Much narrower substrate than a general coding-agent control plane",
+      "stars": 70,
+      "url": "https://github.com/Snowflake-Labs/orchestration-framework",
+      "sources": [
+        "https://github.com/Snowflake-Labs/orchestration-framework",
+        "https://github.com/Snowflake-Labs/orchestration-framework#readme"
+      ]
+    },
+    {
+      "name": "nexus-agents",
+      "repo": "0xstely/nexus-agents",
+      "tier": "tier3",
+      "category": "Distributed multimodal framework",
+      "audience": "Builders who want distributed multimodal agent orchestration",
+      "orchestrationModel": "Distributed multi-modal agent orchestration in a microservices architecture",
+      "executionSubstrate": "Microservices-based orchestration across multimodal services",
+      "memoryContextModel": "Distributed processing state across services",
+      "operatorSurface": "Repo docs and microservice-oriented configuration",
+      "bestAt": "Distributed multimodal pipelines",
+      "tradeoff": "Different problem shape than a repo-grounded MCP control plane",
+      "stars": 60,
+      "url": "https://github.com/0xstely/nexus-agents",
+      "sources": [
+        "https://github.com/0xstely/nexus-agents",
+        "https://github.com/0xstely/nexus-agents#readme"
+      ]
+    }
+  ]
+}

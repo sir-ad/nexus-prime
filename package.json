@@ -26,6 +26,7 @@
   },
   "scripts": {
     "nexus:dev": "node dev-orchestrator.mjs",
+    "generate:competitive-landscape": "tsx scripts/generate-competitive-landscape.ts",
     "generate:readme-catalog": "tsx scripts/generate-readme-runtime-catalog.ts",
     "build": "tsc && cp src/dashboard/index.html dist/dashboard/index.html",
     "postinstall": "node -e \"const fs=require('fs'); const p='dist/postinstall-bootstrap.js'; if (fs.existsSync(p)) { import('./'+p); }\"",
@@ -33,7 +34,7 @@
     "start": "node dist/cli.js start",
     "init": "node dist/cli.js init",
     "test:public": "tsx test/public-surface.test.ts",
-    "test": "npm run build && tsx test/basic.test.ts && tsx test/memory.test.ts && tsx test/phantom.test.ts && tsx test/rag-collections.test.ts && tsx test/dashboard.test.ts && tsx test/docs.test.ts && npm run test:public",
+    "test": "npm run build && tsx test/basic.test.ts && tsx test/memory.test.ts && tsx test/phantom.test.ts && tsx test/rag-collections.test.ts && tsx test/dashboard.test.ts && tsx test/docs.test.ts && tsx test/competitive-landscape.test.ts && npm run test:public",
     "lint": "eslint src --ext .ts",
     "audit:prod": "npm audit --omit=dev",
     "smoke:release": "tsx scripts/release-smoke.ts",
