@@ -4,6 +4,7 @@ import * as path from 'path';
 import { execSync } from 'child_process';
 import type { Adapter } from '../core/types.js';
 import { nexusEventBus } from './event-bus.js';
+import { readBootstrapManifest } from './client-bootstrap.js';
 
 export type ClientStatus = 'primaryActive' | 'active' | 'idle' | 'installed' | 'offline';
 export type ClientSource = 'adapter-heartbeat' | 'manual' | 'env' | 'process' | 'recent-session' | 'heuristic' | 'none';
@@ -312,6 +313,11 @@ export class ClientRegistry {
         if (envSignal) {
             evidence.push(envSignal);
         }
+        const bootstrapSignal = this.detectBootstrapSignal(descriptor.clientId);
+        if (bootstrapSignal.evidence) {
+            evidence.push(bootstrapSignal.evidence);
+            lastSeen = Math.max(lastSeen, bootstrapSignal.updatedAt ?? 0);
+        }
 
         const processOutput = this.readProcessSnapshot();
         if (descriptor.aliases.some((alias) => processOutput.includes(alias))) {
@@ -349,16 +355,6 @@ export class ClientRegistry {
             };
         }
 
-        if (evidence.includes('process marker detected')) {
-            return {
-                state: 'idle',
-                source: 'process',
-                confidence: 0.74,
-                evidence,
-                lastSeen: Date.now(),
-            };
-        }
-
         if (recentSession) {
             return {
                 state: 'idle',
@@ -366,6 +362,26 @@ export class ClientRegistry {
                 confidence: 0.63,
                 evidence,
                 lastSeen: lastSeen || undefined,
+            };
+        }
+
+        if (bootstrapSignal.state === 'installed') {
+            return {
+                state: 'installed',
+                source: 'heuristic',
+                confidence: 0.68,
+                evidence,
+                lastSeen: lastSeen || undefined,
+            };
+        }
+
+        if (evidence.includes('process marker detected')) {
+            return {
+                state: 'idle',
+                source: 'process',
+                confidence: 0.74,
+                evidence,
+                lastSeen: Date.now(),
             };
         }
 
@@ -380,6 +396,36 @@ export class ClientRegistry {
         }
 
         return { state: 'offline', source: 'none', confidence: 0, evidence: [] };
+    }
+
+    private detectBootstrapSignal(clientId: string): {
+        state: 'installed' | 'offline';
+        evidence?: string;
+        updatedAt?: number;
+    } {
+        const manifest = readBootstrapManifest();
+        if (!manifest?.clients?.length) {
+            return { state: 'offline' };
+        }
+        const targetId = this.toBootstrapClientId(clientId);
+        const match = manifest.clients.find((client) => client.clientId === targetId);
+        if (!match) {
+            return { state: 'offline' };
+        }
+        if (match.state === 'installed' || match.state === 'drifted') {
+            return {
+                state: 'installed',
+                evidence: `bootstrap:${match.state}`,
+                updatedAt: match.updatedAt,
+            };
+        }
+        return { state: 'offline' };
+    }
+
+    private toBootstrapClientId(clientId: string): string {
+        if (clientId === 'claude-code') return 'claude';
+        if (clientId === 'openclaw') return 'antigravity';
+        return clientId;
     }
 
     private getPrimaryCandidate(records: ClientRecord[]): ClientRecord | undefined {

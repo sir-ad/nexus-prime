@@ -1,6 +1,6 @@
 /**
- * Nexus Prime - The Self-Evolving Agent Operating System
- * 
+ * Nexus Prime - Local-first MCP control plane for coding agents.
+ *
  * @module nexus-prime
  */
 

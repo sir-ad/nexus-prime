@@ -22,6 +22,12 @@ import { MergeOracle } from './merge-oracle.js';
 export { MergeOracle };
 import { entanglementEngine } from '../engines/index.js';
 import {
+    WorktreeDoctorError,
+    doctorGitWorktrees,
+    summarizeWorktreeHealth,
+    toWorktreeRemediation,
+} from '../engines/worktree-health.js';
+import {
     TokenSupremacyEngine,
     type FileRef,
     type ReadingPlan
@@ -239,11 +245,22 @@ export class PhantomWorker {
     private async createWorktree(): Promise<void> {
         fs.mkdirSync(path.dirname(this.worktreeDir), { recursive: true });
 
+        await doctorGitWorktrees(this.repoRoot);
+
         // Detached worktrees avoid ref-lock conflicts and are sufficient for diff-only execution.
-        await exec(
-            `git worktree add --detach "${this.worktreeDir}"`,
-            { cwd: this.repoRoot }
-        );
+        try {
+            await exec(
+                `git worktree add --detach "${this.worktreeDir}"`,
+                { cwd: this.repoRoot }
+            );
+        } catch (error: any) {
+            const health = await doctorGitWorktrees(this.repoRoot);
+            throw new WorktreeDoctorError(
+                `Unable to prepare phantom worker worktree. ${summarizeWorktreeHealth(health)}`,
+                health,
+                toWorktreeRemediation(error, this.worktreeDir),
+            );
+        }
     }
 
     private async captureDiff(): Promise<string> {
@@ -278,7 +295,7 @@ export class PhantomWorker {
                 .split('\n')
                 .filter(line => line.startsWith('worktree '))
                 .map(line => line.replace('worktree ', '').trim())
-                .filter(p => p.includes('nexus-phantom'));
+                .filter(p => p.includes('nexus-phantom') || p.includes('nexus-prime-worktrees'));
         } catch {
             return [];
         }

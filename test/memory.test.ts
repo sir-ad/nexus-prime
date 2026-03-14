@@ -145,6 +145,19 @@ async function runTests() {
     assert(audit.scanned >= 4, `Audit scans stored memories (got ${audit.scanned})`);
     assert(Array.isArray(audit.findings), 'Audit returns structured findings');
     assert(Array.isArray(mem.listQuarantined(10)), 'Quarantine listing is available');
+    const snapshots = mem.listSnapshots(10);
+    assert(snapshots.every((snapshot: any) => typeof snapshot.scope === 'string'), 'Snapshots expose memory scope');
+    assert(snapshots.every((snapshot: any) => typeof snapshot.state === 'string'), 'Snapshots expose memory state');
+    assert(snapshots.every((snapshot: any) => typeof snapshot.relevanceScore === 'number'), 'Snapshots expose relevance score');
+    assert(snapshots.every((snapshot: any) => typeof snapshot.importanceScore === 'number'), 'Snapshots expose importance score');
+    const health = mem.getHealthSummary();
+    assert(typeof health.shared === 'number', 'Memory health summary exposes shared count');
+    const exported = mem.exportBundle({ limit: 10 });
+    assert(Array.isArray(exported.items) && exported.items.length >= 4, 'Memory export bundle includes stored items');
+    const backup = mem.backupBundle({ limit: 10 });
+    assert(fs.existsSync(backup.path), 'Memory backup writes a portable bundle file');
+    const importResult = mem.importBundle({ path: backup.path });
+    assert(typeof importResult.duplicates === 'number', 'Memory import reports duplicate handling');
 
     // ── Persistence ───────────────────────────────────────────────────────────
     console.log('\n💿 Persistence (close + reload)');

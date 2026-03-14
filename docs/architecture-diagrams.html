@@ -2,485 +2,509 @@
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Architecture Diagrams | Nexus Prime</title>
-    <meta name="description"
-        content="System diagrams for the Nexus Prime runtime, memory topology, token flow, Phantom Worker swarms, and request handling lifecycle." />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link
-        href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Inter:wght@300;400;500;600;700;900&display=swap"
-        rel="stylesheet" />
-    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
-    <script defer src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            if (window.mermaid) {
-                mermaid.initialize({
-                    startOnLoad: true,
-                    theme: 'dark',
-                    themeVariables: {
-                        primaryColor: '#0d1828',
-                        primaryTextColor: '#e2f5ff',
-                        lineColor: '#00d4ff',
-                        secondaryColor: '#111a28',
-                        tertiaryColor: '#040810'
-                    }
-                });
-            }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Architecture Diagrams | Nexus Prime</title>
+  <meta name="description" content="Shipped architecture diagrams for the Nexus Prime control plane, worktree execution lifecycle, memory fabric, RAG gate, token budgeting, dashboard truth, and release pipeline." />
+  <link rel="canonical" href="https://sir-ad.github.io/nexus-prime/architecture-diagrams.html" />
+  <meta property="og:title" content="Architecture Diagrams | Nexus Prime" />
+  <meta property="og:description" content="Shipped system diagrams for the Nexus Prime control plane." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://sir-ad.github.io/nexus-prime/architecture-diagrams.html" />
+  <meta property="og:image" content="https://sir-ad.github.io/nexus-prime/assets/screenshots/dashboard_runtime_overview.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:image" content="https://sir-ad.github.io/nexus-prime/assets/screenshots/dashboard_runtime_overview.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <script defer src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      if (window.mermaid) {
+        mermaid.initialize({
+          startOnLoad: true,
+          theme: 'dark',
+          themeVariables: {
+            primaryColor: '#0d1828',
+            primaryTextColor: '#e2f5ff',
+            lineColor: '#00d4ff',
+            secondaryColor: '#111a28',
+            tertiaryColor: '#040810',
+          },
         });
-    </script>
-    <style>
-        :root {
-            --green: #00ff88;
-            --cyan: #00d4ff;
-            --purple: #8b5cf6;
-            --amber: #fbbf24;
-            --bg: #040810;
-            --surface: rgba(13, 24, 40, 0.82);
-            --border: rgba(0, 255, 136, 0.12);
-            --text: #e2f5ff;
-            --text-dim: #7a9bb0;
-            --text-muted: #3d5570;
-        }
+      }
+    });
+  </script>
+  <style>
+    :root {
+      --green: #00ff88;
+      --cyan: #00d4ff;
+      --amber: #fbbf24;
+      --bg: #040810;
+      --surface: rgba(13, 24, 40, 0.82);
+      --border: rgba(0, 255, 136, 0.12);
+      --text: #e2f5ff;
+      --text-dim: #7a9bb0;
+    }
 
-        *,
-        *::before,
-        *::after {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
+    * {
+      box-sizing: border-box;
+    }
 
-        html {
-            scroll-behavior: smooth;
-        }
+    body {
+      margin: 0;
+      font-family: 'Inter', sans-serif;
+      background: radial-gradient(circle at top, rgba(0, 212, 255, 0.08), transparent 38%), var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
 
-        body {
-            font-family: 'Inter', sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            line-height: 1.6;
-        }
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      padding: 16px 32px;
+      background: rgba(4, 8, 16, 0.9);
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(18px);
+    }
 
-        body::before {
-            content: '';
-            position: fixed;
-            inset: 0;
-            background-image: radial-gradient(circle at top, rgba(0, 212, 255, 0.08), transparent 40%),
-                linear-gradient(rgba(0, 255, 136, 0.03) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(0, 255, 136, 0.03) 1px, transparent 1px);
-            background-size: auto, 60px 60px, 60px 60px;
-            pointer-events: none;
-            z-index: 0;
-        }
+    .nav-logo {
+      color: var(--green);
+      text-decoration: none;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+    }
 
-        nav {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            z-index: 100;
-            padding: 16px 48px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            background: rgba(4, 8, 16, 0.86);
-            backdrop-filter: blur(20px);
-            border-bottom: 1px solid var(--border);
-        }
+    .nav-links {
+      display: flex;
+      gap: 20px;
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
 
-        .nav-logo {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 18px;
-            font-weight: 700;
-            color: var(--green);
-            text-decoration: none;
-        }
+    .nav-links a,
+    .mobile-links a,
+    .sidebar a,
+    footer a {
+      color: var(--text-dim);
+      text-decoration: none;
+    }
 
-        .nav-links {
-            display: flex;
-            gap: 28px;
-            list-style: none;
-        }
+    .nav-links a.active,
+    .nav-links a:hover,
+    .mobile-links a:hover,
+    .sidebar a:hover,
+    footer a:hover {
+      color: var(--green);
+    }
 
-        .nav-links a,
-        .footer-links a,
-        .sidebar a {
-            text-decoration: none;
-            color: var(--text-dim);
-            transition: color 0.2s;
-        }
+    .nav-cta {
+      color: var(--bg);
+      background: var(--green);
+      padding: 10px 16px;
+      border-radius: 8px;
+      text-decoration: none;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+      font-weight: 700;
+    }
 
-        .nav-links a:hover,
-        .nav-links a.active,
-        .footer-links a:hover,
-        .sidebar a:hover {
-            color: var(--green);
-        }
+    .mobile-nav {
+      display: none;
+      width: 100%;
+      margin-top: 12px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: rgba(13, 24, 40, 0.94);
+    }
 
-        .nav-cta {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 13px;
-            font-weight: 600;
-            color: var(--bg);
-            background: var(--green);
-            padding: 8px 20px;
-            border-radius: 4px;
-            text-decoration: none;
-        }
+    .mobile-nav summary {
+      list-style: none;
+      cursor: pointer;
+      padding: 12px 16px;
+      color: var(--green);
+      font-family: 'JetBrains Mono', monospace;
+    }
 
-        .page {
-            max-width: 1440px;
-            margin: 100px auto 48px;
-            padding: 0 48px;
-            display: grid;
-            grid-template-columns: 260px 1fr;
-            gap: 32px;
-            position: relative;
-            z-index: 1;
-        }
+    .mobile-nav summary::-webkit-details-marker {
+      display: none;
+    }
 
-        .sidebar {
-            position: sticky;
-            top: 100px;
-            align-self: start;
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 18px;
-            padding: 24px;
-        }
+    .mobile-links {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 0 16px 16px;
+    }
 
-        .sidebar h2 {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 12px;
-            text-transform: uppercase;
-            letter-spacing: 0.12em;
-            color: var(--cyan);
-            margin-bottom: 16px;
-        }
+    .page {
+      max-width: 1440px;
+      margin: 96px auto 40px;
+      padding: 0 32px;
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      gap: 24px;
+    }
 
-        .sidebar ul {
-            list-style: none;
-            display: grid;
-            gap: 12px;
-        }
+    .sidebar,
+    .hero,
+    .diagram-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.32);
+    }
 
-        .content {
-            display: grid;
-            gap: 24px;
-        }
+    .sidebar {
+      position: sticky;
+      top: 92px;
+      align-self: start;
+      padding: 24px;
+    }
 
-        .hero,
-        .diagram-card {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 18px;
-            padding: 28px;
-            box-shadow: 0 24px 80px rgba(0, 0, 0, 0.35);
-        }
+    .sidebar h2 {
+      margin: 0 0 14px;
+      color: var(--cyan);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.78rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
 
-        .eyebrow {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 12px;
-            letter-spacing: 0.12em;
-            text-transform: uppercase;
-            color: var(--cyan);
-            margin-bottom: 12px;
-        }
+    .sidebar ul {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: grid;
+      gap: 12px;
+    }
 
-        h1 {
-            font-size: clamp(2.2rem, 4vw, 3.8rem);
-            line-height: 1.05;
-            margin-bottom: 16px;
-        }
+    .content {
+      display: grid;
+      gap: 20px;
+    }
 
-        .hero p,
-        .diagram-card p {
-            color: var(--text-dim);
-        }
+    .hero,
+    .diagram-card {
+      padding: 28px;
+    }
 
-        .diagram-card h2 {
-            margin-bottom: 8px;
-            font-size: 1.45rem;
-        }
+    .eyebrow {
+      color: var(--cyan);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
 
-        .mermaid {
-            margin-top: 20px;
-            background: rgba(4, 8, 16, 0.72);
-            border: 1px solid rgba(0, 212, 255, 0.14);
-            border-radius: 14px;
-            padding: 20px;
-            overflow-x: auto;
-        }
+    h1 {
+      margin: 0 0 12px;
+      font-size: clamp(2.1rem, 4vw, 3.4rem);
+      line-height: 1.08;
+    }
 
-        footer {
-            margin-top: 24px;
-            padding: 28px 0 8px;
-            border-top: 1px solid var(--border);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 24px;
-            flex-wrap: wrap;
-        }
+    h2 {
+      margin: 0 0 8px;
+      font-size: 1.4rem;
+    }
 
-        .footer-logo {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 13px;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
-        }
+    p {
+      margin: 0;
+      color: var(--text-dim);
+    }
 
-        .footer-links {
-            display: flex;
-            gap: 18px;
-            flex-wrap: wrap;
-        }
+    .mermaid {
+      margin-top: 18px;
+      background: rgba(4, 8, 16, 0.72);
+      border: 1px solid rgba(0, 212, 255, 0.14);
+      border-radius: 14px;
+      padding: 20px;
+      overflow-x: auto;
+    }
 
-        @media (max-width: 1024px) {
-            nav {
-                padding: 16px 20px;
-                flex-wrap: wrap;
-                gap: 12px;
-            }
+    .caption {
+      margin-top: 12px;
+      color: var(--text-dim);
+      font-size: 0.92rem;
+    }
 
-            .page {
-                grid-template-columns: 1fr;
-                padding: 0 20px;
-            }
+    footer {
+      max-width: 1440px;
+      margin: 0 auto 32px;
+      padding: 0 32px;
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+      color: var(--text-dim);
+    }
 
-            .sidebar {
-                position: static;
-            }
+    @media (max-width: 980px) {
+      .page {
+        grid-template-columns: 1fr;
+      }
 
-            .nav-links {
-                gap: 14px;
-                flex-wrap: wrap;
-            }
-        }
-    </style>
+      .sidebar {
+        position: static;
+      }
+    }
+
+    @media (max-width: 860px) {
+      .nav-links,
+      .nav-cta {
+        display: none;
+      }
+
+      .mobile-nav {
+        display: block;
+      }
+
+      nav {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .page,
+      footer {
+        padding-left: 20px;
+        padding-right: 20px;
+      }
+    }
+  </style>
 </head>
 
 <body>
-    <nav>
-        <a class="nav-logo" href="index.html">nexus-prime</a>
-        <ul class="nav-links">
-            <li><a href="index.html">Overview</a></li>
-            <li><a href="knowledge-base.html">Knowledge Base</a></li>
-            <li><a href="integrations.html">Integrations</a></li>
-            <li><a href="architecture-diagrams.html" class="active">Architecture Diagrams</a></li>
-        </ul>
-        <a class="nav-cta" href="index.html#documentation">Docs Home →</a>
-    </nav>
+  <nav>
+    <a class="nav-logo" href="./index.html">nexus-prime</a>
+    <ul class="nav-links">
+      <li><a href="./index.html">Overview</a></li>
+      <li><a href="./catalog.html">Catalog</a></li>
+      <li><a href="./knowledge-base.html">Knowledge Base</a></li>
+      <li><a href="./integrations.html">Integrations</a></li>
+      <li><a href="./architecture-diagrams.html" class="active">Architecture Diagrams</a></li>
+    </ul>
+    <a class="nav-cta" href="./knowledge-base.html">Docs Home →</a>
+    <details class="mobile-nav">
+      <summary>Menu</summary>
+      <div class="mobile-links">
+        <a href="./index.html">Overview</a>
+        <a href="./catalog.html">Catalog</a>
+        <a href="./knowledge-base.html">Knowledge Base</a>
+        <a href="./integrations.html">Integrations</a>
+        <a href="./architecture-diagrams.html">Architecture Diagrams</a>
+        <a href="https://github.com/sir-ad/nexus-prime" target="_blank" rel="noopener">GitHub</a>
+      </div>
+    </details>
+  </nav>
 
-    <main class="page">
-        <aside class="sidebar">
-            <h2>Diagram Index</h2>
-            <ul>
-                <li><a href="#system-architecture">System Architecture</a></li>
-                <li><a href="#memory-tier">Memory Tier Visualization</a></li>
-                <li><a href="#token-flow">Token Optimization Flow</a></li>
-                <li><a href="#self-awareness">Agent Self-Awareness Loop</a></li>
-                <li><a href="#phantom-swarm">Phantom Worker Swarm</a></li>
-                <li><a href="#stack">Super Intellect Stack</a></li>
-                <li><a href="#request-lifecycle">Request Handling Lifecycle</a></li>
-                <li><a href="#semantic-encoding">Semantic Encoding</a></li>
-            </ul>
-        </aside>
+  <div class="page">
+    <aside class="sidebar">
+      <h2>Diagram Index</h2>
+      <ul>
+        <li><a href="#control-plane">Control Plane and Entrypoints</a></li>
+        <li><a href="#decision-flow">Orchestration Contract</a></li>
+        <li><a href="#worktree-lifecycle">Worktree Execution Lifecycle</a></li>
+        <li><a href="#memory-fabric">Memory Fabric and Reconciliation</a></li>
+        <li><a href="#rag-gate">RAG Ingestion and Retrieval Gate</a></li>
+        <li><a href="#token-flow">Source-Aware Token Budget</a></li>
+        <li><a href="#runtime-truth">Dashboard and Runtime Truth</a></li>
+        <li><a href="#release-pipeline">CI and Release Pipeline</a></li>
+      </ul>
+    </aside>
 
-        <section class="content">
-            <article class="hero">
-                <div class="eyebrow">Draft Diagrams, Website-Native</div>
-                <h1>Architecture schematics for the live Nexus Prime runtime.</h1>
-                <p>This page promotes the previous markdown-only diagrams into a site page that can be linked from the
-                    public website. The diagrams cover runtime composition, tiered memory, token planning, Phantom
-                    swarms, and request execution.</p>
-            </article>
+    <main class="content">
+      <section class="hero">
+        <div class="eyebrow">Shipped System Diagrams</div>
+        <h1>Architecture that matches the product you can run today.</h1>
+        <p>These diagrams describe the shipped control plane: bootstrap, orchestrate, worktree-backed execution, memory reconciliation, RAG gating, token budgeting, runtime truth, and release hardening.</p>
+      </section>
 
-            <article class="diagram-card" id="system-architecture">
-                <h2>1. System Architecture</h2>
-                <p>Top-level relationship between MCP, core engines, advanced backends, and the Phantom swarm.</p>
-                <div class="mermaid">
-flowchart TB
-    User["Agent (AntiGravity)"]:::client
-    subgraph Nexus["Nexus Prime runtime"]
-        MCP["MCP Adapter"]:::adapter
-        subgraph Core["Core Engines"]
-            direction TB
-            Memory["Memory Engine<br/>(3-tier)"]:::engine
-            Tokens["Token Supremacy<br/>(HyperTune)"]:::engine
-            Guard["MindKit Bridge<br/>(Machine Checked)"]:::engine
-        end
-        subgraph Phase9["Innovation Layer"]
-            direction RL
-            Entangle["Entanglement Engine<br/>(Agent Telepathy)"]:::innovation
-            CAS["CAS Engine<br/>(Continuous Attention)"]:::innovation
-            KV["KV-Bridge<br/>(Aggressive Compression)"]:::innovation
-        end
-    end
-    subgraph Swarm["Phantom Swarm"]
-        GP["Ghost Pass"]:::swarm
-        PW["Workers (Worktrees)"]:::swarm
-        OR["Merge Oracle"]:::swarm
-    end
-    User <--> MCP
-    MCP <--> Core
-    Core <--> Phase9
-    MCP <--> Swarm
-    classDef client fill:#000,stroke:#00ff88,color:#00ff88
-    classDef adapter fill:#1a1a1a,stroke:#00d4ff,color:#00d4ff
-    classDef engine fill:#1a1a1a,stroke:#8b5cf6,color:#8b5cf6
-    classDef innovation fill:#2e1065,stroke:#d946ef,color:#d946ef
-    classDef swarm fill:#450a0a,stroke:#ef4444,color:#ef4444
-                </div>
-            </article>
-
-            <article class="diagram-card" id="memory-tier">
-                <h2>2. Memory Tier Visualization</h2>
-                <p>How working, episodic, and long-term memory move facts across the runtime.</p>
-                <div class="mermaid">
-graph TD
-    Input["New Fact/Insight"] --> P
-    subgraph Memory["Tiered Architecture"]
-        P["Prefrontal (RAM)<br/>Top 7 - Active Context"]:::tier1
-        H["Hippocampus (RAM)<br/>Recent 200 - Session Memory"]:::tier2
-        C["Cortex (SQLite)<br/>Unlimited - Long-term Knowledge"]:::tier3
-    end
-    P <-->|"Promote/Demote"| H
-    H <-->|"Flush/Fetch"| C
-    classDef tier1 fill:#064e3b,stroke:#059669,color:#fff
-    classDef tier2 fill:#14532d,stroke:#16a34a,color:#fff
-    classDef tier3 fill:#0f172a,stroke:#3b82f6,color:#fff
-                </div>
-            </article>
-
-            <article class="diagram-card" id="token-flow">
-                <h2>3. Token Optimization Flow</h2>
-                <p>How the runtime scores files and produces a read plan before expensive exploration.</p>
-                <div class="mermaid">
-sequenceDiagram
-    participant A as Agent
-    participant T as Token Supremacy
-    participant F as Filesystem
-    A->>T: nexus_optimize_tokens(task, files)
-    T->>F: Read AST/Metadata
-    F-->>T: Structure returned
-    T->>T: Score Relevance (TF-IDF)
-    T->>T: Check Budget (HyperTune)
-    T-->>A: Reading Plan (READ | OUTLINE | SKIP)
-                </div>
-            </article>
-
-            <article class="diagram-card" id="self-awareness">
-                <h2>4. Agent Self-Awareness Loop</h2>
-                <p>The recall-plan-verify-execute-store cycle that keeps sessions accumulating useful memory.</p>
-                <div class="mermaid">
+      <section class="diagram-card" id="control-plane">
+        <h2>1. Control Plane and Entrypoints</h2>
+        <p>External clients stay on a short path while Nexus picks the execution shape internally.</p>
+        <div class="mermaid">
 flowchart LR
-    A["Recall Memory"] --> B["Plan Task"]
-    B --> C["Verify Guardrails"]
-    C --> D["Execute / Solve"]
-    D --> E["Store Insight"]
-    E --> A
-    style A stroke:#00ff88,stroke-width:2px
-    style E stroke:#00ff88,stroke-width:2px
-                </div>
-            </article>
+    Client["Client (Codex, Cursor, Claude, Windsurf, Antigravity)"]
+    Bootstrap["nexus_session_bootstrap"]
+    Orchestrate["nexus_orchestrate"]
+    Plan["nexus_plan_execution (optional)"]
+    Runtime["SubAgent Runtime"]
+    Dashboard["Dashboard + API"]
 
-            <article class="diagram-card" id="phantom-swarm">
-                <h2>5. Phantom Worker Swarm</h2>
-                <p>Ghost Pass, isolated worktrees, POD synchronization, and the Merge Oracle synthesis loop.</p>
-                <div class="mermaid">
-stateDiagram-v2
-    [*] --> GhostPass: Task Triggered
-    GhostPass --> WorkerSpawn: Analysis Complete
-    state WorkerSpawn {
-        Worker_A: approach=safe
-        Worker_B: approach=aggressive
-    }
-    Worker_A --> POD: Learnings
-    Worker_B --> POD: Learnings
-    POD --> MergeOracle: Sync state
-    MergeOracle --> Winner: Synthesis
-    Winner --> [*]: Final Merge
-                </div>
-            </article>
+    Client --> Bootstrap
+    Bootstrap --> Plan
+    Bootstrap --> Orchestrate
+    Plan --> Orchestrate
+    Orchestrate --> Runtime
+    Runtime --> Dashboard
+    Runtime --> Client
+        </div>
+        <div class="caption">The public contract stays small even when the internal runtime is richer.</div>
+      </section>
 
-            <article class="diagram-card" id="stack">
-                <h2>6. Super Intellect Stack</h2>
-                <p>The language stack that lifts files into MCP tools and higher-level semantic orchestration.</p>
-                <div class="mermaid">
-graph BT
-    L1["File / Raw Code"] --- L2["JSON Objects"]
-    L2 --- L3["MCP Tools"]
-    L3 --- L4["Grain Primitives"]
-    L4 --- L5["Thought (Natural Language)"]
-    subgraph Stack["Nexus Prime Layer"]
-        L4
-    end
-                </div>
-            </article>
+      <section class="diagram-card" id="decision-flow">
+        <h2>2. Orchestration Contract</h2>
+        <p>Every non-trivial run passes through the same decision path before mutation.</p>
+        <div class="mermaid">
+flowchart TD
+    Start["Bootstrap session"]
+    Recall["Recall memory + stats"]
+    Decompose["Task graph + worker plan"]
+    Budget["Source-aware token budget"]
+    Score["Artifact scoring"]
+    Audit["Artifact selection audit"]
+    Execute["Runtime execution"]
+    Verify["Verification + governance"]
+    Learn["Learning + continuation decision"]
 
-            <article class="diagram-card" id="request-lifecycle">
-                <h2>7. Request Handling Lifecycle</h2>
-                <p>The full request path from tool call through guardrails, token planning, workers, merge, and memory.</p>
-                <div class="mermaid">
+    Start --> Recall --> Decompose --> Budget --> Score --> Audit --> Execute --> Verify --> Learn
+        </div>
+        <div class="caption">The planner, artifact audit, and token budget are part of the normal runtime contract, not optional operator rituals.</div>
+      </section>
+
+      <section class="diagram-card" id="worktree-lifecycle">
+        <h2>3. Worktree Execution Lifecycle</h2>
+        <p>Runtime workers and verifiers run in isolated worktrees, with preflight repair and bounded failure handling.</p>
+        <div class="mermaid">
 sequenceDiagram
-    participant U as User / Agent (Cursor/Claude)
-    participant M as MCP Adapter
-    participant G as MindKit Guardrails
-    participant T as Token Optimizer
-    participant E as Core Engines (Memory/Evolution)
-    participant W as Phantom Workers
-    U->>M: Call Tool (e.g., nexus_spawn_workers)
-    M->>G: nexus_mindkit_check(action, files)
-    G->>G: Static AST Analysis
-    G-->>M: PASS (Score: 0.95)
-    M->>T: nexus_optimize_tokens(task, files)
-    T->>T: Greedy Knapsack Optimization
-    T-->>M: Reading Plan (READ/OUTLINE/SKIP)
-    M->>E: Execute Logic
-    E->>E: Memory Recall (Semantic/Vector)
-    E->>W: Spawn parallel worktrees (Git Worktrees)
-    W-->>E: POD Network Learning Broadcast
-    E->>E: Merge Oracle (Synthesis)
-    E->>E: Store Experience (Hippocampus -> Cortex)
-    E-->>M: Final Result (Confidence: 0.9)
-    M-->>U: JSON-RPC Response
-                </div>
-            </article>
+    participant O as Orchestrator
+    participant D as Worktree Doctor
+    participant G as Git Worktree
+    participant C as Coder Worker
+    participant V as Verifier
+    participant R as Runtime Snapshot
 
-            <article class="diagram-card" id="semantic-encoding">
-                <h2>8. Language Specifications & Semantic Encoding</h2>
-                <p>How source logic is structurally parsed and elevated into a language-agnostic semantic layer.</p>
-                <div class="mermaid">
+    O->>D: inspect + prune stale metadata
+    D-->>O: health snapshot
+    O->>G: git worktree add --detach
+    G-->>C: isolated worktree
+    C->>V: handoff candidate patch
+    V->>R: record verification result + worktree health
+    V->>G: cleanup worktree
+    G-->>R: cleanup status
+        </div>
+        <div class="caption">If worktree creation degrades, Nexus records that explicitly and returns a short remediation path instead of a raw git wall.</div>
+      </section>
+
+      <section class="diagram-card" id="memory-fabric">
+        <h2>4. Memory Fabric and Reconciliation</h2>
+        <p>Nexus stores distilled facts, decisions, and failure modes rather than treating raw transcripts as first-class long-term memory.</p>
+        <div class="mermaid">
 flowchart LR
-    File["Source Code (.ts, .py, .go)"] --> Parse["Structural Parsing (AST/Logic)"]
-    Parse --> Signature["Identify Functional Signatures"]
-    Signature --> Encode["WaveEncoder (Oscillatory Patterns)"]
-    subgraph Semantic["Universal Semantic Layer"]
-        Encode --> Wave["WavePattern { amplitude, phase, freq }"]
-        Wave --> Energy["Attention Equilibrium (TF-IDF/Graph)"]
-    end
-    Energy --> Decode["Pattern Decoder"]
-    Decode --> Action["Agent Execution / Tool Output"]
-    style Semantic fill:#0f172a,stroke:#3b82f6,color:#fff
-                </div>
-            </article>
+    Input["Run output / worker output / operator note"]
+    Extract["Fact extractor"]
+    Reconcile["Memory reconciler"]
+    Decision{"Action"}
+    Graph["Graph projector"]
+    Vault["Vault projector"]
+    Scopes["Session / Shared / Project / User / Promoted"]
 
-            <footer>
-                <div class="footer-logo">⬡ nexus-prime docs</div>
-                <div class="footer-links">
-                    <a href="index.html">Overview</a>
-                    <a href="knowledge-base.html">Knowledge Base</a>
-                    <a href="integrations.html">Integrations</a>
-                    <a href="architecture-diagrams.html">Architecture Diagrams</a>
-                    <a href="https://github.com/sir-ad/nexus-prime" target="_blank" rel="noopener">GitHub</a>
-                </div>
-            </footer>
-        </section>
+    Input --> Extract --> Reconcile --> Decision
+    Decision -->|ADD / UPDATE / MERGE| Graph
+    Decision -->|QUARANTINE / DELETE / NONE| Scopes
+    Graph --> Vault
+    Vault --> Scopes
+        </div>
+        <div class="caption">Relevance, importance, trust, freshness, scope, and state stay attached to every memory item.</div>
+      </section>
+
+      <section class="diagram-card" id="rag-gate">
+        <h2>5. RAG Ingestion and Retrieval Gate</h2>
+        <p>RAG remains session-first and orchestrator-owned. Collections are never dumped wholesale into the runtime prompt.</p>
+        <div class="mermaid">
+flowchart TD
+    Source["File / URL / Raw text"]
+    Ingest["Chunk + embed + tag"]
+    Attach["Attach collection to runtime"]
+    Gate["RAG gate"]
+    Select["Top matching chunks"]
+    Drop["Dropped by budget"]
+    Packet["Planner / packet / runtime context"]
+    Memory["Distilled facts only"]
+
+    Source --> Ingest --> Attach --> Gate
+    Gate --> Select --> Packet
+    Gate --> Drop
+    Packet --> Memory
+        </div>
+        <div class="caption">Only distilled facts can promote into longer-lived memory, and even that goes through reconciliation and provenance checks.</div>
+      </section>
+
+      <section class="diagram-card" id="token-flow">
+        <h2>6. Source-Aware Token Budget</h2>
+        <p>Budgeting spans repo, memory, RAG, patterns, and runtime traces across planning and execution phases.</p>
+        <div class="mermaid">
+flowchart TD
+    Sources["Repo + Memory + RAG + Patterns + Runtime traces"]
+    Rank["Rank by relevance, trust, and cost"]
+    Allocate["Allocate by phase"]
+    Keep["Selected context"]
+    Skip["Dropped context"]
+    Trace["Persisted by-source telemetry"]
+
+    Sources --> Rank --> Allocate
+    Allocate --> Keep
+    Allocate --> Skip
+    Keep --> Trace
+    Skip --> Trace
+        </div>
+        <div class="caption">The dashboard can answer where tokens came from, what was compressed away, and what the latest orchestrated run actually spent them on.</div>
+      </section>
+
+      <section class="diagram-card" id="runtime-truth">
+        <h2>7. Dashboard and Runtime Truth Data Flow</h2>
+        <p>The UI does not invent state from whichever process hosts it. It renders persisted runtime snapshots.</p>
+        <div class="mermaid">
+flowchart LR
+    Runtime["Runtime snapshot"]
+    Registry["Runtime registry"]
+    API["Dashboard API"]
+    UI["Dashboard views"]
+    Inspector["Inspector + event stream"]
+
+    Runtime --> Registry --> API --> UI
+    Registry --> Inspector
+    API --> Inspector
+        </div>
+        <div class="caption">Lifetime token telemetry, worktree health, artifact audit, worker plan, client bootstrap truth, and memory health all flow from persisted runtime data.</div>
+      </section>
+
+      <section class="diagram-card" id="release-pipeline">
+        <h2>8. CI and Release Pipeline</h2>
+        <p>Release readiness is treated as an explicit pipeline instead of a loose checklist.</p>
+        <div class="mermaid">
+flowchart LR
+    PR["Pull request"]
+    Quality["Build + lint + tests + pack dry-run"]
+    Audit["Dependency audit + workflow lint"]
+    Smoke["Bootstrap + setup + dashboard + MCP smoke"]
+    Merge["Merge to main"]
+    Pages["Docs deploy"]
+    Release["GitHub release + npm publish"]
+
+    PR --> Quality --> Audit --> Smoke --> Merge --> Pages --> Release
+        </div>
+        <div class="caption">The same quality path should back local QA, PR checks, docs deploy confidence, and publish readiness.</div>
+      </section>
     </main>
+  </div>
+
+  <footer>
+    <div>MIT License © 2026 Sir-Ad.</div>
+    <div>
+      <a href="./catalog.html">Catalog</a> ·
+      <a href="./knowledge-base.html">Knowledge Base</a> ·
+      <a href="./integrations.html">Integrations</a> ·
+      <a href="./index.html">Overview</a>
+    </div>
+  </footer>
 </body>
 
 </html>

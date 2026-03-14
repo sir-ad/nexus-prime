@@ -15,6 +15,8 @@ npm run build
 npm run lint
 npm test
 npm pack --dry-run
+npm run audit:prod
+npm run smoke:release
 ```
 
 Hard blockers:
@@ -22,6 +24,8 @@ Hard blockers:
 - Test failure
 - Public-surface scan failure
 - Package dry-run failure
+- Production dependency audit failure
+- Release smoke failure
 
 Lint policy:
 - Zero lint errors repo-wide
@@ -31,8 +35,9 @@ Lint policy:
 ## 3. Run product smoke checks
 - Confirm MCP autonomous profile shows `nexus_session_bootstrap` and `nexus_orchestrate` first
 - Confirm a non-trivial orchestrated run records planner, token, and sequence fields
+- Confirm worktree health is recorded and stale Nexus-owned worktree metadata self-heals before execution
 - Confirm the dashboard renders persisted runtime truth and token/provenance data
-- Confirm docs landing page, integrations page, and knowledge base load correctly
+- Confirm docs landing page, catalog page, integrations page, and knowledge base load correctly
 
 ## 4. Review before merge
 - Use the PR template checklist

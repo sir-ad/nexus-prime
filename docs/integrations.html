@@ -7,6 +7,14 @@
     <title>Integrations | Nexus Prime</title>
     <meta name="description"
         content="Verified client setup for Nexus Prime across Cursor, Claude Code, Opencode, Windsurf, Antigravity/OpenClaw, and Codex guidance." />
+    <link rel="canonical" href="https://sir-ad.github.io/nexus-prime/integrations.html" />
+    <meta property="og:title" content="Integrations | Nexus Prime" />
+    <meta property="og:description" content="Verified client setup for Nexus Prime across Cursor, Claude Code, Opencode, Windsurf, Antigravity/OpenClaw, and Codex guidance." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://sir-ad.github.io/nexus-prime/integrations.html" />
+    <meta property="og:image" content="https://sir-ad.github.io/nexus-prime/assets/screenshots/dashboard_runtime_overview.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="https://sir-ad.github.io/nexus-prime/assets/screenshots/dashboard_runtime_overview.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link
         href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Inter:wght@300;400;500;600;700;900&display=swap"
@@ -109,6 +117,39 @@
             background: var(--green);
             padding: 8px 20px;
             border-radius: 4px;
+            text-decoration: none;
+        }
+
+        .mobile-nav {
+            display: none;
+            width: 100%;
+            margin-top: 12px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: rgba(13, 24, 40, 0.94);
+        }
+
+        .mobile-nav summary {
+            list-style: none;
+            cursor: pointer;
+            padding: 12px 16px;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--green);
+        }
+
+        .mobile-nav summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .mobile-nav-links {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding: 0 16px 16px;
+        }
+
+        .mobile-nav-links a {
+            color: var(--text-dim);
             text-decoration: none;
         }
 
@@ -248,6 +289,14 @@
                 gap: 12px;
             }
 
+            .nav-links {
+                display: none;
+            }
+
+            .mobile-nav {
+                display: block;
+            }
+
             .page {
                 padding: 0 20px;
             }
@@ -256,25 +305,32 @@
             .grid {
                 grid-template-columns: 1fr;
             }
-
-            .nav-links {
-                gap: 14px;
-                flex-wrap: wrap;
-            }
         }
     </style>
 </head>
 
 <body>
     <nav>
-        <a class="nav-logo" href="index.html">nexus-prime</a>
+        <a class="nav-logo" href="./index.html">nexus-prime</a>
         <ul class="nav-links">
-            <li><a href="index.html">Overview</a></li>
-            <li><a href="knowledge-base.html">Knowledge Base</a></li>
-            <li><a href="integrations.html" class="active">Integrations</a></li>
-            <li><a href="architecture-diagrams.html">Architecture Diagrams</a></li>
+            <li><a href="./index.html">Overview</a></li>
+            <li><a href="./catalog.html">Catalog</a></li>
+            <li><a href="./knowledge-base.html">Knowledge Base</a></li>
+            <li><a href="./integrations.html" class="active">Integrations</a></li>
+            <li><a href="./architecture-diagrams.html">Architecture Diagrams</a></li>
         </ul>
-        <a class="nav-cta" href="index.html#documentation">Docs Home →</a>
+        <a class="nav-cta" href="./index.html#documentation">Docs Home →</a>
+        <details class="mobile-nav">
+            <summary>Menu</summary>
+            <div class="mobile-nav-links">
+                <a href="./index.html">Overview</a>
+                <a href="./catalog.html">Catalog</a>
+                <a href="./knowledge-base.html">Knowledge Base</a>
+                <a href="./integrations.html">Integrations</a>
+                <a href="./architecture-diagrams.html">Architecture Diagrams</a>
+                <a href="https://github.com/sir-ad/nexus-prime" target="_blank" rel="noopener">GitHub</a>
+            </div>
+        </details>
     </nav>
 
     <main class="page">
@@ -288,11 +344,11 @@
             <div class="hero-card">
                 <div class="eyebrow">Docs Shortcuts</div>
                 <div class="quick-links">
-                    <a class="quick-link" href="knowledge-base.html">
+                    <a class="quick-link" href="./knowledge-base.html">
                         <strong>Knowledge Base</strong>
                         <span>Core concepts, runtime behaviors, and API reference.</span>
                     </a>
-                    <a class="quick-link" href="architecture-diagrams.html">
+                    <a class="quick-link" href="./architecture-diagrams.html">
                         <strong>Architecture Diagrams</strong>
                         <span>Visual schematics for memory, swarms, tokens, and request flow.</span>
                     </a>
@@ -307,7 +363,7 @@
         <section class="grid">
             <article class="panel" id="automated-setup">
                 <h2>Automated Setup</h2>
-                <p>The fastest path installs both MCP config and the right client-native Nexus Prime instructions.</p>
+                <p>The fastest path installs both MCP config and the right client-native Nexus Prime instructions. Home-scoped bootstrap is also established automatically on install or first binary start, and the first Nexus run in a repo writes workspace-scoped files.</p>
                 <pre><code># Globally install first
 npm install -g nexus-prime
 
@@ -316,7 +372,8 @@ nexus-prime setup cursor
 nexus-prime setup claude
 nexus-prime setup opencode
 nexus-prime setup windsurf
-nexus-prime setup antigravity</code></pre>
+nexus-prime setup antigravity
+nexus-prime setup all</code></pre>
             </article>
 
             <article class="panel" id="verification">
@@ -324,6 +381,7 @@ nexus-prime setup antigravity</code></pre>
                 <ol>
                     <li>Open the AI or settings pane in your tool.</li>
                     <li>Confirm `nexus-prime-mcp` appears in connected servers.</li>
+                    <li>Use <code>nexus-prime bootstrap status</code> if you want to inspect the persisted bootstrap manifest across clients.</li>
                     <li>Call <code>nexus_session_bootstrap</code> with a real task to verify the bridge and the default execution path.</li>
                     <li>For non-trivial work, follow with <code>nexus_orchestrate</code> instead of manually chaining low-level tools.</li>
                 </ol>
@@ -331,6 +389,10 @@ nexus-prime setup antigravity</code></pre>
 
             <article class="panel" id="clients">
                 <h2>Supported Tools</h2>
+                <h3>Codex</h3>
+                <p>Automated: <code>nexus-prime setup codex</code><br />Project instruction:
+                    <code>AGENTS.md</code> (managed Nexus Prime bootstrap block)</p>
+
                 <h3>Cursor</h3>
                 <p>Automated: <code>nexus-prime setup cursor</code><br />MCP config:
                     <code>~/.cursor/mcp.json</code><br />Project rule:
@@ -356,8 +418,6 @@ nexus-prime setup antigravity</code></pre>
                     <code>~/.antigravity/mcp.json</code><br />Home-scoped skill bundle:
                     <code>~/.antigravity/skills/nexus-prime/</code></p>
 
-                <h3>Codex</h3>
-                <p>Codex uses the repo-local <code>AGENTS.md</code> plus the autonomous MCP profile. There is no separate Codex-only setup artifact today.</p>
             </article>
 
             <article class="panel" id="troubleshooting">
@@ -382,10 +442,11 @@ nexus-prime setup antigravity</code></pre>
         <footer>
             <div class="footer-logo">⬡ nexus-prime docs</div>
             <div class="footer-links">
-                <a href="index.html">Overview</a>
-                <a href="knowledge-base.html">Knowledge Base</a>
-                <a href="integrations.html">Integrations</a>
-                <a href="architecture-diagrams.html">Architecture Diagrams</a>
+                <a href="./index.html">Overview</a>
+                <a href="./catalog.html">Catalog</a>
+                <a href="./knowledge-base.html">Knowledge Base</a>
+                <a href="./integrations.html">Integrations</a>
+                <a href="./architecture-diagrams.html">Architecture Diagrams</a>
                 <a href="https://github.com/sir-ad/nexus-prime" target="_blank" rel="noopener">GitHub</a>
             </div>
         </footer>

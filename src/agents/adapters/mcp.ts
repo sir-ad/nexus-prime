@@ -125,6 +125,11 @@ const MANUAL_OR_DIAGNOSTIC_TOOLS = new Set<string>([
     'nexus_automation_run',
     'nexus_automation_revoke',
     'nexus_memory_audit',
+    'nexus_memory_export',
+    'nexus_memory_import',
+    'nexus_memory_backup',
+    'nexus_memory_maintain',
+    'nexus_memory_trace',
     'nexus_darwin_propose',
     'nexus_darwin_review',
     'nexus_net_publish',
@@ -162,44 +167,16 @@ class SessionTelemetry {
     recordStore() { this.memoriesStored++; }
     recordRecall(count: number) { this.memoriesRecalled += count; }
 
-    private box(title: string, rows: [string, string][]): string {
-        const W = 44;
-        const top = `┌─ ${title} ${'─'.repeat(Math.max(0, W - title.length - 4))}┐`;
-        const bot = `└${'─'.repeat(W - 1)}┘`;
-        const lines = rows.map(([k, v]) => {
-            const content = `${k.padEnd(10)}│ ${v}`;
-            return `│ ${content.padEnd(W - 3)}│`;
-        });
-        return [top, ...lines, bot].join('\n');
-    }
-
-    /** Rich inline notification for memory store events */
     notifyStore(priority: number, tags: string[], memStats: { cortex: number; totalLinks: number }): string {
-        return '\n' + this.box('💾 STORED', [
-            ['Priority', `${priority}`],
-            ['Tags', tags.join(', ') || 'none'],
-            ['Cortex', `${memStats.cortex} memories`],
-            ['Zettel', `${memStats.totalLinks} links`],
-        ]);
+        return `\nMemory telemetry: priority ${priority.toFixed(2)} · tags ${tags.join(', ') || 'none'} · cortex ${memStats.cortex} · zettel ${memStats.totalLinks}`;
     }
 
-    /** Rich inline notification for memory recall events */
     notifyRecall(count: number, query: string, memStats: { hippocampus: number; cortex: number }): string {
-        return '\n' + this.box('🧠 RECALLED', [
-            ['Matches', `${count}`],
-            ['Query', query.slice(0, 28)],
-            ['Hippo', `${memStats.hippocampus}/200`],
-            ['Cortex', `${memStats.cortex} entries`],
-        ]);
+        return `\nMemory telemetry: ${count} recalled · query "${query.slice(0, 28)}" · hippocampus ${memStats.hippocampus}/200 · cortex ${memStats.cortex}`;
     }
 
-    /** Rich inline notification for token optimization events */
     notifyTokens(task: string, savings: number, pct: number, fileCount: number): string {
-        return '\n' + this.box('⚡ TOKENS', [
-            ['Saved', `${savings.toLocaleString()} (${pct}%)`],
-            ['Files', `${fileCount} routed`],
-            ['Total', `${(this.tokensOptimized / 1000).toFixed(1)}k saved`],
-        ]);
+        return `\nToken telemetry: saved ${savings.toLocaleString()} (${pct}%) across ${fileCount} files · lifetime saved ${(this.tokensOptimized / 1000).toFixed(1)}k`;
     }
 
     /** Contextual planning nudges based on what just happened */
@@ -251,8 +228,16 @@ class SessionTelemetry {
             `${this.callCount} calls`,
             memStats ? `${memStats.totalLinks} Zettel links` : null,
         ].filter(Boolean);
-        return `\n─── 📡 Nexus Prime (${uptimeStr}) ───\n${parts.join(' │ ')}`;
+        return `\nSession telemetry (${uptimeStr}): ${parts.join(' · ')}`;
     }
+}
+
+function formatBullets(lines: Array<string | null | undefined>): string {
+    return lines.filter(Boolean).map((line) => `- ${line}`).join('\n');
+}
+
+function formatJsonDetails(label: string, value: unknown): string {
+    return `\n\n${label}\n\`\`\`json\n${JSON.stringify(value, null, 2)}\n\`\`\``;
 }
 
 export class MCPAdapter implements Adapter {
@@ -429,6 +414,62 @@ export class MCPAdapter implements Adapter {
                     name: 'nexus_memory_stats',
                     description: 'Get deep stats about the Graph Knowledge Engine: tier counts, top tags, and Zettelkasten links. Use this to gauge available knowledge depth before starting research.',
                     inputSchema: { type: 'object', properties: {}, required: [] },
+                },
+                {
+                    name: 'nexus_memory_export',
+                    description: 'Expert surface: export a portable Nexus memory bundle by scope/state/session.',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {
+                            limit: { type: 'number', description: 'Optional maximum exported items' },
+                            scope: { type: 'string', enum: ['session', 'project', 'user', 'promoted', 'shared'], description: 'Optional memory scope filter' },
+                            state: { type: 'string', enum: ['active', 'quarantined', 'scrap'], description: 'Optional memory state filter' },
+                            sessionId: { type: 'string', description: 'Optional session filter' },
+                        },
+                        required: [],
+                    },
+                },
+                {
+                    name: 'nexus_memory_backup',
+                    description: 'Expert surface: export a portable memory bundle and persist it to the Nexus memory vault exports directory.',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {
+                            limit: { type: 'number', description: 'Optional maximum exported items' },
+                            scope: { type: 'string', enum: ['session', 'project', 'user', 'promoted', 'shared'], description: 'Optional memory scope filter' },
+                            state: { type: 'string', enum: ['active', 'quarantined', 'scrap'], description: 'Optional memory state filter' },
+                            sessionId: { type: 'string', description: 'Optional session filter' },
+                        },
+                        required: [],
+                    },
+                },
+                {
+                    name: 'nexus_memory_import',
+                    description: 'Expert surface: import a previously exported portable memory bundle into Nexus memory.',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {
+                            path: { type: 'string', description: 'Absolute path to a previously exported memory bundle' },
+                            bundle: { type: 'object', description: 'Inline memory bundle payload when importing programmatically' },
+                        },
+                        required: [],
+                    },
+                },
+                {
+                    name: 'nexus_memory_maintain',
+                    description: 'Expert surface: run memory maintenance to expire TTL memories, cool stale entries, and quarantine or scrap low-signal items.',
+                    inputSchema: { type: 'object', properties: {}, required: [] },
+                },
+                {
+                    name: 'nexus_memory_trace',
+                    description: 'Expert surface: inspect one memory item with lineage, backlinks, and reconciliation details.',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {
+                            id: { type: 'string', description: 'Memory ID to inspect' },
+                        },
+                        required: ['id'],
+                    },
                 },
                 {
                     name: 'nexus_session_bootstrap',
@@ -1125,6 +1166,16 @@ export class MCPAdapter implements Adapter {
             ];
     }
 
+    private shouldAppendTelemetryFooter(toolName: string): boolean {
+        return !new Set([
+            'nexus_session_bootstrap',
+            'nexus_orchestrate',
+            'nexus_memory_stats',
+            'nexus_store_memory',
+            'nexus_ghost_pass',
+        ]).has(toolName);
+    }
+
     private setupToolHandlers() {
         this.server.setRequestHandler(ListToolsRequestSchema, async () => {
             const profile = this.getToolProfile();
@@ -1150,10 +1201,9 @@ export class MCPAdapter implements Adapter {
             this.sessionDNA.recordToolCall();
             const result = await this.handleToolCall(request);
 
-            // Inject telemetry footer into every response
-            const memStats = this.nexusRef.memory.getStats();
-            const footer = this.telemetry.format(memStats);
-            if (result.content && Array.isArray(result.content) && result.content.length > 0) {
+            if (this.shouldAppendTelemetryFooter(String(request.params?.name ?? '')) && result.content && Array.isArray(result.content) && result.content.length > 0) {
+                const memStats = this.nexusRef.memory.getStats();
+                const footer = this.telemetry.format(memStats);
                 const last = result.content[result.content.length - 1];
                 if (last && typeof last === 'object' && 'text' in last) {
                     (last as any).text += footer;
@@ -1199,21 +1249,46 @@ export class MCPAdapter implements Adapter {
                     ? (request.params.arguments.files as unknown[]).map(String)
                     : undefined;
                 const bootstrap = await this.getOrchestrator().bootstrapSession(bootstrapGoal, { files });
+                const payload = {
+                    client: bootstrap.client,
+                    memoryRecall: bootstrap.memoryRecall,
+                    memoryStats: bootstrap.memoryStats,
+                    recommendedNextStep: bootstrap.recommendedNextStep,
+                    recommendedExecutionMode: bootstrap.recommendedExecutionMode,
+                    shortlist: bootstrap.shortlist,
+                    tokenOptimization: bootstrap.tokenOptimization,
+                    reviewGates: bootstrap.reviewGates,
+                    catalogHealth: bootstrap.catalogHealth,
+                    sourceMixRecommendation: bootstrap.sourceMixRecommendation,
+                    ragCandidateStatus: bootstrap.ragCandidateStatus,
+                    clientBootstrapStatus: bootstrap.clientBootstrapStatus,
+                    artifactSelectionAudit: bootstrap.artifactSelectionAudit,
+                    taskGraphPreview: bootstrap.taskGraphPreview,
+                    workerPlanPreview: bootstrap.workerPlanPreview,
+                    knowledgeFabric: bootstrap.knowledgeFabric,
+                    mcpToolProfile: this.getToolProfile(),
+                };
                 return {
                     content: [{
                         type: 'text',
-                        text: JSON.stringify({
-                            client: bootstrap.client,
-                            memoryRecall: bootstrap.memoryRecall,
-                            memoryStats: bootstrap.memoryStats,
-                            recommendedNextStep: bootstrap.recommendedNextStep,
-                            recommendedExecutionMode: bootstrap.recommendedExecutionMode,
-                            shortlist: bootstrap.shortlist,
-                            tokenOptimization: bootstrap.tokenOptimization,
-                            reviewGates: bootstrap.reviewGates,
-                            knowledgeFabric: bootstrap.knowledgeFabric,
-                            mcpToolProfile: this.getToolProfile(),
-                        }, null, 2),
+                        text: [
+                            'Session bootstrap ready.',
+                            formatBullets([
+                                `Client: ${bootstrap.client?.displayName || bootstrap.client?.clientId || 'unknown'} (${bootstrap.client?.state || 'unknown'})`,
+                                `Memory recall: ${bootstrap.memoryRecall?.count ?? 0} result(s)`,
+                                `Memory stats: prefrontal ${bootstrap.memoryStats?.prefrontal ?? 0} · hippocampus ${bootstrap.memoryStats?.hippocampus ?? 0} · cortex ${bootstrap.memoryStats?.cortex ?? 0}`,
+                                `Recommended next step: ${bootstrap.recommendedNextStep || 'nexus_orchestrate'}`,
+                                `Execution mode: ${bootstrap.recommendedExecutionMode || 'autonomous'}`,
+                                `Token optimization: ${bootstrap.tokenOptimization?.required ? 'required before broad reading' : 'not required yet'}`,
+                                `Catalog health: ${bootstrap.catalogHealth?.overall || 'unknown'} · selected ${bootstrap.artifactSelectionAudit?.selected?.length || 0}`,
+                                `Knowledge fabric: ${bootstrap.sourceMixRecommendation?.dominantSource || bootstrap.knowledgeFabric?.dominantSource || 'awaiting source mix'}`,
+                                `RAG: ${bootstrap.ragCandidateStatus?.attachedCollections || 0} attached · ${bootstrap.ragCandidateStatus?.retrievedChunks || 0} retrieved`,
+                                `Task graph: ${bootstrap.taskGraphPreview?.phases?.length || 0} phases · ${bootstrap.taskGraphPreview?.independentBranches || 0} branches`,
+                                `Worker plan: ${bootstrap.workerPlanPreview?.totalWorkers || 0} lanes planned`,
+                                `Bootstrap status: ${bootstrap.clientBootstrapStatus?.clients?.length || 0} client manifests tracked`,
+                            ]),
+                            formatJsonDetails('Structured details', payload),
+                        ].join('\n\n'),
                     }],
                 };
             }
@@ -1247,53 +1322,113 @@ export class MCPAdapter implements Adapter {
                 const optimizationProfile = request.params.arguments?.optimizationProfile
                     ? String(request.params.arguments.optimizationProfile) as 'standard' | 'max'
                     : undefined;
+                try {
+                    const execution = await this.nexusRef.orchestrate(prompt, {
+                        files,
+                        workers,
+                        skillNames: skills,
+                        workflowSelectors: workflows,
+                        hookSelectors: hooks,
+                        automationSelectors: automations,
+                        crewSelectors: crews,
+                        specialistSelectors: specialists,
+                        optimizationProfile,
+                    });
+                    const verifiedWorkers = execution.workerResults.filter((worker) => worker.verified).length;
+                    execution.activeSkills.forEach((skill) => this.sessionDNA.recordSkill(skill.name));
+                    execution.workerResults.forEach((result) => {
+                        result.modifiedFiles.forEach((file) => this.sessionDNA.recordFileModified(file));
+                    });
+                    const runtimeUsage = this.getRuntime().getUsageSnapshot();
+                    this.sessionDNA.recordDecision(
+                        'Orchestrated autonomous run completed',
+                        execution.result || summarizeExecution(execution),
+                        execution.state === 'merged' ? 0.95 : execution.state === 'rolled_back' ? 0.55 : 0.3
+                    );
+                    const payload = {
+                        runId: execution.runId,
+                        state: execution.state,
+                        result: execution.result,
+                        summary: summarizeExecution(execution),
+                        artifactsPath: execution.artifactsPath,
+                        planner: execution.plannerState
+                            ? {
+                                selectedCrew: execution.plannerState.selectedCrew?.name,
+                                selectedSpecialists: execution.plannerState.selectedSpecialists.map((specialist) => specialist.name),
+                                selectedSkills: execution.plannerState.selectedSkills,
+                                selectedWorkflows: execution.plannerState.selectedWorkflows,
+                                reviewGates: execution.plannerState.reviewGates.map((gate) => `${gate.gate}:${gate.status}`),
+                            }
+                            : undefined,
+                        selectionAudit: runtimeUsage.artifactSelectionAudit,
+                        artifactOutcome: runtimeUsage.artifactOutcome ?? execution.artifactOutcome,
+                        workerPlan: runtimeUsage.workerPlan ?? execution.workerPlan,
+                        taskGraph: runtimeUsage.taskGraph ?? execution.taskGraph,
+                        tokenBudget: runtimeUsage.sourceAwareTokenBudget,
+                        catalogHealth: runtimeUsage.catalogHealth,
+                        bootstrapManifestStatus: runtimeUsage.bootstrapManifestStatus,
+                        worktreeHealth: runtimeUsage.worktreeHealth,
+                        ragUsageSummary: runtimeUsage.ragUsageSummary ?? execution.ragUsageSummary,
+                        memoryScopeUsage: runtimeUsage.memoryScopeUsage ?? execution.memoryScopeUsage,
+                        memoryReconciliationSummary: runtimeUsage.memoryReconciliationSummary ?? execution.memoryReconciliationSummary,
+                        tokens: execution.tokenTelemetry,
+                        verifiedWorkers,
+                        continuationChildren: execution.continuationChildren,
+                    };
 
-                const execution = await this.nexusRef.orchestrate(prompt, {
-                    files,
-                    workers,
-                    skillNames: skills,
-                    workflowSelectors: workflows,
-                    hookSelectors: hooks,
-                    automationSelectors: automations,
-                    crewSelectors: crews,
-                    specialistSelectors: specialists,
-                    optimizationProfile,
-                });
-                const verifiedWorkers = execution.workerResults.filter((worker) => worker.verified).length;
-                execution.activeSkills.forEach((skill) => this.sessionDNA.recordSkill(skill.name));
-                execution.workerResults.forEach((result) => {
-                    result.modifiedFiles.forEach((file) => this.sessionDNA.recordFileModified(file));
-                });
-                this.sessionDNA.recordDecision(
-                    'Orchestrated autonomous run completed',
-                    execution.result || summarizeExecution(execution),
-                    execution.state === 'merged' ? 0.95 : execution.state === 'rolled_back' ? 0.55 : 0.3
-                );
-
-                return {
-                    content: [{
-                        type: 'text',
-                        text: JSON.stringify({
-                            runId: execution.runId,
-                            state: execution.state,
-                            result: execution.result,
-                            summary: summarizeExecution(execution),
-                            artifactsPath: execution.artifactsPath,
-                            planner: execution.plannerState
-                                ? {
-                                    selectedCrew: execution.plannerState.selectedCrew?.name,
-                                    selectedSpecialists: execution.plannerState.selectedSpecialists.map((specialist) => specialist.name),
-                                    selectedSkills: execution.plannerState.selectedSkills,
-                                    selectedWorkflows: execution.plannerState.selectedWorkflows,
-                                    reviewGates: execution.plannerState.reviewGates.map((gate) => `${gate.gate}:${gate.status}`),
-                                }
-                                : undefined,
-                            tokens: execution.tokenTelemetry,
-                            verifiedWorkers,
-                            continuationChildren: execution.continuationChildren,
-                        }, null, 2),
-                    }],
-                };
+                    return {
+                        content: [{
+                            type: 'text',
+                            text: [
+                                `Orchestrated run ${execution.state}.`,
+                                formatBullets([
+                                    `Run ID: ${execution.runId}`,
+                                    `Summary: ${summarizeExecution(execution)}`,
+                                    `Crew: ${execution.plannerState?.selectedCrew?.name || 'baseline path'}`,
+                                    `Specialists: ${execution.plannerState?.selectedSpecialists.map((specialist) => specialist.name).slice(0, 4).join(', ') || 'none selected'}`,
+                                    `Assets: ${(execution.activeSkills || []).length} skills · ${(execution.activeWorkflows || []).length} workflows · ${(runtimeUsage.artifactSelectionAudit?.selected?.length || 0)} audited selections`,
+                                    `Task graph: ${runtimeUsage.taskGraph?.phases?.length || execution.taskGraph?.phases?.length || 0} phases · ${runtimeUsage.workerPlan?.totalWorkers || execution.workerPlan?.totalWorkers || 0} worker lanes`,
+                                    `Catalog health: ${runtimeUsage.catalogHealth?.overall || 'unknown'}`,
+                                    `Verification: ${verifiedWorkers}/${execution.workerResults.length} worker(s) verified`,
+                                    `Worktrees: ${runtimeUsage.worktreeHealth?.overall || 'unknown'} · repaired ${runtimeUsage.worktreeHealth?.repairedEntries || 0} · broken ${runtimeUsage.worktreeHealth?.brokenEntries || 0}`,
+                                    `Tokens: saved ${Number(execution.tokenTelemetry?.savedTokens || 0).toLocaleString()} · compression ${Number(execution.tokenTelemetry?.compressionPct || 0)}% · dominant ${runtimeUsage.sourceAwareTokenBudget?.dominantSource || execution.knowledgeFabric?.sourceMix?.dominantSource || 'repo'}`,
+                                    `RAG: ${(runtimeUsage.ragUsageSummary?.attachedCollections || execution.knowledgeFabric?.rag.attachedCollections.length || 0)} attached · ${(runtimeUsage.ragUsageSummary?.retrievedChunks || execution.knowledgeFabric?.rag.hits.length || 0)} retrieved`,
+                                    `Memory scopes: ${Object.entries(runtimeUsage.memoryScopeUsage?.byScope || execution.memoryScopeUsage?.byScope || {}).map(([scope, count]) => `${scope}:${count}`).join(' · ') || 'awaiting shared/session reads'}`,
+                                ]),
+                                execution.result ? `Result\n\`\`\`\n${execution.result}\n\`\`\`` : '',
+                                formatJsonDetails('Structured details', payload),
+                            ].filter(Boolean).join('\n\n'),
+                        }],
+                    };
+                } catch (error: any) {
+                    const runtimeUsage = this.getRuntime().getUsageSnapshot();
+                    const worktreeHealth = runtimeUsage?.worktreeHealth;
+                    const remediation = Array.isArray(error?.remediation) ? error.remediation : [];
+                    const message = String(error?.message || error || 'Unknown orchestrate failure');
+                    const payload = {
+                        state: 'failed',
+                        summary: 'Orchestrated run failed before completion.',
+                        error: message,
+                        remediation,
+                        worktreeHealth,
+                        skipReasons: runtimeUsage?.skipReasons || [],
+                    };
+                    return {
+                        content: [{
+                            type: 'text',
+                            text: [
+                                'Orchestrated run failed before completion.',
+                                formatBullets([
+                                    `Cause: ${message.split('\n')[0]}`,
+                                    `Worktrees: ${worktreeHealth?.overall || 'unknown'} · repaired ${worktreeHealth?.repairedEntries || 0} · broken ${worktreeHealth?.brokenEntries || 0}`,
+                                    remediation.length ? `Remediation: ${remediation.join(' · ')}` : 'Remediation: rerun after pruning stale worktree metadata or repairing the repo worktree state',
+                                    runtimeUsage?.skipReasons?.length ? `Skipped stages: ${runtimeUsage.skipReasons.join(' · ')}` : 'Skipped stages: not recorded',
+                                ]),
+                                formatJsonDetails('Structured details', payload),
+                            ].join('\n\n'),
+                        }],
+                    };
+                }
             }
 
             case 'nexus_store_memory': {
@@ -1346,7 +1481,18 @@ export class MCPAdapter implements Adapter {
                 return {
                     content: [{
                         type: 'text',
-                        text: `✅ Stored in Nexus memory (id: ${id}, priority: ${priority})\nTags: ${tags.join(', ') || 'none'}${autoGistNote}${notification}${nudge}`,
+                        text: [
+                            'Memory stored.',
+                            formatBullets([
+                                `ID: ${id}`,
+                                `Priority: ${priority.toFixed(2)}`,
+                                `Tags: ${tags.join(', ') || 'none'}`,
+                                `Content: ${content.slice(0, 140).replace(/\n+/g, ' ')}`,
+                                autoGistNote ? autoGistNote.replace(/^\s+/, '') : 'Relay publish: skipped',
+                            ]),
+                            notification,
+                            nudge,
+                        ].filter(Boolean).join('\n\n'),
                     }],
                 };
             }
@@ -1379,20 +1525,142 @@ export class MCPAdapter implements Adapter {
 
             case 'nexus_memory_stats': {
                 const stats = this.nexusRef.getMemoryStats();
+                const health = typeof this.nexusRef.getMemoryHealth === 'function'
+                    ? this.nexusRef.getMemoryHealth()
+                    : undefined;
                 return {
                     content: [{
                         type: 'text',
                         text: [
-                            '🧠 Nexus Prime Memory',
-                            `  Prefrontal (working):  ${stats.prefrontal} items`,
-                            `  Hippocampus (recent):  ${stats.hippocampus} items`,
-                            `  Cortex (long-term):    ${stats.cortex} items`,
-                            `  Zettelkasten links:    ${stats.totalLinks}`,
-                            `  Top tags: ${stats.topTags.join(', ') || 'none yet'}`,
-                            stats.oldestEntry
-                                ? `  Oldest entry: ${new Date(stats.oldestEntry).toLocaleDateString()}`
-                                : '  No memories yet.'
-                        ].join('\n'),
+                            'Memory inventory ready.',
+                            formatBullets([
+                                `Prefrontal: ${stats.prefrontal} item(s)`,
+                                `Hippocampus: ${stats.hippocampus} item(s)`,
+                                `Cortex: ${stats.cortex} item(s)`,
+                                `Zettelkasten links: ${stats.totalLinks}`,
+                                `Top tags: ${stats.topTags.join(', ') || 'none yet'}`,
+                                stats.oldestEntry
+                                    ? `Oldest entry: ${new Date(stats.oldestEntry).toLocaleDateString()}`
+                                    : 'Oldest entry: none yet',
+                                health ? `Health: ${health.active} active · ${health.quarantined} quarantined · ${health.shared} shared` : null,
+                            ]),
+                        ].join('\n\n'),
+                    }],
+                };
+            }
+
+            case 'nexus_memory_export': {
+                const result = this.nexusRef.exportMemoryBundle({
+                    limit: request.params.arguments?.limit == null ? undefined : Number(request.params.arguments.limit),
+                    scope: request.params.arguments?.scope ? String(request.params.arguments.scope) as any : undefined,
+                    state: request.params.arguments?.state ? String(request.params.arguments.state) as any : undefined,
+                    sessionId: request.params.arguments?.sessionId ? String(request.params.arguments.sessionId) : undefined,
+                });
+                return {
+                    content: [{
+                        type: 'text',
+                        text: [
+                            'Memory export ready.',
+                            formatBullets([
+                                `Session: ${result?.sessionId || 'n/a'}`,
+                                `Items: ${Number(result?.items?.length || 0)}`,
+                                `Generated: ${result?.exportedAt ? new Date(result.exportedAt).toISOString() : 'n/a'}`,
+                            ]),
+                            formatJsonDetails('Structured details', result ?? {}),
+                        ].join('\n\n'),
+                    }],
+                };
+            }
+
+            case 'nexus_memory_backup': {
+                const result = this.nexusRef.backupMemoryBundle({
+                    limit: request.params.arguments?.limit == null ? undefined : Number(request.params.arguments.limit),
+                    scope: request.params.arguments?.scope ? String(request.params.arguments.scope) as any : undefined,
+                    state: request.params.arguments?.state ? String(request.params.arguments.state) as any : undefined,
+                    sessionId: request.params.arguments?.sessionId ? String(request.params.arguments.sessionId) : undefined,
+                });
+                return {
+                    content: [{
+                        type: 'text',
+                        text: [
+                            'Memory backup written.',
+                            formatBullets([
+                                `Path: ${result?.path || 'n/a'}`,
+                                `Session: ${result?.bundle?.sessionId || 'n/a'}`,
+                                `Items: ${Number(result?.bundle?.items?.length || 0)}`,
+                            ]),
+                            formatJsonDetails('Structured details', result ?? {}),
+                        ].join('\n\n'),
+                    }],
+                };
+            }
+
+            case 'nexus_memory_import': {
+                const result = this.nexusRef.importMemoryBundle({
+                    path: request.params.arguments?.path ? String(request.params.arguments.path) : undefined,
+                    bundle: request.params.arguments?.bundle,
+                });
+                return {
+                    content: [{
+                        type: 'text',
+                        text: [
+                            'Memory import complete.',
+                            formatBullets([
+                                `Imported: ${Number(result?.imported || 0)}`,
+                                `Duplicates skipped: ${Number(result?.duplicates || 0)}`,
+                                `Quarantined on import: ${Number(result?.quarantined || 0)}`,
+                            ]),
+                            formatJsonDetails('Structured details', result ?? {}),
+                        ].join('\n\n'),
+                    }],
+                };
+            }
+
+            case 'nexus_memory_maintain': {
+                const result = this.nexusRef.maintainMemory();
+                return {
+                    content: [{
+                        type: 'text',
+                        text: [
+                            'Memory maintenance complete.',
+                            formatBullets([
+                                `Expired: ${Number(result?.expired || 0)}`,
+                                `Cooled: ${Number(result?.cooled || 0)}`,
+                                `Quarantined: ${Number(result?.quarantined || 0)}`,
+                                `Scrap marked: ${Number(result?.scrapMarked || 0)}`,
+                                `Retained active: ${Number(result?.retained || 0)}`,
+                            ]),
+                            formatJsonDetails('Structured details', result ?? {}),
+                        ].join('\n\n'),
+                    }],
+                };
+            }
+
+            case 'nexus_memory_trace': {
+                const id = String(request.params.arguments?.id ?? '');
+                const detail = this.nexusRef.traceMemory(id);
+                if (!detail) {
+                    return {
+                        content: [{
+                            type: 'text',
+                            text: `Memory trace unavailable for ${id}.`,
+                        }],
+                    };
+                }
+                return {
+                    content: [{
+                        type: 'text',
+                        text: [
+                            'Memory trace ready.',
+                            formatBullets([
+                                `ID: ${detail.id}`,
+                                `Scope: ${detail.scope} · state ${detail.state} · source ${detail.source}`,
+                                `Importance: ${Number(detail.importanceScore || 0).toFixed(2)} · relevance ${Number(detail.relevanceScore || 0).toFixed(2)} · trust ${Number(detail.trustScore || 0).toFixed(2)}`,
+                                `Lineage: ${detail.lineage?.length || 0} item(s) · backlinks ${detail.linkedMemories?.length || 0}`,
+                                `Reconciliation: ${detail.reconciliation?.action || 'none recorded'}`,
+                            ]),
+                            formatJsonDetails('Structured details', detail),
+                        ].join('\n\n'),
                     }],
                 };
             }
@@ -1492,21 +1760,6 @@ export class MCPAdapter implements Adapter {
                 const ghost = new GhostPass(process.cwd());
                 const report = await ghost.analyze(goal, files);
 
-                const text = [
-                    `👻 Ghost Pass — "${goal}"`,
-                    `Task ID: ${report.taskId}`,
-                    `Est. tokens: ${report.totalEstimatedTokens.toLocaleString()}`,
-                    '',
-                    `⚠️  Risks: ${report.riskAreas.length > 0 ? report.riskAreas.join(' | ') : 'none detected'}`,
-                    '',
-                    formatReadingPlan(report.readingPlan),
-                    '',
-                    `🔀 Worker Approaches:`,
-                    ...report.workerAssignments.map((w, i) =>
-                        `  ${i + 1}. "${w.approach}" — budget: ${w.tokenBudget.toLocaleString()} tokens`
-                    ),
-                ].join('\n');
-
                 this.nexusRef.storeMemory(
                     `Ghost pass for "${goal.slice(0, 80)}": ${report.riskAreas.length} risks identified.`,
                     0.6, ['#ghost-pass']
@@ -1524,7 +1777,25 @@ export class MCPAdapter implements Adapter {
                     `Workers Suggested: ${report.workerAssignments.length.toString().padEnd(46, ' ')}`
                 ], '33');
 
-                return { content: [{ type: 'text', text: text + ghostNudge }] };
+                return {
+                    content: [{
+                        type: 'text',
+                        text: [
+                            'Ghost pass complete.',
+                            formatBullets([
+                                `Task ID: ${report.taskId}`,
+                                `Estimated tokens: ${report.totalEstimatedTokens.toLocaleString()}`,
+                                `Risks: ${report.riskAreas.length ? report.riskAreas.join(' | ') : 'none detected'}`,
+                                `Worker approaches: ${report.workerAssignments.length}`,
+                            ]),
+                            'Reading plan\n```txt\n' + formatReadingPlan(report.readingPlan) + '\n```',
+                            report.workerAssignments.length
+                                ? formatBullets(report.workerAssignments.map((worker, index) => `Worker ${index + 1}: ${worker.approach} · budget ${worker.tokenBudget.toLocaleString()} tokens`))
+                                : '',
+                            ghostNudge,
+                        ].filter(Boolean).join('\n\n'),
+                    }],
+                };
             }
 
             case 'nexus_spawn_workers': {

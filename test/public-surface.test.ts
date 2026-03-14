@@ -27,6 +27,13 @@ const BLOCKED_PATTERNS: Array<{ pattern: RegExp; message: string }> = [
   { pattern: /NUXUS_PRIME_MCP/g, message: 'public docs should not contain the old setup typo' },
   { pattern: /20 MCP tools/g, message: 'public docs should not hardcode stale MCP tool counts' },
   { pattern: /v3\.0\.0 Stable/g, message: 'public docs should not present stale version banners as current state' },
+  { pattern: /dashboard_v3\.0\.png/g, message: 'public docs should not reference the retired dashboard_v3.0 screenshot' },
+  { pattern: /dashboard_v3\.8\.0\.png/g, message: 'public docs should not reference the retired dashboard_v3.8.0 screenshot' },
+  { pattern: /neural_hud\.png/g, message: 'public docs should not reference the retired neural_hud screenshot' },
+  { pattern: /swarm_trace\.png/g, message: 'public docs should not reference the retired swarm trace screenshot' },
+  { pattern: /\bPhase 9\b/g, message: 'public docs should not present stale phase labels as active architecture' },
+  { pattern: /\bEntanglement\b/g, message: 'public docs should not surface retired speculative architecture labels' },
+  { pattern: /\bSuper Intellect\b/g, message: 'public docs should not surface retired speculative architecture labels' },
 ];
 
 const ALLOWED_PUBLIC_EMAILS = new Set([
@@ -72,6 +79,29 @@ function test() {
       assert.ok(false, `${message}: ${path.relative(process.cwd(), filePath)}`);
     }
   }
+
+  const docsRoot = path.join(process.cwd(), 'docs');
+  const indexHtml = fs.readFileSync(path.join(docsRoot, 'index.html'), 'utf8');
+  const catalogHtml = fs.readFileSync(path.join(docsRoot, 'catalog.html'), 'utf8');
+  const knowledgeHtml = fs.readFileSync(path.join(docsRoot, 'knowledge-base.html'), 'utf8');
+  const integrationsHtml = fs.readFileSync(path.join(docsRoot, 'integrations.html'), 'utf8');
+  const architectureHtml = fs.readFileSync(path.join(docsRoot, 'architecture-diagrams.html'), 'utf8');
+  const robots = path.join(docsRoot, 'robots.txt');
+  const sitemap = path.join(docsRoot, 'sitemap.xml');
+
+  assert.ok(indexHtml.includes('rel="canonical"'), 'landing page should declare a canonical URL');
+  assert.ok(catalogHtml.includes('rel="canonical"'), 'catalog page should declare a canonical URL');
+  assert.ok(indexHtml.includes('property="og:image"'), 'landing page should declare an og:image');
+  assert.ok(indexHtml.includes('name="twitter:image"'), 'landing page should declare a Twitter preview image');
+  assert.ok(indexHtml.includes('dashboard_runtime_overview.png'), 'landing page should reference the current overview screenshot');
+  assert.ok(indexHtml.includes('dashboard_knowledge_focus.png'), 'landing page should reference the current knowledge screenshot');
+  assert.ok(catalogHtml.includes('./assets/feature-registry.json'), 'catalog page should load the generated feature registry asset');
+  assert.ok(knowledgeHtml.includes('rel="canonical"'), 'knowledge base should declare a canonical URL');
+  assert.ok(integrationsHtml.includes('rel="canonical"'), 'integrations should declare a canonical URL');
+  assert.ok(architectureHtml.includes('rel="canonical"'), 'architecture page should declare a canonical URL');
+  assert.ok(!knowledgeHtml.includes('target="_blank">GitHub'), 'knowledge base GitHub CTA should include rel="noopener"');
+  assert.ok(fs.existsSync(robots), 'docs should ship a robots.txt file');
+  assert.ok(fs.existsSync(sitemap), 'docs should ship a sitemap.xml file');
 
   console.log('✅ Public docs, releases, and workflow files passed the surface scan\n');
 }

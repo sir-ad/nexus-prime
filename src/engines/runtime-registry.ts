@@ -2,6 +2,8 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import type { KnowledgeFabricSnapshot } from './knowledge-fabric.js';
+import type { BootstrapManifestStatus } from './client-bootstrap.js';
+import type { WorktreeHealthSnapshot } from './worktree-health.js';
 import type {
     ExecutionLedger,
     InstructionPacket,
@@ -145,6 +147,155 @@ export interface RuntimeClientInstructionStatus {
     updatedAt: number;
 }
 
+export interface RuntimeCatalogHealthEntry {
+    available: number;
+    usable: number;
+    selected: number;
+    rejected: number;
+    readable: boolean;
+    localDirectory?: string;
+    localOverrideFiles?: number;
+    issues: string[];
+}
+
+export interface RuntimeCatalogHealthSnapshot {
+    scannedAt: number;
+    overall: 'healthy' | 'degraded';
+    issues: string[];
+    categories: {
+        skills: RuntimeCatalogHealthEntry;
+        workflows: RuntimeCatalogHealthEntry;
+        hooks: RuntimeCatalogHealthEntry;
+        automations: RuntimeCatalogHealthEntry;
+        specialists: RuntimeCatalogHealthEntry;
+        crews: RuntimeCatalogHealthEntry;
+    };
+}
+
+export interface RuntimeArtifactSelectionEntry {
+    kind: 'skill' | 'workflow' | 'hook' | 'automation' | 'specialist' | 'crew';
+    id: string;
+    name: string;
+    selected: boolean;
+    score: number;
+    source: 'explicit' | 'planner' | 'knowledge-fabric' | 'scorer';
+    confidence: 'high' | 'medium' | 'low';
+    reason: string;
+}
+
+export interface RuntimeArtifactSelectionAudit {
+    generatedAt: number;
+    summary: string;
+    selected: RuntimeArtifactSelectionEntry[];
+    rejected: RuntimeArtifactSelectionEntry[];
+}
+
+export interface RuntimeMemoryHealthSnapshot {
+    generatedAt: number;
+    total: number;
+    active: number;
+    quarantined: number;
+    scrap: number;
+    promoted: number;
+    shared: number;
+    topTags: string[];
+}
+
+export interface RuntimeSourceAwareTokenBudgetSnapshot {
+    applied: boolean;
+    reason: string;
+    totalBudget: number;
+    bySource: Record<string, number>;
+    byStage: Record<string, number>;
+    dropped: Array<{ sourceClass: string; label: string; reason: string }>;
+    dominantSource?: string;
+}
+
+export interface RuntimeTaskGraphPhase {
+    id: string;
+    title: string;
+    goal: string;
+    kind: 'research' | 'plan' | 'implement' | 'verify' | 'release';
+    branch: number;
+    dependsOn: string[];
+}
+
+export interface RuntimeTaskGraphSnapshot {
+    generatedAt: number;
+    summary: string;
+    branchCount: number;
+    independentBranches: number;
+    dominantKind: RuntimeTaskGraphPhase['kind'];
+    phases: RuntimeTaskGraphPhase[];
+}
+
+export interface RuntimeWorkerPlanLane {
+    role: 'planner' | 'coder' | 'researcher' | 'integrator' | 'reviewer' | 'continuation';
+    count: number;
+    reason: string;
+}
+
+export interface RuntimeWorkerPlanSnapshot {
+    generatedAt: number;
+    mode: RuntimeOrchestrationSnapshot['mode'];
+    totalWorkers: number;
+    continuationAllowed: boolean;
+    summary: string;
+    lanes: RuntimeWorkerPlanLane[];
+}
+
+export interface RuntimeArtifactOutcomeEntry {
+    kind: RuntimeArtifactSelectionEntry['kind'];
+    id: string;
+    name: string;
+    outcome: 'helpful' | 'neutral' | 'redundant' | 'harmful';
+    score: number;
+    reason: string;
+}
+
+export interface RuntimeArtifactOutcomeSnapshot {
+    generatedAt: number;
+    summary: string;
+    outcomes: RuntimeArtifactOutcomeEntry[];
+}
+
+export interface RuntimeRagUsageSummary {
+    generatedAt: number;
+    attachedCollections: number;
+    attachedNames: string[];
+    retrievedChunks: number;
+    selectedChunks: number;
+    droppedChunks: number;
+    dominantSource?: string;
+    usedInPlanner: boolean;
+    usedInPacket: boolean;
+    usedInRuntime: boolean;
+}
+
+export interface RuntimeMemoryScopeUsageSnapshot {
+    generatedAt: number;
+    byScope: Record<string, number>;
+    byState: Record<string, number>;
+    sharedContextCount: number;
+}
+
+export type MemoryReconciliationAction = 'ADD' | 'UPDATE' | 'MERGE' | 'DELETE' | 'NONE' | 'QUARANTINE';
+
+export interface RuntimeMemoryReconciliationEntry {
+    candidate: string;
+    action: MemoryReconciliationAction;
+    reason: string;
+    relatedIds: string[];
+    storedId?: string;
+    expiresAt?: number;
+}
+
+export interface RuntimeMemoryReconciliationSummary {
+    generatedAt: number;
+    actionCounts: Record<MemoryReconciliationAction, number>;
+    entries: RuntimeMemoryReconciliationEntry[];
+}
+
 export interface RuntimeRegistrySnapshot {
     runtimeId: string;
     pid: number;
@@ -176,6 +327,18 @@ export interface RuntimeRegistrySnapshot {
     lastToolCalls?: string[];
     sequenceCompliance?: RuntimeSequenceComplianceSnapshot;
     clientInstructionStatus?: RuntimeClientInstructionStatus;
+    catalogHealth?: RuntimeCatalogHealthSnapshot;
+    artifactSelectionAudit?: RuntimeArtifactSelectionAudit;
+    artifactOutcome?: RuntimeArtifactOutcomeSnapshot;
+    memoryHealth?: RuntimeMemoryHealthSnapshot;
+    memoryScopeUsage?: RuntimeMemoryScopeUsageSnapshot;
+    memoryReconciliationSummary?: RuntimeMemoryReconciliationSummary;
+    bootstrapManifestStatus?: BootstrapManifestStatus;
+    sourceAwareTokenBudget?: RuntimeSourceAwareTokenBudgetSnapshot;
+    taskGraph?: RuntimeTaskGraphSnapshot;
+    workerPlan?: RuntimeWorkerPlanSnapshot;
+    ragUsageSummary?: RuntimeRagUsageSummary;
+    worktreeHealth?: WorktreeHealthSnapshot;
 }
 
 export interface ListedRuntimeSnapshot extends RuntimeRegistrySnapshot {

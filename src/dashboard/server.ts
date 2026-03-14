@@ -11,6 +11,7 @@ import { ClientRegistry } from '../engines/client-registry.js';
 import type { SubAgentRuntime } from '../phantom/runtime.js';
 import { RuntimeRegistry } from '../engines/runtime-registry.js';
 import type { OrchestratorEngine } from '../engines/orchestrator.js';
+import { buildFeatureRegistry } from '../engines/feature-registry.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -42,6 +43,12 @@ const REQUIRED_CAPABILITIES = {
     ragCollections: true,
     patterns: true,
     modelTiers: true,
+    workerPlan: true,
+    artifactOutcomes: true,
+    memoryTrace: true,
+    memoryShared: true,
+    worktreeHealth: true,
+    featureRegistry: true,
 } as const;
 
 const DEFAULT_SKILLS: Array<{ name: string; instructions: string; riskClass: 'read' | 'orchestrate' | 'mutate'; scope: 'session' | 'worker' | 'global' }> = [
@@ -282,6 +289,18 @@ export class DashboardServer {
             return;
         }
 
+        if (req.method === 'GET' && url.pathname === '/api/orchestration/worker-plan') {
+            const snapshot = this.resolveRuntimeSnapshot(url);
+            this.respondJson(res, snapshot?.workerPlan ?? this.getRuntime()?.getUsageSnapshot()?.workerPlan ?? {});
+            return;
+        }
+
+        if (req.method === 'GET' && url.pathname === '/api/orchestration/artifact-outcomes') {
+            const snapshot = this.resolveRuntimeSnapshot(url);
+            this.respondJson(res, snapshot?.artifactOutcome ?? this.getRuntime()?.getUsageSnapshot()?.artifactOutcome ?? {});
+            return;
+        }
+
         if (req.method === 'GET' && url.pathname === '/api/instruction-packet') {
             const snapshot = this.resolveRuntimeSnapshot(url);
             this.respondJson(res, snapshot?.instructionPacket ?? this.getRuntime()?.getInstructionPacket() ?? {});
@@ -299,6 +318,17 @@ export class DashboardServer {
             const snapshot = this.resolveRuntimeSnapshot(url);
             const orchestrator = this.getOrchestrator();
             this.respondJson(res, snapshot?.knowledgeFabric?.provenance ?? orchestrator?.getKnowledgeFabricProvenance?.() ?? { entries: [] });
+            return;
+        }
+
+        if (req.method === 'GET' && url.pathname === '/api/worktree-health') {
+            const snapshot = this.resolveRuntimeSnapshot(url);
+            this.respondJson(res, snapshot?.worktreeHealth ?? this.getRuntime()?.getUsageSnapshot()?.worktreeHealth ?? {});
+            return;
+        }
+
+        if (req.method === 'GET' && url.pathname === '/api/feature-registry') {
+            this.respondJson(res, buildFeatureRegistry(this.repoRoot));
             return;
         }
 
@@ -452,6 +482,41 @@ export class DashboardServer {
             return;
         }
 
+        if (req.method === 'GET' && url.pathname === '/api/memory/health') {
+            this.respondJson(res, this.getRuntime()?.getMemoryHealth() ?? {
+                generatedAt: Date.now(),
+                total: 0,
+                active: 0,
+                quarantined: 0,
+                scrap: 0,
+                promoted: 0,
+                shared: 0,
+                topTags: [],
+            });
+            return;
+        }
+
+        if (req.method === 'GET' && url.pathname === '/api/memory/shared') {
+            const snapshot = this.resolveRuntimeSnapshot(url);
+            const runtime = this.getRuntime();
+            const shared = snapshot?.runtimeId && runtime?.getRuntimeId() === snapshot.runtimeId
+                ? runtime.getSharedMemorySnapshot?.(12)
+                : [];
+            this.respondJson(res, shared ?? []);
+            return;
+        }
+
+        if (req.method === 'GET' && url.pathname === '/api/memory/trace') {
+            const id = url.searchParams.get('id') ?? '';
+            const snapshot = this.resolveRuntimeSnapshot(url);
+            const runtime = this.getRuntime();
+            const traced = snapshot?.runtimeId && runtime?.getRuntimeId() === snapshot.runtimeId
+                ? runtime.traceMemory?.(id)
+                : this.getMemory()?.trace?.(id);
+            this.respondJson(res, traced ?? { error: 'memory-trace-not-found', id }, traced ? 200 : 404);
+            return;
+        }
+
         if (req.method === 'GET' && url.pathname === '/api/memory/quarantine') {
             const limit = parseInt(url.searchParams.get('limit') || '40', 10);
             this.respondJson(res, this.getRuntime()?.listMemoryQuarantine(limit) ?? []);
@@ -470,7 +535,7 @@ export class DashboardServer {
         if (req.method === 'GET' && url.pathname.startsWith('/api/memory/')) {
             const id = decodeURIComponent(url.pathname.replace('/api/memory/', ''));
             const memory = this.getMemory();
-            const detail = memory?.getDetail(id);
+            const detail = memory?.trace?.(id) ?? memory?.getDetail(id);
             this.respondJson(res, detail ?? { error: 'memory-not-found', id }, detail ? 200 : 404);
             return;
         }

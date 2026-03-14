@@ -37,6 +37,12 @@ function setupFixtureRepo(): string {
   return repoRoot;
 }
 
+function extractJsonBlock(text: string): any {
+  const match = text.match(/```json\n([\s\S]*?)\n```/);
+  assert.ok(match, 'expected MCP response to include a fenced JSON details block');
+  return JSON.parse(match[1]);
+}
+
 async function test() {
   console.log('🧪 Testing Nexus Prime runtime execution...\n');
 
@@ -46,6 +52,9 @@ async function test() {
   process.env.NEXUS_MEMORY_DB_PATH = path.join(repoRoot, '.nexus-prime-test.db');
   process.env.NEXUS_POD_PATH = path.join(repoRoot, '.nexus-prime-pod.json');
   process.env.NEXUS_STATE_DIR = path.join(repoRoot, '.nexus-state');
+  process.env.HOME = path.join(repoRoot, '.home');
+  process.env.USERPROFILE = process.env.HOME;
+  fs.mkdirSync(process.env.HOME, { recursive: true });
   process.env.CODEX_HOME = path.join(repoRoot, '.codex');
   fs.mkdirSync(process.env.CODEX_HOME, { recursive: true });
 
@@ -230,6 +239,19 @@ async function test() {
     const memoryDispatch = await runtime.storeMemoryAndDispatch('High priority memory escalation', 0.95, ['#security', '#runtime-test']);
     assert.ok(memoryDispatch.hookEvents.some((event) => event.name === 'memory-shield-escalation'), 'explicit memory stores should dispatch memory hooks');
     assert.ok(memoryDispatch.automationDispatches.some((dispatch) => dispatch.name === 'memory-governance-automation'), 'explicit memory stores should dispatch memory automations');
+    const suppressedMemoryDispatch = await runtime.storeMemoryAndDispatch(
+      'Internal shared worker summary',
+      0.62,
+      ['#worker', '#shared'],
+      undefined,
+      undefined,
+      { suppressAutomationContinuations: true },
+    );
+    assert.strictEqual(
+      suppressedMemoryDispatch.continuationRuns.length,
+      0,
+      'suppressed internal memory stores should not recurse into automation continuations'
+    );
 
     const usageSnapshot = runtime.getUsageSnapshot();
     assert.strictEqual(usageSnapshot.usage.skills.status, 'used', 'runtime usage should mark skills as used');
@@ -251,6 +273,10 @@ async function test() {
     assert.ok(orchestrator.getSessionState().selectedSkills.length > 0, 'orchestrator should record selected skills');
     assert.ok(['single-pass', 'bounded-swarm', 'continuation-capable'].includes(orchestrator.getSessionState().mode), 'orchestrator should record an execution mode for the run');
     assert.strictEqual(runtime.getUsageSnapshot().clients?.primary?.clientId, 'codex', 'runtime snapshot should record Codex as the primary client when CODEX env is active');
+    assert.ok(runtime.getUsageSnapshot().catalogHealth, 'runtime snapshot should persist catalog health');
+    assert.ok(runtime.getUsageSnapshot().artifactSelectionAudit, 'runtime snapshot should persist artifact selection audit');
+    assert.ok(runtime.getUsageSnapshot().sourceAwareTokenBudget?.applied, 'runtime snapshot should persist source-aware token budgeting');
+    assert.ok(runtime.getUsageSnapshot().bootstrapManifestStatus?.clients?.length, 'runtime snapshot should persist bootstrap manifest status');
 
     const packet = runtime.getInstructionPacket();
     assert.ok(packet, 'runtime should retain the instruction packet after execution');
@@ -298,6 +324,11 @@ async function test() {
     assert.ok(fullTools.includes('nexus_rag_create_collection'), 'full MCP profile should expose expert RAG collection tools');
     assert.ok(fullTools.includes('nexus_pattern_search'), 'full MCP profile should expose bounded pattern search');
     assert.ok(fullTools.includes('nexus_knowledge_provenance'), 'full MCP profile should expose provenance inspection');
+    assert.ok(fullTools.includes('nexus_memory_export'), 'full MCP profile should expose memory export');
+    assert.ok(fullTools.includes('nexus_memory_backup'), 'full MCP profile should expose memory backup');
+    assert.ok(fullTools.includes('nexus_memory_import'), 'full MCP profile should expose memory import');
+    assert.ok(fullTools.includes('nexus_memory_maintain'), 'full MCP profile should expose memory maintenance');
+    assert.ok(fullTools.includes('nexus_memory_trace'), 'full MCP profile should expose memory trace inspection');
     assert.strictEqual(fullTools[0], 'nexus_session_bootstrap', 'full MCP profile should still prioritize bootstrap first');
     assert.strictEqual(fullTools[1], 'nexus_orchestrate', 'full MCP profile should still prioritize orchestrate second');
 
@@ -310,27 +341,101 @@ async function test() {
         }
       }
     });
-    const bootstrapPayload = JSON.parse(bootstrapResponse.content[0].text);
+    const bootstrapText = bootstrapResponse.content[0].text;
+    assert.ok(bootstrapText.includes('Session bootstrap ready.'), 'bootstrap tool should render a summary-first status line');
+    assert.ok(bootstrapText.includes('Recommended next step: nexus_orchestrate'), 'bootstrap tool should keep the next action scannable');
+    const bootstrapPayload = extractJsonBlock(bootstrapText);
     assert.strictEqual(bootstrapPayload.recommendedNextStep, 'nexus_orchestrate', 'bootstrap tool should recommend orchestration as the next step');
     assert.strictEqual(bootstrapPayload.tokenOptimization.required, true, 'bootstrap tool should report token optimization for 3+ files');
     assert.ok(Array.isArray(bootstrapPayload.shortlist.skills), 'bootstrap tool should return a skill shortlist');
     assert.ok(bootstrapPayload.knowledgeFabric?.summary, 'bootstrap tool should return a knowledge-fabric summary');
     assert.ok(Array.isArray(bootstrapPayload.knowledgeFabric?.selectedFiles), 'bootstrap tool should return knowledge-fabric selected files');
+    assert.strictEqual(bootstrapPayload.catalogHealth.overall, 'healthy', 'bootstrap tool should expose catalog health');
+    assert.ok(bootstrapPayload.sourceMixRecommendation?.dominantSource, 'bootstrap tool should expose a source-mix recommendation');
+    assert.ok(typeof bootstrapPayload.ragCandidateStatus?.attachedCollections === 'number', 'bootstrap tool should expose RAG candidate status');
+    assert.ok(bootstrapPayload.clientBootstrapStatus?.clients?.length > 0, 'bootstrap tool should expose client bootstrap manifest status');
+    assert.ok(Array.isArray(bootstrapPayload.artifactSelectionAudit?.selected), 'bootstrap tool should expose artifact selection audit');
+    assert.ok(Array.isArray(bootstrapPayload.taskGraphPreview?.phases), 'bootstrap tool should expose a task graph preview');
+    assert.ok(typeof bootstrapPayload.workerPlanPreview?.totalWorkers === 'number', 'bootstrap tool should expose a worker plan preview');
     assert.strictEqual(runtime.getUsageSnapshot().bootstrapCalled, true, 'runtime snapshot should record bootstrap usage');
     assert.strictEqual(runtime.getUsageSnapshot().plannerCalled, true, 'runtime snapshot should record planner usage during bootstrap');
     assert.strictEqual(runtime.getUsageSnapshot().sequenceCompliance?.status, 'partial', 'runtime snapshot should keep external-client compliance partial when bootstrap is observed after a direct execute path');
     assert.strictEqual(runtime.getUsageSnapshot().clientInstructionStatus?.toolProfile, 'autonomous', 'runtime snapshot should record the active autonomous tool profile');
+    assert.ok(runtime.getUsageSnapshot().taskGraph?.phases?.length, 'runtime snapshot should persist the task graph preview');
+    assert.ok(runtime.getUsageSnapshot().workerPlan?.totalWorkers, 'runtime snapshot should persist the worker plan preview');
+
+    const exportedMemory = await mcpAdapter.handleToolCall({
+      params: {
+        name: 'nexus_memory_export',
+        arguments: {
+          scope: 'shared',
+          limit: 20,
+        }
+      }
+    });
+    const exportedPayload = extractJsonBlock(exportedMemory.content[0].text);
+    assert.ok(Array.isArray(exportedPayload.items), 'memory export should return a portable bundle payload');
+    const backupMemory = await mcpAdapter.handleToolCall({
+      params: {
+        name: 'nexus_memory_backup',
+        arguments: {
+          scope: 'shared',
+          limit: 20,
+        }
+      }
+    });
+    const backupPayload = extractJsonBlock(backupMemory.content[0].text);
+    assert.ok(fs.existsSync(backupPayload.path), 'memory backup should persist a portable bundle on disk');
+    const importMemory = await mcpAdapter.handleToolCall({
+      params: {
+        name: 'nexus_memory_import',
+        arguments: {
+          path: backupPayload.path,
+        }
+      }
+    });
+    const importPayload = extractJsonBlock(importMemory.content[0].text);
+    assert.ok(typeof importPayload.duplicates === 'number', 'memory import should report duplicate handling');
+    const maintainMemory = await mcpAdapter.handleToolCall({
+      params: {
+        name: 'nexus_memory_maintain',
+        arguments: {}
+      }
+    });
+    const maintainPayload = extractJsonBlock(maintainMemory.content[0].text);
+    assert.ok(typeof maintainPayload.retained === 'number', 'memory maintenance should return retention stats');
+    const traceMemory = await mcpAdapter.handleToolCall({
+      params: {
+        name: 'nexus_memory_trace',
+        arguments: {
+          id: exportedPayload.items[0].id,
+        }
+      }
+    });
+    const tracePayload = extractJsonBlock(traceMemory.content[0].text);
+    assert.strictEqual(tracePayload.id, exportedPayload.items[0].id, 'memory trace should resolve the requested memory id');
+    assert.ok(tracePayload.provenance, 'memory trace should expose provenance');
 
     const fakeHome = path.join(repoRoot, '.fake-home');
     fs.mkdirSync(fakeHome, { recursive: true });
     const cliPath = path.join(originalCwd, 'dist', 'cli.js');
     const setupEnv = { ...process.env, HOME: fakeHome, USERPROFILE: fakeHome };
+    fs.writeFileSync(path.join(repoRoot, 'AGENTS.md'), '# Project Rules\n\n- Keep existing project guidance.\n', 'utf8');
+    execSync(`node "${cliPath}" setup codex`, { cwd: repoRoot, env: setupEnv, stdio: 'ignore' });
     execSync(`node "${cliPath}" setup cursor`, { cwd: repoRoot, env: setupEnv, stdio: 'ignore' });
     execSync(`node "${cliPath}" setup windsurf`, { cwd: repoRoot, env: setupEnv, stdio: 'ignore' });
     execSync(`node "${cliPath}" setup antigravity`, { cwd: repoRoot, env: setupEnv, stdio: 'ignore' });
+    const codexAgentsPath = path.join(repoRoot, 'AGENTS.md');
     const cursorRulePath = path.join(repoRoot, '.cursor', 'rules', 'nexus-prime.mdc');
     const windsurfRulePath = path.join(repoRoot, '.windsurfrules');
     const antigravitySkillDir = path.join(fakeHome, '.antigravity', 'skills', 'nexus-prime');
+    const codexAgents = fs.readFileSync(codexAgentsPath, 'utf8');
+    assert.ok(codexAgents.includes('# Project Rules'), 'Codex setup should preserve existing AGENTS guidance');
+    assert.ok(codexAgents.includes('nexus-prime:codex-bootstrap:start'), 'Codex setup should write a managed bootstrap block');
+    assert.ok(codexAgents.includes('nexus_session_bootstrap'), 'Codex setup should teach the bootstrap-first sequence in AGENTS.md');
+    execSync(`node "${cliPath}" setup codex`, { cwd: repoRoot, env: setupEnv, stdio: 'ignore' });
+    const codexAgentsSecondPass = fs.readFileSync(codexAgentsPath, 'utf8');
+    assert.strictEqual((codexAgentsSecondPass.match(/nexus-prime:codex-bootstrap:start/g) || []).length, 1, 'Codex setup should update its managed AGENTS block instead of duplicating it');
     assert.ok(fs.existsSync(path.join(fakeHome, '.cursor', 'mcp.json')), 'Cursor setup should write an MCP config');
     assert.ok(fs.existsSync(path.join(fakeHome, '.windsurf', 'mcp.json')), 'Windsurf setup should write an MCP config');
     assert.ok(fs.existsSync(path.join(fakeHome, '.antigravity', 'mcp.json')), 'Antigravity setup should write an MCP config');
@@ -347,6 +452,7 @@ async function test() {
       assert.ok(content.length <= 6500, 'Antigravity setup should keep each skill artifact below the compact size budget');
     });
     const statusOutput = execSync(`node "${cliPath}" setup status`, { cwd: repoRoot, env: setupEnv, encoding: 'utf8' });
+    assert.ok(statusOutput.includes('Codex: ✅'), 'setup status should report Codex as installed');
     assert.ok(statusOutput.includes('Cursor: ✅'), 'setup status should report Cursor as installed');
     assert.ok(statusOutput.includes('Windsurf: ✅'), 'setup status should report Windsurf as installed');
     assert.ok(statusOutput.includes('Antigravity / OpenClaw: ✅'), 'setup status should report Antigravity as installed');

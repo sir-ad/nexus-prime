@@ -73,6 +73,17 @@
             color: inherit;
         }
 
+        a:focus-visible,
+        button:focus-visible,
+        input:focus-visible,
+        select:focus-visible,
+        textarea:focus-visible,
+        summary:focus-visible {
+            outline: 2px solid rgba(84, 255, 135, 0.82);
+            outline-offset: 2px;
+            box-shadow: 0 0 0 4px rgba(84, 255, 135, 0.16);
+        }
+
         header {
             display: flex;
             align-items: center;
@@ -109,7 +120,7 @@
         .subtitle {
             margin-top: 0.15rem;
             color: var(--muted);
-            font-size: 0.78rem;
+            font-size: 0.74rem;
         }
 
         .banner {
@@ -157,6 +168,39 @@
             font-size: 0.76rem;
         }
 
+        .runtime-pill select {
+            border: 0;
+            background: transparent;
+            color: var(--text);
+            min-width: 12rem;
+        }
+
+        .workspace-strip {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            padding: 0.85rem 1rem 0;
+            position: relative;
+            z-index: 2;
+        }
+
+        .workspace-summary {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            flex-wrap: wrap;
+            min-width: 0;
+        }
+
+        .surface-note {
+            color: var(--muted);
+            font-size: 0.68rem;
+            text-align: right;
+            max-width: 36rem;
+            line-height: 1.45;
+        }
+
         .status-pill .dot,
         .client-dot {
             width: 0.58rem;
@@ -192,7 +236,7 @@
             flex: 1;
             min-height: 0;
             display: grid;
-            grid-template-columns: 320px minmax(0, 1fr) 410px;
+            grid-template-columns: 300px minmax(0, 1fr) 360px;
             gap: 1rem;
             padding: 0.9rem 1rem 1rem;
             overflow: hidden;
@@ -223,8 +267,8 @@
         .panel-header h2,
         .panel-header h3 {
             margin: 0;
-            font-size: 0.74rem;
-            letter-spacing: 0.14em;
+            font-size: 0.7rem;
+            letter-spacing: 0.12em;
             text-transform: uppercase;
             color: var(--muted);
         }
@@ -331,7 +375,7 @@
         }
 
         .card-title strong {
-            font-size: 0.86rem;
+            font-size: 0.82rem;
             font-weight: 600;
         }
 
@@ -347,7 +391,7 @@
 
         .meta {
             color: var(--muted);
-            font-size: 0.68rem;
+            font-size: 0.64rem;
             line-height: 1.5;
         }
 
@@ -360,7 +404,7 @@
 
         .hero-metric label {
             display: block;
-            font-size: 0.68rem;
+            font-size: 0.64rem;
             color: var(--muted);
             text-transform: uppercase;
             letter-spacing: 0.12em;
@@ -477,6 +521,7 @@
             display: grid;
             place-items: center;
             padding: 0.6rem 0 0.2rem;
+            cursor: pointer;
         }
 
         .token-dial {
@@ -537,10 +582,118 @@
             letter-spacing: 0.12em;
         }
 
+        .token-summary-stack {
+            display: grid;
+            gap: 0.75rem;
+        }
+
+        .token-telemetry-note {
+            color: var(--muted);
+            font-size: 0.7rem;
+            line-height: 1.5;
+            text-align: center;
+        }
+
+        .token-breakdown {
+            margin-top: 0.15rem;
+        }
+
+        #graph-memory-explorer {
+            position: absolute;
+            inset: 0;
+            overflow: auto;
+            padding: 1rem;
+        }
+
+        .memory-explorer-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.85rem;
+        }
+
+        .memory-explorer-card {
+            border-radius: 18px;
+            border: 1px solid var(--line);
+            background: rgba(12, 17, 27, 0.84);
+            padding: 0.85rem;
+        }
+
+        .memory-explorer-card h4 {
+            margin: 0 0 0.5rem;
+            font-size: 0.78rem;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: var(--muted);
+        }
+
+        .memory-explorer-card ul {
+            list-style: none;
+            display: grid;
+            gap: 0.55rem;
+            margin: 0;
+            padding: 0;
+        }
+
+        .memory-explorer-card li {
+            border-top: 1px solid rgba(188, 204, 255, 0.08);
+            padding-top: 0.55rem;
+        }
+
+        .memory-explorer-card li:first-child {
+            border-top: 0;
+            padding-top: 0;
+        }
+
+        .memory-explorer-card button {
+            width: 100%;
+            text-align: left;
+            border: 0;
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.03);
+            color: var(--text);
+            padding: 0.55rem;
+        }
+
+        .memory-explorer-card button:hover {
+            background: rgba(255, 255, 255, 0.06);
+        }
+
+        .memory-explorer-meta {
+            display: block;
+            color: var(--muted);
+            font-size: 0.66rem;
+            margin-top: 0.2rem;
+            font-family: var(--mono);
+        }
+
+        .memory-explorer-pillar {
+            display: grid;
+            gap: 0.7rem;
+        }
+
+        .memory-step-list {
+            display: grid;
+            gap: 0.7rem;
+        }
+
+        .memory-step {
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            padding: 0.75rem;
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .memory-step strong {
+            display: block;
+            margin-bottom: 0.24rem;
+        }
+
         .graph-toolbar {
             display: flex;
-            gap: 0.55rem;
-            flex-wrap: wrap;
+            gap: 0.5rem;
+            flex-wrap: nowrap;
+            align-items: center;
+            min-width: 0;
         }
 
         .segmented {
@@ -553,6 +706,19 @@
             background: rgba(255, 255, 255, 0.03);
         }
 
+        #surface-tabs {
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            overflow-y: hidden;
+            max-width: 100%;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+
+        #surface-tabs::-webkit-scrollbar {
+            display: none;
+        }
+
         .segmented button,
         .filter-bar button,
         .action-bar button,
@@ -560,11 +726,17 @@
         .primary-button {
             border: 0;
             border-radius: 999px;
-            padding: 0.34rem 0.58rem;
+            padding: 0.32rem 0.56rem;
             background: transparent;
             color: var(--muted);
             transition: background 160ms ease, color 160ms ease, transform 160ms ease;
-            font-size: 0.66rem;
+            font-size: 0.64rem;
+        }
+
+        #surface-tabs button {
+            flex: 0 0 auto;
+            font-size: 0.62rem;
+            letter-spacing: 0.02em;
         }
 
         .segmented button.active,
@@ -588,6 +760,78 @@
         .primary-button {
             background: linear-gradient(135deg, rgba(84, 255, 135, 0.22), rgba(61, 161, 255, 0.16));
             border: 1px solid rgba(84, 255, 135, 0.2);
+            color: var(--text);
+        }
+
+        .compact-chip-wrap {
+            position: relative;
+            min-width: 0;
+            max-width: 100%;
+        }
+
+        .compact-chip-wrap::before,
+        .compact-chip-wrap::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 1.9rem;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .compact-chip-wrap::before {
+            left: 0;
+            background: linear-gradient(90deg, rgba(19, 23, 34, 0.88), rgba(19, 23, 34, 0));
+            border-radius: 999px 0 0 999px;
+        }
+
+        .compact-chip-wrap::after {
+            right: 0;
+            background: linear-gradient(270deg, rgba(19, 23, 34, 0.92), rgba(19, 23, 34, 0));
+            border-radius: 0 999px 999px 0;
+        }
+
+        .compact-chip-rail {
+            display: flex;
+            align-items: center;
+            gap: 0.28rem;
+            padding: 0.18rem;
+            border-radius: 999px;
+            border: 1px solid var(--line);
+            background: rgba(255, 255, 255, 0.03);
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            overflow-y: hidden;
+            min-width: 0;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+            white-space: nowrap;
+        }
+
+        .compact-chip-rail::-webkit-scrollbar {
+            display: none;
+        }
+
+        .compact-chip-rail button {
+            flex: 0 0 auto;
+            border: 0;
+            border-radius: 999px;
+            padding: 0.28rem 0.5rem;
+            background: transparent;
+            color: var(--muted);
+            font-size: 0.6rem;
+            letter-spacing: 0.02em;
+            transition: background 160ms ease, color 160ms ease, transform 160ms ease;
+        }
+
+        .compact-chip-rail button.active {
+            background: rgba(84, 255, 135, 0.1);
+            color: var(--text);
+        }
+
+        .compact-chip-rail button:hover {
+            transform: translateY(-1px);
             color: var(--text);
         }
 
@@ -667,7 +911,7 @@
 
         .graph-note {
             color: var(--muted);
-            font-size: 0.72rem;
+            font-size: 0.68rem;
         }
 
         .graph-footer {
@@ -687,16 +931,16 @@
             display: inline-flex;
             align-items: center;
             gap: 0.35rem;
-            padding: 0.24rem 0.48rem;
+            padding: 0.22rem 0.44rem;
             border-radius: 999px;
             border: 1px solid var(--line);
             background: rgba(255, 255, 255, 0.05);
-            font-size: 0.68rem;
+            font-size: 0.64rem;
         }
 
         .entity-header {
             display: flex;
-            align-items: center;
+            align-items: flex-start;
             justify-content: space-between;
             gap: 0.75rem;
             margin-bottom: 0.8rem;
@@ -704,26 +948,112 @@
 
         .entity-header h3 {
             margin: 0;
-            font-size: 0.76rem;
+            font-size: 0.72rem;
             letter-spacing: 0.08em;
             text-transform: uppercase;
             color: var(--muted);
         }
 
-        .filter-bar {
+        .library-header {
+            flex-direction: column;
+            align-items: stretch;
+            width: 100%;
+            gap: 0.62rem;
+        }
+
+        .library-heading {
+            display: grid;
+            gap: 0.22rem;
+        }
+
+        .library-subtitle {
+            max-width: 42rem;
+        }
+
+        .runtime-summary {
             display: flex;
             flex-wrap: wrap;
-            gap: 0.28rem;
-            justify-content: flex-end;
-            max-width: 100%;
+            gap: 0.36rem;
+            align-items: center;
+        }
+
+        .summary-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.34rem;
+            padding: 0.22rem 0.46rem;
+            border-radius: 999px;
+            border: 1px solid var(--line);
+            background: rgba(255, 255, 255, 0.04);
+            font-family: var(--mono);
+            font-size: 0.62rem;
+            line-height: 1.2;
+        }
+
+        .summary-chip.good {
+            border-color: rgba(84, 255, 135, 0.2);
+            background: rgba(84, 255, 135, 0.08);
+        }
+
+        .summary-chip.warn {
+            border-color: rgba(255, 209, 77, 0.18);
+            background: rgba(255, 209, 77, 0.08);
+        }
+
+        .summary-chip.info {
+            border-color: rgba(61, 161, 255, 0.18);
+            background: rgba(61, 161, 255, 0.08);
+        }
+
+        .summary-key {
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .summary-value {
+            color: var(--text);
+        }
+
+        .guided-strip {
+            display: grid;
+            gap: 0.55rem;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+
+        .guided-step {
+            border: 1px solid var(--line);
+            border-radius: 15px;
+            padding: 0.64rem;
+            background: rgba(255, 255, 255, 0.03);
+            display: grid;
+            gap: 0.18rem;
+        }
+
+        .guided-step-index {
+            color: var(--cyan);
+            font-family: var(--mono);
+            font-size: 0.62rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .guided-step strong {
+            font-size: 0.78rem;
+        }
+
+        .guided-step .meta {
+            line-height: 1.45;
         }
 
         .event-card {
             border-radius: 18px;
             border: 1px solid var(--line);
             background: rgba(255, 255, 255, 0.03);
-            padding: 0.62rem;
+            padding: 0.56rem 0.58rem;
             border-left: 3px solid var(--muted);
+            cursor: pointer;
+            transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
         }
 
         .event-card.good { border-left-color: var(--accent); }
@@ -731,20 +1061,32 @@
         .event-card.bad { border-left-color: var(--red); }
         .event-card.info { border-left-color: var(--blue); }
 
+        .event-card:hover,
+        .event-card.active {
+            transform: translateY(-1px);
+            border-color: var(--line-strong);
+            background: rgba(34, 41, 61, 0.72);
+        }
+
         .event-head {
             display: flex;
             justify-content: space-between;
             gap: 0.75rem;
-            margin-bottom: 0.45rem;
+            margin-bottom: 0.34rem;
         }
 
         .event-head strong {
             display: block;
-            font-size: 0.8rem;
+            font-size: 0.76rem;
         }
 
         .event-head .meta {
             margin-top: 0.1rem;
+        }
+
+        .event-summary {
+            font-size: 0.64rem;
+            line-height: 1.45;
         }
 
         details.raw {
@@ -797,7 +1139,6 @@
             border-radius: 14px;
             border: 1px solid var(--line);
             background: rgba(255, 255, 255, 0.03);
-            outline: none;
         }
 
         .field textarea {
@@ -936,7 +1277,7 @@
 
         @media (max-width: 1440px) {
             .layout {
-                grid-template-columns: 280px minmax(0, 1fr) 340px;
+                grid-template-columns: 270px minmax(0, 1fr) 320px;
             }
 
             .token-dial {
@@ -978,6 +1319,24 @@
             #graph-stage {
                 height: min(56vh, 420px);
             }
+
+            .workspace-strip {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .surface-note {
+                text-align: left;
+                max-width: none;
+            }
+
+            .graph-toolbar {
+                flex-wrap: wrap;
+            }
+
+            .guided-strip {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
         }
 
         @media (max-width: 720px) {
@@ -986,10 +1345,49 @@
                 flex-direction: column;
             }
 
+            .workspace-strip {
+                padding-left: 0.8rem;
+                padding-right: 0.8rem;
+            }
+
+            .workspace-summary {
+                width: 100%;
+            }
+
+            .runtime-pill {
+                width: 100%;
+                justify-content: space-between;
+            }
+
+            .runtime-pill select {
+                min-width: 0;
+                width: 100%;
+            }
+
             .inline-fields,
             .metrics-grid {
                 grid-template-columns: 1fr;
             }
+
+            .memory-explorer-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .guided-strip {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
         }
     </style>
 </head>
@@ -1003,9 +1401,17 @@
             </div>
         </div>
         <div class="header-actions">
+            <div class="mini-pill runtime-pill">
+                <label class="sr-only" for="runtime-select">Runtime</label>
+                <span class="mono">Runtime</span>
+                <select id="runtime-select"></select>
+            </div>
             <div id="sync-pill" class="status-pill">
                 <span class="dot"></span>
                 <span id="sync-label">Connecting stream</span>
+            </div>
+            <div class="mini-pill">
+                <span id="primary-client-label">Primary client · n/a</span>
             </div>
             <div class="mini-pill">
                 <span class="mono" id="header-version">v?</span>
@@ -1014,6 +1420,18 @@
     </header>
 
     <div id="status-banner" class="banner hidden" role="status" aria-live="polite"></div>
+    <section class="workspace-strip" aria-label="Dashboard views">
+        <div class="workspace-summary">
+            <div id="surface-tabs" class="segmented">
+                <button data-surface-mode="overview" class="active">Overview</button>
+                <button data-surface-mode="knowledge">Knowledge</button>
+                <button data-surface-mode="runs">Runs</button>
+                <button data-surface-mode="catalog">Catalog</button>
+                <button data-surface-mode="governance">Governance</button>
+            </div>
+        </div>
+        <div id="surface-note" class="surface-note">Overview keeps runtime truth, lifetime token telemetry, and memory context in focus.</div>
+    </section>
 
     <main class="layout" style="position:relative;">
         <div id="refresh-bar" class="refresh-bar"></div>
@@ -1032,42 +1450,59 @@
 
             <section class="panel">
                 <div class="panel-header">
-                    <h2>Token Supremacy</h2>
+                    <h2>Token Telemetry</h2>
                     <span class="badge" id="token-summary">0 events</span>
                 </div>
                 <div class="panel-body">
-                    <div class="token-dial-wrap">
-                        <div class="token-dial">
-                            <svg viewBox="0 0 168 168" aria-hidden="true">
-                                <circle class="dial-bg" cx="84" cy="84" r="70"></circle>
-                                <circle id="dial-progress" class="dial-fg" cx="84" cy="84" r="70"></circle>
-                            </svg>
-                            <div class="dial-center">
-                                <div id="dial-value" class="dial-value">0%</div>
-                                <div class="dial-caption">Avg compression</div>
+                    <div class="token-summary-stack">
+                        <div class="token-dial-wrap" role="button" tabindex="0" aria-label="Open lifetime token analyzer">
+                            <div class="token-dial">
+                                <svg viewBox="0 0 168 168" aria-hidden="true">
+                                    <circle class="dial-bg" cx="84" cy="84" r="70"></circle>
+                                    <circle id="dial-progress" class="dial-fg" cx="84" cy="84" r="70"></circle>
+                                </svg>
+                                <div class="dial-center">
+                                    <div id="dial-value" class="dial-value">0%</div>
+                                    <div class="dial-caption">Lifetime compression</div>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                    <div class="metrics-grid">
-                        <div class="hero-metric">
-                            <label>Gross Tokens</label>
-                            <strong id="gross-tokens">0</strong>
-                            <div class="meta">Lifetime gross input from persisted run telemetry</div>
+                        <div id="token-empty-note" class="token-telemetry-note">Lifetime totals come from persisted runtime snapshots, not just the live stream.</div>
+                        <div class="metrics-grid">
+                            <div class="hero-metric">
+                                <label>Lifetime Gross</label>
+                                <strong id="gross-tokens">0</strong>
+                                <div class="meta">Persisted gross input across runs for this runtime.</div>
+                            </div>
+                            <div class="hero-metric">
+                                <label>Lifetime Saved</label>
+                                <strong id="saved-tokens">0</strong>
+                                <div class="meta">Saved by compression, recall, and selective reads.</div>
+                            </div>
+                            <div class="hero-metric">
+                                <label>Net Forwarded</label>
+                                <strong id="net-tokens">0</strong>
+                                <div class="meta">Forwarded into runtime and workers after selection.</div>
+                            </div>
+                            <div class="hero-metric">
+                                <label>Latest Runtime</label>
+                                <strong id="latest-token-run">n/a</strong>
+                                <div class="meta" id="latest-token-meta">No token-producing run recorded yet.</div>
+                            </div>
                         </div>
-                        <div class="hero-metric">
-                            <label>Tokens Saved</label>
-                            <strong id="saved-tokens">0</strong>
-                            <div class="meta">Saved by compression, recall, and selective reads</div>
+                        <div class="card">
+                            <div class="card-title">
+                                <strong>By Source</strong>
+                                <span class="state-chip info" id="token-by-source-count">0</span>
+                            </div>
+                            <div id="token-source-chips" class="list-inline token-breakdown"></div>
                         </div>
-                        <div class="hero-metric">
-                            <label>Net Forwarded</label>
-                            <strong id="net-tokens">0</strong>
-                            <div class="meta">Forwarded into runtime + workers across all runs</div>
-                        </div>
-                        <div class="hero-metric">
-                            <label>Memory Nodes</label>
-                            <strong id="memory-count">0</strong>
-                            <div class="meta">Snapshots available to inspect</div>
+                        <div class="card">
+                            <div class="card-title">
+                                <strong>By Phase</strong>
+                                <span class="state-chip info" id="token-by-phase-count">0</span>
+                            </div>
+                            <div id="token-phase-chips" class="list-inline token-breakdown"></div>
                         </div>
                     </div>
                 </div>
@@ -1115,51 +1550,56 @@
         <section class="panel graph-panel">
             <div class="panel-header">
                 <div>
-                    <h2 id="graph-title">Memory Topology Graph</h2>
-                    <div class="meta" id="graph-subtitle">Touch a memory to open the inspector and timeline.</div>
+                    <h2 id="graph-title">Memory Explorer</h2>
+                    <div class="meta" id="graph-subtitle">Select a node to inspect context, trace lineage, and keep runtime state in view.</div>
                 </div>
                 <div class="graph-toolbar">
-                    <div id="graph-modes" class="segmented" aria-label="graph modes">
+                    <div id="graph-modes" class="compact-chip-rail" aria-label="graph modes">
                         <button data-graph-mode="memory" class="active">Memory</button>
                         <button data-graph-mode="runs">Runs</button>
                         <button data-graph-mode="pod">POD</button>
+                    </div>
+                    <div id="memory-view-modes" class="compact-chip-rail" aria-label="memory explorer modes">
+                        <button data-memory-view-mode="graph" class="active">Graph</button>
+                        <button data-memory-view-mode="clusters">Clusters</button>
+                        <button data-memory-view-mode="lineage">Lineage</button>
+                        <button data-memory-view-mode="timeline">Timeline</button>
                     </div>
                 </div>
             </div>
             <div class="panel-body">
                 <div id="graph-stage">
                     <svg id="graph-canvas" viewBox="0 0 980 620" preserveAspectRatio="xMidYMid meet"></svg>
+                    <div id="graph-memory-explorer" class="hidden"></div>
                     <div id="graph-empty" class="graph-empty hidden">No topology data yet.</div>
                 </div>
                 <div class="graph-footer">
                     <div id="graph-stats" class="graph-stats"></div>
-                    <div class="graph-note" id="graph-note">Memory graph combines semantic, lineage, and artifact-derived links.</div>
+                    <div class="graph-note" id="graph-note">Select a node to update Memory Snapshots and the inspector without leaving the graph.</div>
                 </div>
                 <div class="panel" style="margin-top: 1rem; min-height: 16rem;">
                     <div class="panel-header">
-                        <div class="entity-header" style="margin:0;">
-                            <div style="display:flex; align-items:center; justify-content:space-between; gap:0.8rem; flex-wrap:wrap;">
+                        <div class="entity-header library-header" style="margin:0;">
+                            <div class="library-heading">
                                 <h3 id="library-title">Memory Snapshots</h3>
-                                <div class="inline-fields" style="margin:0;">
-                                    <div class="field" style="min-width: 18rem;">
-                                        <label for="runtime-select">Runtime</label>
-                                        <select id="runtime-select"></select>
-                                    </div>
-                                </div>
+                                <div id="library-subtitle" class="meta library-subtitle">Select a memory to see why it matters, what it connects to, and which run surfaced it.</div>
                             </div>
-                            <div id="runtime-usage-summary" class="meta">Loading runtime usage.</div>
-                            <div id="library-tabs" class="segmented">
-                                <button data-library-mode="memories" class="active">Memories</button>
-                                <button data-library-mode="skills">Skills</button>
-                                <button data-library-mode="specialists">Roster</button>
-                                <button data-library-mode="crews">Crews</button>
-                                <button data-library-mode="knowledge">Knowledge</button>
-                                <button data-library-mode="planning">Plan</button>
-                                <button data-library-mode="workflows">Workflows</button>
-                                <button data-library-mode="hooks">Hooks</button>
-                                <button data-library-mode="automations">Autos</button>
-                                <button data-library-mode="governance">Governance</button>
-                                <button data-library-mode="federation">Federation</button>
+                            <div id="runtime-usage-summary" class="runtime-summary meta">Loading runtime usage.</div>
+                            <div id="library-tabs-wrap" class="compact-chip-wrap">
+                                <div id="library-tabs" class="compact-chip-rail">
+                                    <button data-library-mode="memories" class="active">Memories</button>
+                                    <button data-library-mode="platform">Platform</button>
+                                    <button data-library-mode="skills">Skills</button>
+                                    <button data-library-mode="specialists">Roster</button>
+                                    <button data-library-mode="crews">Crews</button>
+                                    <button data-library-mode="knowledge">Knowledge</button>
+                                    <button data-library-mode="planning">Plan</button>
+                                    <button data-library-mode="workflows">Workflows</button>
+                                    <button data-library-mode="hooks">Hooks</button>
+                                    <button data-library-mode="automations">Autos</button>
+                                    <button data-library-mode="governance">Governance</button>
+                                    <button data-library-mode="federation">Federation</button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1176,22 +1616,24 @@
             <section class="panel">
                 <div class="panel-header">
                     <div>
-                        <h2>Neural Stream HUD</h2>
+                        <h2>Runtime Events</h2>
                         <div class="meta" id="events-summary">0 signals</div>
                     </div>
-                    <div id="event-filters" class="filter-bar">
-                        <button data-event-filter="all" class="active">All</button>
-                        <button data-event-filter="memory">Memory</button>
-                        <button data-event-filter="tokens">Tokens</button>
-                        <button data-event-filter="runtime">Runtime</button>
-                        <button data-event-filter="pod">POD</button>
-                        <button data-event-filter="skills">Skills</button>
-                        <button data-event-filter="workflows">Flows</button>
-                        <button data-event-filter="hooks">Hooks</button>
-                        <button data-event-filter="automations">Autos</button>
-                        <button data-event-filter="shield">Shield</button>
-                        <button data-event-filter="federation">Net</button>
-                        <button data-event-filter="clients">Clients</button>
+                    <div id="event-filters-wrap" class="compact-chip-wrap">
+                        <div id="event-filters" class="compact-chip-rail">
+                            <button data-event-filter="all" class="active">All</button>
+                            <button data-event-filter="memory">Memory</button>
+                            <button data-event-filter="tokens">Tokens</button>
+                            <button data-event-filter="runtime">Runtime</button>
+                            <button data-event-filter="pod">POD</button>
+                            <button data-event-filter="skills">Skills</button>
+                            <button data-event-filter="workflows">Flows</button>
+                            <button data-event-filter="hooks">Hooks</button>
+                            <button data-event-filter="automations">Autos</button>
+                            <button data-event-filter="shield">Shield</button>
+                            <button data-event-filter="federation">Net</button>
+                            <button data-event-filter="clients">Clients</button>
+                        </div>
                     </div>
                 </div>
                 <div class="panel-body compact">
@@ -1203,7 +1645,7 @@
 
             <section class="panel">
                 <div class="panel-header">
-                    <h2>Local Control Plane</h2>
+                    <h2>Operator Actions</h2>
                     <span class="badge">Guarded</span>
                 </div>
                 <div class="panel-body">
@@ -1285,7 +1727,7 @@
 
     <script>
         const DASHBOARD_API_VERSION = '3';
-        const REQUIRED_CAPABILITIES = ['runs', 'memory', 'pod', 'clients', 'events', 'stream', 'specialists', 'crews', 'planner', 'hooks', 'automations', 'federation', 'orchestration', 'tokens', 'tokenSources', 'clientPrimary', 'instructionPacket', 'orchestrationLedger', 'knowledgeFabric', 'ragCollections', 'patterns', 'modelTiers'];
+        const REQUIRED_CAPABILITIES = ['runs', 'memory', 'pod', 'clients', 'events', 'stream', 'specialists', 'crews', 'planner', 'hooks', 'automations', 'federation', 'orchestration', 'tokens', 'tokenSources', 'clientPrimary', 'instructionPacket', 'orchestrationLedger', 'knowledgeFabric', 'ragCollections', 'patterns', 'modelTiers', 'workerPlan', 'artifactOutcomes', 'memoryTrace', 'memoryShared', 'worktreeHealth', 'featureRegistry'];
 
         function createResourceState() {
             return { status: 'idle', error: '' };
@@ -1311,14 +1753,18 @@
             workflows: [],
             hooks: [],
             automations: [],
+            featureRegistry: null,
             ragCollections: [],
             patterns: [],
             modelTiers: { policy: null, trace: [] },
             backends: {},
             health: {},
             memories: [],
+            memoryHealth: null,
             memoryAudit: { scanned: 0, quarantined: [], findings: [] },
             memoryQuarantine: [],
+            memoryShared: [],
+            worktreeHealth: null,
             memoryDetail: null,
             memoryNetwork: { nodes: [], links: [], focusId: null },
             pod: { messages: [], activeWorkers: [], tagClusters: [], confidenceBands: { high: 0, medium: 0, low: 0 } },
@@ -1326,7 +1772,9 @@
             federation: { localNode: null, knownPeers: [], activePeerLinks: 0, relayLearnings: [], tracesPublished: 0 },
             events: [],
             plannerPreview: null,
+            surfaceMode: 'overview',
             graphMode: 'memory',
+            memoryViewMode: 'graph',
             libraryMode: 'memories',
             eventFilter: 'all',
             selected: null,
@@ -1353,12 +1801,16 @@
                 workflows: createResourceState(),
                 hooks: createResourceState(),
                 automations: createResourceState(),
+                featureRegistry: createResourceState(),
                 ragCollections: createResourceState(),
                 patterns: createResourceState(),
                 modelTiers: createResourceState(),
                 memory: createResourceState(),
+                memoryHealth: createResourceState(),
                 memoryAudit: createResourceState(),
                 memoryQuarantine: createResourceState(),
+                memoryShared: createResourceState(),
+                worktreeHealth: createResourceState(),
                 pod: createResourceState(),
                 clients: createResourceState(),
                 primaryClient: createResourceState(),
@@ -1477,6 +1929,12 @@
                     state.automations = Array.isArray(value) ? value : state.automations;
                 },
             },
+            featureRegistry: {
+                url: '/api/feature-registry',
+                assign(value) {
+                    state.featureRegistry = value || null;
+                },
+            },
             ragCollections: {
                 url: '/api/rag/collections',
                 assign(value) {
@@ -1514,6 +1972,12 @@
                     state.memories = Array.isArray(value) ? value : state.memories;
                 },
             },
+            memoryHealth: {
+                url: '/api/memory/health',
+                assign(value) {
+                    state.memoryHealth = value || null;
+                },
+            },
             memoryAudit: {
                 url: '/api/memory/audit?limit=80',
                 assign(value) {
@@ -1524,6 +1988,20 @@
                 url: '/api/memory/quarantine?limit=40',
                 assign(value) {
                     state.memoryQuarantine = Array.isArray(value) ? value : state.memoryQuarantine;
+                },
+            },
+            memoryShared: {
+                url: '/api/memory/shared',
+                dynamic: true,
+                assign(value) {
+                    state.memoryShared = Array.isArray(value) ? value : [];
+                },
+            },
+            worktreeHealth: {
+                url: '/api/worktree-health',
+                dynamic: true,
+                assign(value) {
+                    state.worktreeHealth = value || null;
                 },
             },
             pod: {
@@ -1577,7 +2055,7 @@
         };
 
         const CATEGORY_RESOURCE_MAP = {
-            memory: ['memory', 'memoryAudit', 'memoryQuarantine'],
+            memory: ['memory', 'memoryHealth', 'memoryAudit', 'memoryQuarantine', 'memoryShared'],
             tokens: ['tokensSummary', 'tokensTimeline', 'tokensBySource', 'events'],
             runtime: ['runs', 'pod'],
             pod: ['pod'],
@@ -1585,7 +2063,7 @@
             specialists: ['specialists'],
             crews: ['crews'],
             workflows: ['workflows'],
-            knowledge: ['knowledgeFabricSession', 'knowledgeProvenance', 'ragCollections', 'patterns', 'tokensBySource', 'modelTiers'],
+            knowledge: ['knowledgeFabricSession', 'knowledgeProvenance', 'ragCollections', 'patterns', 'tokensBySource', 'modelTiers', 'memoryShared'],
             clients: ['clients', 'primaryClient'],
             hooks: ['hooks'],
             automations: ['automations'],
@@ -1595,9 +2073,47 @@
         };
 
         const graphModes = {
-            memory: { title: 'Memory Topology Graph', subtitle: 'Touch a memory to open the inspector and timeline.' },
+            memory: { title: 'Memory Explorer', subtitle: 'Select a node to inspect context, trace lineage, and keep runtime state in view.' },
             runs: { title: 'Run Execution Graph', subtitle: 'Run, worker, workflow, and backend topology from recent executions.' },
             pod: { title: 'POD Network Graph', subtitle: 'Worker/tag clusters and confidence across the live pod mesh.' },
+        };
+
+        const surfaceModes = {
+            overview: {
+                note: 'Overview keeps runtime truth, lifetime token telemetry, and memory context in focus.',
+                graphMode: 'memory',
+                libraryMode: 'memories',
+                eventFilter: 'all',
+                memoryViewMode: 'graph',
+            },
+            knowledge: {
+                note: 'Knowledge centers RAG collections, provenance, by-source budgeting, and attached context.',
+                graphMode: 'memory',
+                libraryMode: 'knowledge',
+                eventFilter: 'tokens',
+                memoryViewMode: 'graph',
+            },
+            runs: {
+                note: 'Runs brings execution topology, verifier traces, and the runtime event stream to the front.',
+                graphMode: 'runs',
+                libraryMode: 'planning',
+                eventFilter: 'runtime',
+                memoryViewMode: 'graph',
+            },
+            catalog: {
+                note: 'Catalog separates what is available from what the selected runtime actually used.',
+                graphMode: 'pod',
+                libraryMode: 'platform',
+                eventFilter: 'skills',
+                memoryViewMode: 'graph',
+            },
+            governance: {
+                note: 'Governance focuses on guardrails, review gates, quarantine, federation health, and relay status.',
+                graphMode: 'memory',
+                libraryMode: 'governance',
+                eventFilter: 'shield',
+                memoryViewMode: 'timeline',
+            },
         };
 
         function $(id) {
@@ -1637,6 +2153,15 @@
 
         function chip(text) {
             return `<span class="chip">${escapeHtml(text)}</span>`;
+        }
+
+        function summaryChip(label, value, tone = 'info') {
+            return `
+                <span class="summary-chip ${escapeHtml(tone)}">
+                    <span class="summary-key">${escapeHtml(label)}</span>
+                    <span class="summary-value">${escapeHtml(value)}</span>
+                </span>
+            `;
         }
 
         function stateClass(status) {
@@ -1981,7 +2506,7 @@
             reconcileBanner();
             populateBackendSelects();
 
-            const shouldRefreshMemorySelection = targets.includes('memory') || targets.includes('memoryAudit') || targets.includes('memoryQuarantine') || !resourceNames;
+            const shouldRefreshMemorySelection = targets.includes('memory') || targets.includes('memoryHealth') || targets.includes('memoryAudit') || targets.includes('memoryQuarantine') || !resourceNames;
             const focusMemoryId = shouldRefreshMemorySelection
                 ? state.selected?.kind === 'memory'
                     ? state.selected.id
@@ -2132,6 +2657,38 @@
             };
         }
 
+        function getLatestTokenRun() {
+            return Array.isArray(state.tokensTimeline) && state.tokensTimeline.length
+                ? state.tokensTimeline[0]
+                : null;
+        }
+
+        function summarizeTokenDimension(entries, maxItems = 4) {
+            return Object.entries(entries || {})
+                .sort((left, right) => Number(right[1]) - Number(left[1]))
+                .slice(0, maxItems)
+                .map(([name, value]) => chip(`${name}:${formatNumber(value)}`))
+                .join('');
+        }
+
+        function setMemoryExplorerMode(mode) {
+            state.memoryViewMode = mode;
+            renderGraph();
+        }
+
+        function applySurfaceMode(mode) {
+            const next = surfaceModes[mode];
+            if (!next) return;
+            state.surfaceMode = mode;
+            state.graphMode = next.graphMode;
+            state.libraryMode = next.libraryMode;
+            state.eventFilter = next.eventFilter;
+            if (state.graphMode === 'memory') {
+                state.memoryViewMode = next.memoryViewMode;
+            }
+            render();
+        }
+
         function computeSpendData() {
             const summary = state.tokensSummary || {};
             const timeline = Array.isArray(state.tokensTimeline) ? state.tokensTimeline : [];
@@ -2198,7 +2755,9 @@
 
         function render() {
             const scrollPositions = captureScrollPositions();
+            document.body.dataset.surfaceMode = state.surfaceMode;
             renderBanner();
+            renderSurfaceMode();
             renderHeader();
             renderLeftRail();
             renderGraph();
@@ -2206,6 +2765,14 @@
             renderEvents();
             renderDrawer();
             restoreScrollPositions(scrollPositions);
+        }
+
+        function renderSurfaceMode() {
+            const note = surfaceModes[state.surfaceMode]?.note || surfaceModes.overview.note;
+            $('surface-note').textContent = note;
+            document.querySelectorAll('#surface-tabs button').forEach((button) => {
+                button.classList.toggle('active', button.dataset.surfaceMode === state.surfaceMode);
+            });
         }
 
         function renderBanner() {
@@ -2224,6 +2791,9 @@
             const ver = state.health.release?.packageVersion || '?';
             const user = state.health.release?.gitUser;
             $('header-version').textContent = user ? `v${ver} · ${user}` : `v${ver}`;
+            $('primary-client-label').textContent = state.primaryClient?.displayName
+                ? `Primary client · ${state.primaryClient.displayName}`
+                : 'Primary client · awaiting runtime';
             const pill = $('sync-pill');
             const failedResources = countFailedResources();
             pill.classList.toggle('live', state.streamConnected && failedResources === 0);
@@ -2267,29 +2837,51 @@
             });
 
             const tokenMetrics = computeTokenMetrics();
+            const latestTokenRun = getLatestTokenRun();
             const dialEl = $('dial-progress');
             const circumference = 2 * Math.PI * 70;
             if (tokenMetrics.events === 0 && tokenMetrics.totalRuns === 0 && !tokenMetrics.gross && !tokenMetrics.saved && !tokenMetrics.forwarded) {
-                $('token-summary').textContent = resourceFailed('tokensSummary') ? 'telemetry unavailable' : 'No token data yet for this runtime';
+                $('token-summary').textContent = resourceFailed('tokensSummary') ? 'telemetry unavailable' : 'No persisted token telemetry for this runtime yet';
                 $('gross-tokens').textContent = '--';
                 $('saved-tokens').textContent = '--';
                 $('net-tokens').textContent = '--';
                 $('dial-value').textContent = '--';
+                $('latest-token-run').textContent = 'n/a';
+                $('latest-token-meta').textContent = state.streamConnected
+                    ? 'Live stream connected, waiting for the first token-producing run.'
+                    : 'Live stream disconnected and no persisted token telemetry is available yet.';
+                $('token-empty-note').textContent = resourceFailed('tokensSummary')
+                    ? 'Token summary endpoint unavailable for the selected runtime.'
+                    : 'No persisted token telemetry for this runtime yet.';
+                $('token-source-chips').innerHTML = '<span class="meta">No by-source allocation recorded yet.</span>';
+                $('token-phase-chips').innerHTML = '<span class="meta">No by-phase allocation recorded yet.</span>';
+                $('token-by-source-count').textContent = '0';
+                $('token-by-phase-count').textContent = '0';
                 dialEl.classList.add('awaiting');
                 dialEl.style.strokeDashoffset = '0';
             } else {
                 $('token-summary').textContent = resourceFailed('tokensSummary')
                     ? 'telemetry degraded'
-                    : `${tokenMetrics.totalRuns || 0} runs · ${tokenMetrics.events || 0} samples`;
+                    : `${tokenMetrics.totalRuns || 0} lifetime runs · ${tokenMetrics.events || 0} samples`;
                 $('gross-tokens').textContent = formatNumber(tokenMetrics.gross);
                 $('saved-tokens').textContent = formatNumber(tokenMetrics.saved);
                 $('net-tokens').textContent = formatNumber(tokenMetrics.forwarded);
                 $('dial-value').textContent = `${tokenMetrics.ratio}%`;
+                $('latest-token-run').textContent = latestTokenRun ? `${Number(latestTokenRun.compressionPct || 0)}%` : 'n/a';
+                $('latest-token-meta').textContent = latestTokenRun
+                    ? `${latestTokenRun.goal || latestTokenRun.runId} · saved ${formatNumber(latestTokenRun.savedTokens || 0)} · ${formatAgo(latestTokenRun.timestamp)}`
+                    : 'Persisted telemetry is available, but no recent run delta is attached.';
+                $('token-empty-note').textContent = 'Lifetime totals are persisted per runtime. Open the analyzer for by-source, by-phase, and run-by-run breakdowns.';
+                const sourceEntries = Object.entries(state.tokensBySource || {}).sort((left, right) => Number(right[1]) - Number(left[1]));
+                const phaseEntries = Object.entries(state.tokensSummary?.byPhase || {}).sort((left, right) => Number(right[1]) - Number(left[1]));
+                $('token-source-chips').innerHTML = sourceEntries.length ? summarizeTokenDimension(state.tokensBySource) : '<span class="meta">Awaiting by-source allocation.</span>';
+                $('token-phase-chips').innerHTML = phaseEntries.length ? summarizeTokenDimension(state.tokensSummary?.byPhase) : '<span class="meta">Awaiting by-phase allocation.</span>';
+                $('token-by-source-count').textContent = String(sourceEntries.length);
+                $('token-by-phase-count').textContent = String(phaseEntries.length);
                 dialEl.classList.remove('awaiting');
                 const offset = circumference - (circumference * tokenMetrics.ratio / 100);
                 dialEl.style.strokeDashoffset = `${offset}`;
             }
-            $('memory-count').textContent = resourceFailed('memory') && !state.memories.length ? 'n/a' : formatNumber(state.memories.length);
 
             $('runs-count').textContent = resourceFailed('runs') && !state.runs.length ? 'n/a' : formatNumber(state.runs.length);
             const latestRun = state.runs[0];
@@ -2341,6 +2933,21 @@
             });
         }
 
+        async function readRagFileInputs(fileList, tags, collectionName) {
+            const files = Array.from(fileList || []);
+            const inputs = await Promise.all(files.map((file) => new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve({
+                    text: String(reader.result || ''),
+                    label: file.name || `${collectionName} file`,
+                    tags,
+                });
+                reader.onerror = () => reject(reader.error || new Error(`Failed to read ${file.name}`));
+                reader.readAsText(file);
+            })));
+            return inputs.filter((entry) => entry.text?.trim());
+        }
+
         function bindKnowledgeFabricHandlers() {
             const form = $('rag-create-form');
             if (form) {
@@ -2353,19 +2960,26 @@
                         const description = $('rag-description-input').value.trim();
                         const tags = $('rag-tags-input').value.split(',').map((value) => value.trim()).filter(Boolean);
                         const text = $('rag-text-input').value.trim();
+                        const url = $('rag-url-input').value.trim();
+                        const fileInputs = await readRagFileInputs($('rag-file-input').files, tags, name);
                         const created = await fetchJson('/api/rag/collections', postJson({
                             name,
                             description,
                             tags,
                             scope: 'session',
                         }));
-                        if (text) {
+                        const inputs = [
+                            ...fileInputs,
+                            ...(url ? [{ url, label: `${name} url`, tags }] : []),
+                            ...(text ? [{ text, label: `${name} note`, tags }] : []),
+                        ];
+                        if (inputs.length) {
                             await fetchJson(`/api/rag/collections/${encodeURIComponent(created.collectionId)}/ingest`, postJson({
-                                inputs: [{ text, label: `${name} seed`, tags }],
+                                inputs,
                             }));
                         }
                         await fetchJson(`/api/rag/collections/${encodeURIComponent(created.collectionId)}/attach`, postJson({}));
-                        status.textContent = `Collection ${created.name} created and attached.`;
+                        status.textContent = `Collection ${created.name} created, ingested, and attached to the active runtime.`;
                         form.reset();
                         await refreshAll(['ragCollections', 'knowledgeFabricSession', 'knowledgeProvenance']);
                     } catch (error) {
@@ -2451,19 +3065,126 @@
             return { nodes, links };
         }
 
+        function renderMemoryExplorer() {
+            const explorer = $('graph-memory-explorer');
+            const focus = state.memoryDetail || state.memories[0] || null;
+            const tiers = ['prefrontal', 'hippocampus', 'cortex'];
+            const grouped = tiers.map((tier) => ({
+                tier,
+                items: state.memories.filter((memory) => memory.tier === tier).slice(0, 5),
+            }));
+
+            if (state.memoryViewMode === 'clusters') {
+                explorer.innerHTML = `
+                    <div class="memory-explorer-grid">
+                        ${grouped.map((group) => `
+                            <section class="memory-explorer-card">
+                                <h4>${escapeHtml(group.tier)}</h4>
+                                <div class="meta" style="margin-bottom:0.7rem;">${formatNumber(state.memories.filter((memory) => memory.tier === group.tier).length)} memories in this tier</div>
+                                ${group.items.length ? `
+                                    <ul>
+                                        ${group.items.map((memory) => `
+                                            <li>
+                                                <button type="button" data-memory-open="${escapeHtml(memory.id)}">
+                                                    ${escapeHtml(shortLabel(memory.excerpt || memory.id, 72))}
+                                                    <span class="memory-explorer-meta">${formatAgo(memory.timestamp)} · priority ${Number(memory.priority || 0).toFixed(2)} · ${memory.linkCount || 0} links</span>
+                                                </button>
+                                            </li>
+                                        `).join('')}
+                                    </ul>
+                                ` : '<div class="empty">No memories in this tier yet.</div>'}
+                            </section>
+                        `).join('')}
+                    </div>
+                `;
+                return;
+            }
+
+            if (state.memoryViewMode === 'lineage') {
+                explorer.innerHTML = focus ? `
+                    <div class="memory-explorer-pillar">
+                        <section class="memory-explorer-card">
+                            <h4>Focus Memory</h4>
+                            <button type="button" data-memory-open="${escapeHtml(focus.id)}">
+                                ${escapeHtml(focus.excerpt || focus.id)}
+                                <span class="memory-explorer-meta">${escapeHtml(focus.tier || 'memory')} · ${formatAgo(focus.timestamp)} · ${focus.linkCount || 0} links</span>
+                            </button>
+                        </section>
+                        <section class="memory-explorer-card">
+                            <h4>Lineage</h4>
+                            ${(state.memoryDetail?.lineage || []).length
+                                ? `<ul>${state.memoryDetail.lineage.map((memory) => `
+                                    <li>
+                                        <button type="button" data-memory-open="${escapeHtml(memory.id)}">
+                                            ${escapeHtml(shortLabel(memory.excerpt || memory.id, 84))}
+                                            <span class="memory-explorer-meta">${escapeHtml(memory.tier)} · ${formatDate(memory.timestamp)}</span>
+                                        </button>
+                                    </li>
+                                `).join('')}</ul>`
+                                : '<div class="empty">No lineage chain recorded for the selected memory yet.</div>'}
+                        </section>
+                        <section class="memory-explorer-card">
+                            <h4>Related Links</h4>
+                            ${(state.memoryDetail?.linkedMemories || []).length
+                                ? `<ul>${state.memoryDetail.linkedMemories.map((memory) => `
+                                    <li>
+                                        <button type="button" data-memory-open="${escapeHtml(memory.id)}">
+                                            ${escapeHtml(shortLabel(memory.excerpt || memory.id, 84))}
+                                            <span class="memory-explorer-meta">${memory.linkCount || 0} links · ${formatAgo(memory.timestamp)}</span>
+                                        </button>
+                                    </li>
+                                `).join('')}</ul>`
+                                : '<div class="empty">No linked memories were returned for this focus item.</div>'}
+                        </section>
+                    </div>
+                ` : emptyState('Select or store a memory to inspect lineage.');
+                return;
+            }
+
+            if (state.memoryViewMode === 'timeline') {
+                const timelineItems = [...state.memories]
+                    .sort((left, right) => Number(right.timestamp || 0) - Number(left.timestamp || 0))
+                    .slice(0, 12);
+                explorer.innerHTML = `
+                    <div class="memory-step-list">
+                        ${timelineItems.length ? timelineItems.map((memory) => `
+                            <section class="memory-step">
+                                <strong>${escapeHtml(shortLabel(memory.excerpt || memory.id, 120))}</strong>
+                                <div class="meta">${formatDate(memory.timestamp)} · ${escapeHtml(memory.tier)} · priority ${Number(memory.priority || 0).toFixed(2)} · ${memory.linkCount || 0} links</div>
+                                <div class="action-bar">
+                                    <button type="button" class="ghost-button" data-memory-open="${escapeHtml(memory.id)}">Inspect memory</button>
+                                </div>
+                            </section>
+                        `).join('') : emptyState('No memories recorded yet.')}
+                    </div>
+                `;
+                return;
+            }
+
+            explorer.innerHTML = '';
+        }
+
         function renderGraph() {
             if (_memoryNetworkLoading && state.graphMode === 'memory') return;
 
             const config = graphModes[state.graphMode];
+            const memoryToolbar = $('memory-view-modes');
+            const svg = $('graph-canvas');
+            const explorer = $('graph-memory-explorer');
+            const empty = $('graph-empty');
             $('graph-title').textContent = config.title;
             $('graph-subtitle').textContent = config.subtitle;
             document.querySelectorAll('#graph-modes button').forEach((button) => {
                 button.classList.toggle('active', button.dataset.graphMode === state.graphMode);
             });
+            if (memoryToolbar) {
+                memoryToolbar.classList.toggle('hidden', state.graphMode !== 'memory');
+                memoryToolbar.querySelectorAll('button').forEach((button) => {
+                    button.classList.toggle('active', button.dataset.memoryViewMode === state.memoryViewMode);
+                });
+            }
 
             let model = buildGraphModel();
-            const svg = $('graph-canvas');
-            const empty = $('graph-empty');
 
             if (model.nodes.length > 0) {
                 _lastGraphModel = { ...model, mode: state.graphMode };
@@ -2473,6 +3194,9 @@
 
             if (!model.nodes.length) {
                 svg.innerHTML = '';
+                explorer.innerHTML = '';
+                explorer.classList.add('hidden');
+                svg.classList.remove('hidden');
                 empty.classList.remove('hidden');
                 empty.textContent = state.graphMode === 'memory'
                     ? resourceFailed('memory')
@@ -2491,6 +3215,39 @@
             }
 
             empty.classList.add('hidden');
+
+            if (state.graphMode === 'memory' && state.memoryViewMode !== 'graph') {
+                svg.innerHTML = '';
+                svg.classList.add('hidden');
+                explorer.classList.remove('hidden');
+                renderMemoryExplorer();
+                explorer.querySelectorAll('[data-memory-open]').forEach((button) => {
+                    button.addEventListener('click', async () => {
+                        const memoryId = button.getAttribute('data-memory-open');
+                        if (memoryId) {
+                            await openEntity('memory', memoryId);
+                        }
+                    });
+                });
+                const memTiers = state.health.memory || {};
+                $('graph-stats').innerHTML = [
+                    chip(`${state.memories.length} memories`),
+                    memTiers.prefrontal ? chip(`prefrontal:${memTiers.prefrontal}`) : '',
+                    memTiers.hippocampus ? chip(`hippocampus:${memTiers.hippocampus}`) : '',
+                    memTiers.cortex ? chip(`cortex:${memTiers.cortex}`) : '',
+                ].filter(Boolean).join('');
+                $('graph-note').textContent = state.memoryViewMode === 'clusters'
+                    ? 'Cluster view groups memory tiers so you can compare retention patterns before drilling into a specific memory.'
+                    : state.memoryViewMode === 'lineage'
+                        ? 'Lineage view traces why the selected memory matters and which related memories or runs anchor it.'
+                        : 'Timeline view orders memories by chronology, priority, and link density without losing the current focus.';
+                return;
+            }
+
+            explorer.innerHTML = '';
+            explorer.classList.add('hidden');
+            svg.classList.remove('hidden');
+
             const width = 980;
             const height = 620;
             const positions = state.graphMode === 'runs'
@@ -2568,7 +3325,9 @@
             ].filter(Boolean).join('');
             $('graph-note').textContent = state.graphMode === 'memory' && resourceFailed('memoryNetwork')
                 ? 'Memory network endpoint unavailable. Showing snapshot fallback topology.'
-                : config.subtitle;
+                : state.graphMode === 'memory'
+                    ? 'Select a node to update Memory Snapshots and the inspector without leaving the graph.'
+                    : config.subtitle;
         }
 
         function getPlannerViewModel() {
@@ -2646,9 +3405,28 @@
             const orchestrateCalled = usage.orchestrateCalled ?? runtime?.orchestrateCalled ?? false;
             const recentTools = (usage.lastToolCalls || runtime?.lastToolCalls || []).slice(-4);
             const toolProfile = usage.clientInstructionStatus?.toolProfile || runtime?.clientInstructionStatus?.toolProfile || 'autonomous';
-            $('runtime-usage-summary').textContent = runtime
-                ? `${runtime.health === 'stale' ? 'Stale' : 'Active'} runtime · ${(usage.executionMode || runtime.executionMode || state.orchestrationSession?.mode || runtime.orchestration?.mode || 'single-pass')} · profile:${toolProfile} · sequence:${compliance} · bootstrap:${bootstrapCalled ? 'on' : 'off'} · orchestrate:${orchestrateCalled ? 'on' : 'off'} · plan:${usage.plannerApplied ? 'on' : 'off'} · tokens:${usage.tokenOptimizationApplied ? 'on' : 'off'}${recentTools.length ? ` · tools:${recentTools.join(' → ')}` : ''} · last activity ${formatAgo(runtime.lastActivityAt)}`
-                : 'No runtime usage data yet.';
+            const summary = $('runtime-usage-summary');
+            if (!summary) return;
+            if (!runtime) {
+                summary.textContent = 'No runtime usage data yet.';
+                return;
+            }
+
+            const executionMode = usage.executionMode || runtime.executionMode || state.orchestrationSession?.mode || runtime.orchestration?.mode || 'single-pass';
+            const toolChain = recentTools.length ? recentTools.join(' → ') : 'n/a';
+            summary.innerHTML = [
+                summaryChip('runtime', shortLabel(runtime.runtimeId, 22), runtime.health === 'stale' ? 'warn' : 'good'),
+                summaryChip('state', runtime.health === 'stale' ? 'stale' : 'active', runtime.health === 'stale' ? 'warn' : 'good'),
+                summaryChip('mode', executionMode),
+                summaryChip('profile', toolProfile),
+                summaryChip('sequence', compliance, compliance === 'complete' ? 'good' : compliance === 'partial' ? 'warn' : 'info'),
+                summaryChip('bootstrap', bootstrapCalled ? 'on' : 'off', bootstrapCalled ? 'good' : 'warn'),
+                summaryChip('orchestrate', orchestrateCalled ? 'on' : 'off', orchestrateCalled ? 'good' : 'warn'),
+                summaryChip('plan', usage.plannerApplied ? 'on' : 'off', usage.plannerApplied ? 'good' : 'info'),
+                summaryChip('tokens', usage.tokenOptimizationApplied ? 'on' : 'off', usage.tokenOptimizationApplied ? 'good' : 'info'),
+                recentTools.length ? summaryChip('tools', toolChain, 'info') : '',
+                summaryChip('activity', formatAgo(runtime.lastActivityAt), 'info'),
+            ].filter(Boolean).join('');
         }
 
         function renderPlannerLedgerTable(ledger) {
@@ -2690,6 +3468,7 @@
             });
             const titles = {
                 memories: 'Memory Snapshots',
+                platform: 'Platform Registry',
                 skills: 'Skills',
                 specialists: 'Specialist Roster',
                 crews: 'Crew Templates',
@@ -2701,11 +3480,68 @@
                 governance: 'Memory Governance',
                 federation: 'Federation Mesh',
             };
+            const subtitles = {
+                memories: 'Select, inspect, and trace why a memory matters across runtime links and session history.',
+                platform: 'See the shared product inventory: MCP surfaces, client bootstrap targets, dashboard capabilities, runtime subsystems, and release gates.',
+                skills: 'Compare what the runtime can activate with what the selected runtime actually used.',
+                specialists: 'Review specialist authority, mission fit, and operator-facing role coverage.',
+                crews: 'See the reusable team shapes Nexus can choose before mutation.',
+                knowledge: 'Manage session RAG, inspect source mix, and follow provenance into the latest run.',
+                planning: 'Inspect the planner ledger, selected assets, and review gates before or after execution.',
+                workflows: 'Track reusable execution loops, their guardrails, and when they get selected.',
+                hooks: 'Inspect runtime checkpoints and the artifact selectors they inject into a run.',
+                automations: 'Review bounded follow-ups, trigger modes, and connector-facing delivery behavior.',
+                governance: 'Inspect quarantines, guardrails, and the reasons a memory or run path is blocked.',
+                federation: 'See peer inventory, relay status, and what the selected runtime exchanged with the mesh.',
+            };
             $('library-title').textContent = titles[state.libraryMode];
+            $('library-subtitle').textContent = subtitles[state.libraryMode];
             const container = $('library-list');
 
             if (state.libraryMode === 'memories') {
-                container.innerHTML = resourceFailed('memory') && !state.memories.length
+                const memoryHealth = state.memoryHealth || {};
+                const memoryScopeUsage = state.usage?.memoryScopeUsage || {};
+                const sharedMemory = Array.isArray(state.memoryShared) ? state.memoryShared : [];
+                const memoryHealthCard = `
+                    <div class="card">
+                        <div class="card-title">
+                            <strong>Memory Health</strong>
+                            <span class="state-chip ${stateClass((memoryHealth.quarantined || 0) > 0 ? 'warn' : 'ready')}">${escapeHtml(formatNumber(memoryHealth.total || 0))} tracked</span>
+                        </div>
+                        <div class="list-inline">
+                            ${chip(`active:${formatNumber(memoryHealth.active || 0)}`)}
+                            ${chip(`shared:${formatNumber(memoryHealth.shared || 0)}`)}
+                            ${chip(`promoted:${formatNumber(memoryHealth.promoted || 0)}`)}
+                            ${chip(`quarantined:${formatNumber(memoryHealth.quarantined || 0)}`)}
+                            ${chip(`scrap:${formatNumber(memoryHealth.scrap || 0)}`)}
+                        </div>
+                        <div class="meta">${escapeHtml((memoryHealth.topTags || []).length ? `Top tags: ${(memoryHealth.topTags || []).join(' · ')}` : 'Inspect relevance, importance, scope, and quarantine state before promoting memories.')}</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-title">
+                            <strong>Memory Scope Usage</strong>
+                            <span class="state-chip ${stateClass((memoryScopeUsage.sharedContextCount || 0) > 0 ? 'ready' : 'info')}">${escapeHtml(formatNumber(memoryScopeUsage.sharedContextCount || 0))} shared</span>
+                        </div>
+                        <div class="list-inline">
+                            ${Object.entries(memoryScopeUsage.byScope || {}).map(([scope, count]) => chip(`${scope}:${formatNumber(count)}`)).join('')}
+                        </div>
+                        <div class="meta">${escapeHtml(Object.entries(memoryScopeUsage.byState || {}).length ? Object.entries(memoryScopeUsage.byState || {}).map(([name, count]) => `${name}:${count}`).join(' · ') : 'Shared, session, project, user, and promoted scopes appear here after orchestration.')}</div>
+                    </div>
+                    ${sharedMemory.length ? `
+                        <div class="card">
+                            <div class="card-title">
+                                <strong>Shared Worker Memory</strong>
+                                <span class="state-chip info">${formatNumber(sharedMemory.length)}</span>
+                            </div>
+                            ${renderSmallList(sharedMemory.map((memory) => ({
+                                label: memory.excerpt,
+                                meta: `${memory.scope} · ${Number(memory.importanceScore || 0).toFixed(2)} importance`,
+                                action: `memory:${memory.id}`,
+                            })))}
+                        </div>
+                    ` : ''}
+                `;
+                const memoryList = resourceFailed('memory') && !state.memories.length
                     ? emptyState('Memory endpoint unavailable.')
                     : state.memories.length
                     ? state.memories.map((memory) => `
@@ -2714,11 +3550,67 @@
                                 <strong>${escapeHtml(memory.excerpt)}</strong>
                                 <span class="state-chip ${stateClass(memory.tier)}">${escapeHtml(memory.tier)}</span>
                             </div>
-                            <div class="meta">${formatDate(memory.timestamp)} · priority ${Number(memory.priority || 0).toFixed(2)} · ${memory.linkCount} links</div>
+                            <div class="meta">${formatDate(memory.timestamp)} · priority ${Number(memory.priority || 0).toFixed(2)} · importance ${Number(memory.importanceScore || 0).toFixed(2)} · relevance ${Number(memory.relevanceScore || 0).toFixed(2)} · trust ${Number(memory.trustScore || 0).toFixed(2)}</div>
+                            <div class="meta">scope ${escapeHtml(memory.scope || 'session')} · state ${escapeHtml(memory.state || 'active')} · source ${escapeHtml(memory.source || 'runtime')} · ${memory.linkCount} links</div>
                             <div class="list-inline">${(memory.tags || []).slice(0, 5).map((tag) => chip(tag)).join('')}</div>
                         </div>
                     `).join('')
                     : emptyState('No memory stored yet.');
+                container.innerHTML = memoryHealthCard + memoryList;
+            } else if (state.libraryMode === 'platform') {
+                const registry = state.featureRegistry;
+                const counts = registry?.counts || {};
+                const sections = Array.isArray(registry?.sections) ? registry.sections : [];
+                const featureMetrics = `
+                    <div class="metrics-grid">
+                        <div class="hero-metric">
+                            <label>MCP Surfaces</label>
+                            <strong>${formatNumber(counts.mcpSurfaces || 0)}</strong>
+                            <div class="meta">Core plus expert control surfaces exposed by Nexus Prime.</div>
+                        </div>
+                        <div class="hero-metric">
+                            <label>Client Targets</label>
+                            <strong>${formatNumber(counts.clientTargets || 0)}</strong>
+                            <div class="meta">Bootstrap families with home and workspace instruction surfaces.</div>
+                        </div>
+                        <div class="hero-metric">
+                            <label>Bundled Assets</label>
+                            <strong>${formatNumber((counts.skills || 0) + (counts.workflows || 0) + (counts.hooks || 0) + (counts.automations || 0) + (counts.crews || 0))}</strong>
+                            <div class="meta">${escapeHtml(`${counts.skills || 0} skills · ${counts.workflows || 0} workflows · ${counts.hooks || 0} hooks · ${counts.automations || 0} automations · ${counts.crews || 0} crews`)}</div>
+                        </div>
+                        <div class="hero-metric">
+                            <label>Release Gates</label>
+                            <strong>${formatNumber(counts.releaseGates || 0)}</strong>
+                            <div class="meta">Quality and security checks wired into release readiness.</div>
+                        </div>
+                    </div>
+                `;
+                const sectionCards = sections.length
+                    ? sections.map((section) => `
+                        <div class="card">
+                            <div class="card-title">
+                                <strong>${escapeHtml(section.title)}</strong>
+                                <span class="state-chip info">${formatNumber((section.items || []).length)}</span>
+                            </div>
+                            <div class="meta">${escapeHtml(section.summary || 'No summary available.')}</div>
+                            ${renderSmallList((section.items || []).slice(0, 12).map((item) => ({
+                                label: item.name,
+                                meta: `${item.surface} · ${item.purpose}`,
+                            })))}
+                        </div>
+                    `).join('')
+                    : emptyState('Feature registry has not been generated yet.');
+                container.innerHTML = `
+                    <div class="card">
+                        <div class="card-title">
+                            <strong>Generated Registry</strong>
+                            <span class="state-chip ${stateClass(registry ? 'active' : resourceFailed('featureRegistry') ? 'failed' : 'info')}">${escapeHtml(registry ? 'ready' : resourceFailed('featureRegistry') ? 'unavailable' : 'loading')}</span>
+                        </div>
+                        <div class="meta">${escapeHtml(registry?.generatedAt ? `Generated ${formatDate(registry.generatedAt)} for ${registry.generatedFor || 'this workspace'}.` : 'Feature inventory will appear here once the registry is loaded.')}</div>
+                    </div>
+                    ${featureMetrics}
+                    <div class="stack" style="margin-top:0.8rem;">${sectionCards}</div>
+                `;
             } else if (state.libraryMode === 'skills') {
                 const skillForm = `
                     <div class="card" style="border-color: rgba(84,255,135,0.14); background: rgba(84,255,135,0.04);">
@@ -2824,6 +3716,16 @@
                 const provenance = Array.isArray(state.knowledgeProvenance?.entries) ? state.knowledgeProvenance.entries : [];
                 const collections = Array.isArray(state.ragCollections) ? state.ragCollections : [];
                 const patterns = Array.isArray(state.patterns) ? state.patterns : [];
+                const ragHits = Array.isArray(fabric?.rag?.hits) ? fabric.rag.hits : [];
+                const retrievedLabels = [...new Set(ragHits.map((hit) => hit.label))].slice(0, 6);
+                const droppedEntries = provenance.filter((entry) => entry.selected === false);
+                const selectedEntries = provenance.filter((entry) => entry.selected !== false);
+                const selectionAudit = state.usage?.artifactSelectionAudit || {};
+                const catalogHealth = state.usage?.catalogHealth || {};
+                const tokenBudget = state.usage?.sourceAwareTokenBudget || fabric?.tokenBudget || {};
+                const bootstrapStatus = state.usage?.bootstrapManifestStatus || {};
+                const ragUsage = state.usage?.ragUsageSummary || {};
+                const sharedMemory = Array.isArray(state.memoryShared) ? state.memoryShared : [];
                 const bySourceRows = Object.entries(state.tokensBySource || {})
                     .sort((left, right) => Number(right[1]) - Number(left[1]))
                     .map(([name, value]) => ({ label: name, meta: `${formatNumber(value)} tokens` }));
@@ -2836,8 +3738,63 @@
                         </div>
                         <div class="meta">${escapeHtml(fabric?.summary || 'No knowledge fabric bundle recorded for this runtime yet.')}</div>
                     </div>
+                    <div class="metrics-grid">
+                        <div class="hero-metric">
+                            <label>Catalog Health</label>
+                            <strong>${escapeHtml(catalogHealth?.overall || 'n/a')}</strong>
+                            <div class="meta">${escapeHtml((catalogHealth?.issues || []).slice(0, 2).join(' · ') || 'Catalogs loaded and selection-ready.')}</div>
+                        </div>
+                        <div class="hero-metric">
+                            <label>Selection Audit</label>
+                            <strong>${formatNumber((selectionAudit?.selected || []).length || 0)}</strong>
+                            <div class="meta">${escapeHtml(selectionAudit?.summary || 'No audited selections recorded yet.')}</div>
+                        </div>
+                        <div class="hero-metric">
+                            <label>Budget Drops</label>
+                            <strong>${formatNumber((tokenBudget?.dropped || []).length || 0)}</strong>
+                            <div class="meta">${escapeHtml(tokenBudget?.dominantSource ? `Dominant source: ${tokenBudget.dominantSource}` : 'Awaiting source-aware token budget.')}</div>
+                        </div>
+                        <div class="hero-metric">
+                            <label>RAG Usage</label>
+                            <strong>${formatNumber(ragUsage?.selectedChunks || 0)}</strong>
+                            <div class="meta">${escapeHtml(ragUsage?.attachedCollections ? `${ragUsage.attachedCollections} attached · ${ragUsage.retrievedChunks || 0} retrieved · ${ragUsage.droppedChunks || 0} dropped` : 'Collections are retrieved only when orchestration finds relevant chunks.')}</div>
+                        </div>
+                        <div class="hero-metric">
+                            <label>Bootstrap Clients</label>
+                            <strong>${formatNumber((bootstrapStatus?.clients || []).length || 0)}</strong>
+                            <div class="meta">${escapeHtml((bootstrapStatus?.clients || []).some((client) => client.state === 'installed') ? 'Client bootstrap manifests are present.' : 'No persisted bootstrap manifest found yet.')}</div>
+                        </div>
+                    </div>
+                    <div class="card" style="border-color: rgba(73,240,255,0.18); background: rgba(73,240,255,0.04);">
+                        <div class="card-title">
+                            <strong>How session RAG works</strong>
+                            <span class="state-chip info">4 steps</span>
+                        </div>
+                        <div class="guided-strip">
+                            <div class="guided-step">
+                                <span class="guided-step-index">Step 1</span>
+                                <strong>Create</strong>
+                                <div class="meta">Start a session-first corpus for briefs, docs, tickets, or architecture notes.</div>
+                            </div>
+                            <div class="guided-step">
+                                <span class="guided-step-index">Step 2</span>
+                                <strong>Ingest</strong>
+                                <div class="meta">Add local files, a URL, or raw text. Collections are not sent wholesale.</div>
+                            </div>
+                            <div class="guided-step">
+                                <span class="guided-step-index">Step 3</span>
+                                <strong>Attach</strong>
+                                <div class="meta">Bind the collection to the selected runtime so bootstrap and orchestrate can retrieve from it.</div>
+                            </div>
+                            <div class="guided-step">
+                                <span class="guided-step-index">Step 4</span>
+                                <strong>Inspect</strong>
+                                <div class="meta">Review chunk hits, packet/provenance usage, and what token budgeting kept or dropped.</div>
+                            </div>
+                        </div>
+                    </div>
                     <details class="card" style="border-color: rgba(84,255,135,0.18); background: rgba(84,255,135,0.04);">
-                        <summary style="cursor:pointer; font-size:0.82rem; font-weight:600; color:var(--accent);">+ Create Session RAG Collection</summary>
+                        <summary style="cursor:pointer; font-size:0.82rem; font-weight:600; color:var(--accent);">1. Create collection and ingest source</summary>
                         <form id="rag-create-form" class="control-grid" style="margin-top:0.6rem;">
                             <div class="field">
                                 <label for="rag-name-input">Collection Name</label>
@@ -2852,12 +3809,21 @@
                                 <input id="rag-tags-input" type="text" placeholder="rag,brief,docs">
                             </div>
                             <div class="field">
-                                <label for="rag-text-input">Seed Text</label>
+                                <label for="rag-file-input">Local Files</label>
+                                <input id="rag-file-input" type="file" multiple>
+                            </div>
+                            <div class="field">
+                                <label for="rag-url-input">URL Source</label>
+                                <input id="rag-url-input" type="url" placeholder="https://example.com/spec">
+                            </div>
+                            <div class="field">
+                                <label for="rag-text-input">Raw Text</label>
                                 <textarea id="rag-text-input" placeholder="Paste brief text, notes, or architecture references to ingest immediately."></textarea>
                             </div>
                             <div class="action-bar">
-                                <button type="submit" class="primary-button">Create Collection</button>
+                                <button type="submit" class="primary-button">Create, ingest, and attach</button>
                             </div>
+                            <div class="meta">Collections are not sent wholesale. Nexus retrieves only top matching chunks during bootstrap/orchestrate.</div>
                             <div id="rag-create-status" class="meta"></div>
                         </form>
                     </details>
@@ -2869,18 +3835,23 @@
                         </div>
                         <div class="hero-metric">
                             <label>Attached Collections</label>
-                            <strong>${formatNumber((fabric?.attachedCollections || []).length || collections.filter((item) => (item.attachedRuntimeIds || []).includes(runtimeId)).length)}</strong>
-                            <div class="meta">Session-first RAG inputs</div>
+                            <strong>${formatNumber((fabric?.rag?.attachedCollections || []).length || collections.filter((item) => (item.attachedRuntimeIds || []).includes(runtimeId)).length)}</strong>
+                            <div class="meta">Attached to runtime/session</div>
                         </div>
                         <div class="hero-metric">
-                            <label>Pattern Hits</label>
-                            <strong>${formatNumber((fabric?.patternHits || []).length || patterns.length)}</strong>
-                            <div class="meta">Reusable orchestration cards</div>
+                            <label>Retrieved Chunks</label>
+                            <strong>${formatNumber(ragHits.length)}</strong>
+                            <div class="meta">Used during latest orchestrate</div>
                         </div>
                         <div class="hero-metric">
-                            <label>Model Tiers</label>
-                            <strong>${formatNumber((state.modelTiers?.trace || []).length)}</strong>
-                            <div class="meta">${escapeHtml((state.modelTiers?.trace || []).map((item) => `${item.stage}:${item.tier}`).slice(0, 2).join(' · ') || 'No tier trace recorded')}</div>
+                            <label>Top Retrieved Labels</label>
+                            <strong>${formatNumber(retrievedLabels.length)}</strong>
+                            <div class="meta">${escapeHtml(retrievedLabels.join(' · ') || 'No retrieved sources yet')}</div>
+                        </div>
+                        <div class="hero-metric">
+                            <label>Planner / Packet / Provenance</label>
+                            <strong>${formatNumber(selectedEntries.length)}</strong>
+                            <div class="meta">Selected by token budgeting and fed into runtime context</div>
                         </div>
                     </div>
                     <div class="stack" style="margin-top:0.8rem;">
@@ -2900,7 +3871,22 @@
                                 <span class="state-chip info">${formatNumber(bySourceRows.length)}</span>
                             </div>
                             ${bySourceRows.length ? renderSmallList(bySourceRows) : emptyState('No by-source token telemetry yet for this runtime.')}
+                            <div class="meta">${escapeHtml((tokenBudget?.dropped || []).length ? `Dropped: ${(tokenBudget.dropped || []).slice(0, 4).map((entry) => `${entry.sourceClass}:${entry.reason}`).join(' · ')}` : 'No budget drops recorded for the latest knowledge bundle.')}</div>
                         </div>
+                        ${sharedMemory.length ? `
+                            <div class="card">
+                                <div class="card-title">
+                                    <strong>Shared Memory Bus</strong>
+                                    <span class="state-chip info">${formatNumber(sharedMemory.length)}</span>
+                                </div>
+                                <div class="meta">Worker learnings land in shared session memory before any promotion to longer-lived scopes.</div>
+                                ${renderSmallList(sharedMemory.map((memory) => ({
+                                    label: memory.excerpt,
+                                    meta: `${memory.scope} · importance ${Number(memory.importanceScore || 0).toFixed(2)}`,
+                                    action: `memory:${memory.id}`,
+                                })))}
+                            </div>
+                        ` : ''}
                         <div class="card">
                             <div class="card-title">
                                 <strong>RAG Collections</strong>
@@ -2909,6 +3895,7 @@
                             ${collections.length
                                 ? collections.map((collection) => {
                                     const attached = runtimeId && (collection.attachedRuntimeIds || []).includes(runtimeId);
+                                    const relatedHits = ragHits.filter((hit) => hit.collectionId === collection.collectionId);
                                     return `
                                         <div class="card" style="margin-top:0.6rem;">
                                             <div class="card-title">
@@ -2919,9 +3906,11 @@
                                             <div class="list-inline">
                                                 ${(collection.tags || []).map((tag) => chip(tag)).join('')}
                                                 <span class="chip">${escapeHtml(collection.scope || 'session')}</span>
+                                                ${relatedHits.length ? chip(`retrieved:${relatedHits.length}`) : ''}
                                             </div>
+                                            <div class="meta" style="margin-top:0.45rem;">${relatedHits.length ? `Top labels: ${relatedHits.map((hit) => hit.label).slice(0, 3).join(' · ')}` : 'Attach to runtime/session so bootstrap and orchestrate can retrieve from this collection.'}</div>
                                             <div class="action-bar" style="margin-top:0.6rem;">
-                                                <button type="button" class="ghost-button" data-rag-action="${attached ? 'detach' : 'attach'}" data-collection-id="${escapeHtml(collection.collectionId)}">${attached ? 'Detach' : 'Attach'}</button>
+                                                <button type="button" class="ghost-button" data-rag-action="${attached ? 'detach' : 'attach'}" data-collection-id="${escapeHtml(collection.collectionId)}">${attached ? '3. Detach from runtime' : '3. Attach to runtime'}</button>
                                                 <button type="button" class="ghost-button" data-rag-action="delete" data-collection-id="${escapeHtml(collection.collectionId)}">Delete</button>
                                             </div>
                                         </div>
@@ -2932,10 +3921,10 @@
                         <div class="card">
                             <div class="card-title">
                                 <strong>Pattern Hits</strong>
-                                <span class="state-chip info">${formatNumber(patterns.length)}</span>
+                                <span class="state-chip info">${formatNumber((fabric?.patterns?.selected || []).length || patterns.length)}</span>
                             </div>
-                            ${patterns.length
-                                ? renderSmallList(patterns.map((pattern) => ({
+                            ${(fabric?.patterns?.selected || patterns).length
+                                ? renderSmallList((fabric?.patterns?.selected || patterns).map((pattern) => ({
                                     label: pattern.name,
                                     meta: `${pattern.category || 'pattern'} · score ${pattern.score ?? 'n/a'} · ${pattern.summary || ''}`,
                                 })))
@@ -2962,12 +3951,17 @@
                                     meta: `${entry.reason} · ${formatNumber(entry.tokens || 0)} tokens${entry.selected ? '' : ' · dropped'}`,
                                 })))
                                 : emptyState('No provenance trace recorded yet.')}
+                            <div class="meta" style="margin-top:0.6rem;">Selected: ${formatNumber(selectedEntries.length)} · Dropped by token budgeting: ${formatNumber(droppedEntries.length)}</div>
                         </div>
                     </div>
                 `;
                 bindKnowledgeFabricHandlers();
             } else if (state.libraryMode === 'planning') {
                 const planner = getPlannerViewModel();
+                const workerPlan = state.usage?.workerPlan || null;
+                const taskGraph = state.usage?.taskGraph || null;
+                const artifactOutcome = state.usage?.artifactOutcome || null;
+                const worktreeHealth = state.worktreeHealth || state.usage?.worktreeHealth || null;
                 container.innerHTML = planner
                     ? `
                         <div class="card">
@@ -3037,6 +4031,58 @@
                                 </div>
                                 <div class="meta">${escapeHtml(planner.continuation?.summary || 'No continuation proposal recorded yet.')}</div>
                             </div>
+                            ${taskGraph ? `
+                                <div class="card">
+                                    <div class="card-title">
+                                        <strong>Task Graph</strong>
+                                        <span class="state-chip info">${formatNumber(taskGraph.phases?.length || 0)} phases</span>
+                                    </div>
+                                    <div class="meta">${escapeHtml(taskGraph.summary || 'No decomposition snapshot recorded yet.')}</div>
+                                    <div class="list-inline">
+                                        ${chip(`branches:${taskGraph.independentBranches || 0}`)}
+                                        ${chip(`dominant:${taskGraph.dominantKind || 'plan'}`)}
+                                    </div>
+                                </div>
+                            ` : ''}
+                            ${workerPlan ? `
+                                <div class="card">
+                                    <div class="card-title">
+                                        <strong>Worker Plan</strong>
+                                        <span class="state-chip good">${formatNumber(workerPlan.totalWorkers || 0)} lanes</span>
+                                    </div>
+                                    <div class="meta">${escapeHtml(workerPlan.summary || 'No worker plan recorded yet.')}</div>
+                                    <div class="list-inline">
+                                        ${(workerPlan.lanes || []).map((lane) => chip(`${lane.role}:${lane.count}`)).join('')}
+                                    </div>
+                                </div>
+                            ` : ''}
+                            ${artifactOutcome ? `
+                                <div class="card">
+                                    <div class="card-title">
+                                        <strong>Artifact Outcomes</strong>
+                                        <span class="state-chip ${stateClass((artifactOutcome.outcomes || []).some((entry) => entry.outcome === 'harmful') ? 'warn' : 'ready')}">${formatNumber((artifactOutcome.outcomes || []).length)} tracked</span>
+                                    </div>
+                                    <div class="meta">${escapeHtml(artifactOutcome.summary || 'No artifact outcome feedback recorded yet.')}</div>
+                                    <div class="list-inline">
+                                        ${(artifactOutcome.outcomes || []).slice(0, 6).map((entry) => chip(`${entry.name}:${entry.outcome}`)).join('')}
+                                    </div>
+                                </div>
+                            ` : ''}
+                            ${worktreeHealth ? `
+                                <div class="card">
+                                    <div class="card-title">
+                                        <strong>Worktree Health</strong>
+                                        <span class="state-chip ${stateClass(worktreeHealth.overall === 'healthy' ? 'active' : 'warn')}">${escapeHtml(worktreeHealth.overall || 'unknown')}</span>
+                                    </div>
+                                    <div class="meta">${escapeHtml((worktreeHealth.actions || []).slice(0, 2).join(' · ') || 'No doctor action recorded for this runtime yet.')}</div>
+                                    <div class="list-inline">
+                                        ${chip(`active:${formatNumber(worktreeHealth.activeEntries || 0)}`)}
+                                        ${chip(`prunable:${formatNumber(worktreeHealth.prunableEntries || 0)}`)}
+                                        ${chip(`broken:${formatNumber(worktreeHealth.brokenEntries || 0)}`)}
+                                        ${chip(`repaired:${formatNumber(worktreeHealth.repairedEntries || 0)}`)}
+                                    </div>
+                                </div>
+                            ` : ''}
                             ${renderPlannerLedgerTable(planner.ledger)}
                         </div>
                     `
@@ -3241,11 +4287,11 @@
 
             const visible = state.events
                 .filter((event) => state.eventFilter === 'all' || event.category === state.eventFilter)
-                .slice(0, 60);
+                .slice(0, 24);
 
             $('event-list').innerHTML = visible.length
                 ? visible.map((event) => `
-                    <article class="event-card ${escapeHtml(event.severity)}">
+                    <article class="event-card ${escapeHtml(event.severity)} ${state.selected?.kind === 'event' && state.selected.id === event.id ? 'active' : ''}" data-event-id="${escapeHtml(event.id)}">
                         <div class="event-head">
                             <div>
                                 <strong>${escapeHtml(event.title)}</strong>
@@ -3253,11 +4299,7 @@
                             </div>
                             <span class="state-chip ${stateClass(event.severity === 'bad' ? 'failed' : event.severity === 'warn' ? 'inferred' : 'active')}">${escapeHtml(event.category)}</span>
                         </div>
-                        <div class="meta">${escapeHtml(event.summary)}</div>
-                        <details class="raw">
-                            <summary>Payload</summary>
-                            <pre>${escapeHtml(JSON.stringify(event.payload, null, 2))}</pre>
-                        </details>
+                        <div class="meta event-summary">${escapeHtml(shortLabel(event.summary, 156))}</div>
                     </article>
                 `).join('')
                 : resourceFailed('events')
@@ -3276,6 +4318,16 @@
                         : state.eventFilter === 'clients' ? 'No client events yet (heartbeats are throttled).'
                         : 'No events for this filter.'
                     );
+
+            $('event-list').querySelectorAll('[data-event-id]').forEach((card) => {
+                card.addEventListener('click', () => {
+                    const eventId = card.getAttribute('data-event-id');
+                    const eventData = state.events.find((entry) => entry.id === eventId);
+                    if (!eventData) return;
+                    state.selected = { kind: 'event', id: eventData.id, data: eventData };
+                    render();
+                });
+            });
         }
 
         function renderDrawer() {
@@ -3311,6 +4363,7 @@
             if (kind === 'pod-worker') return data.workerId || 'POD Worker';
             if (kind === 'client') return data.displayName || 'Client';
             if (kind === 'federation-peer') return data.displayName || data.peerId || 'Peer';
+            if (kind === 'event') return data.title || 'Runtime Event';
             if (kind === 'token-summary') return 'Token Analyzer';
             return 'Inspector';
         }
@@ -3327,6 +4380,7 @@
             if (kind === 'pod-worker') return `${data.messageCount || data.messages?.length || 0} messages`;
             if (kind === 'client') return `${data.clientId} · ${data.state}`;
             if (kind === 'federation-peer') return `${data.peerId} · ${data.health || 'unknown'}`;
+            if (kind === 'event') return `${data.category} · ${data.source} · ${formatDate(data.time)}`;
             if (kind === 'token-summary') return `${formatNumber(data?.summary?.totalRuns || 0)} runs · ${formatNumber(data?.summary?.totalEvents || 0)} samples`;
             return '';
         }
@@ -3415,8 +4469,20 @@
                             ${chip(`priority:${Number(data.priority || 0).toFixed(2)}`)}
                             ${chip(`links:${data.linkCount || 0}`)}
                             ${chip(`access:${data.accessCount || 0}`)}
+                            ${chip(`trust:${Number(data.trustScore || 0).toFixed(2)}`)}
                         </div>
                         <pre>${escapeHtml(data.content || data.excerpt || '')}</pre>
+                    </section>
+                    <section class="drawer-section">
+                        <h4>Control Plane</h4>
+                        <div class="list-inline">
+                            ${chip(`scope:${data.scope || 'session'}`)}
+                            ${chip(`state:${data.state || 'active'}`)}
+                            ${chip(`freshness:${Number(data.freshnessScore || 0).toFixed(2)}`)}
+                            ${chip(`entropy:${Number(data.entropyScore || 0).toFixed(2)}`)}
+                        </div>
+                        <div class="meta">${escapeHtml(data.provenance?.summary || 'No provenance summary recorded.')}</div>
+                        ${data.reconciliation ? `<div class="meta" style="margin-top:0.5rem;">Reconciliation: ${escapeHtml(data.reconciliation.action)} · ${escapeHtml(data.reconciliation.reason || '')}</div>` : '<div class="meta" style="margin-top:0.5rem;">Reconciliation: no control-plane action recorded.</div>'}
                     </section>
                     <section class="drawer-section">
                         <h4>Lineage</h4>
@@ -3743,6 +4809,24 @@
                 `;
             }
 
+            if (kind === 'event') {
+                return `
+                    <section class="drawer-section">
+                        <h4>Event Summary</h4>
+                        <div class="list-inline">
+                            ${chip(`category:${data.category}`)}
+                            ${chip(`severity:${data.severity}`)}
+                            ${chip(`source:${data.source}`)}
+                        </div>
+                        <div class="meta" style="margin-top:0.55rem;">${escapeHtml(data.summary || 'No event summary')}</div>
+                    </section>
+                    <section class="drawer-section">
+                        <h4>Payload</h4>
+                        <pre>${escapeHtml(JSON.stringify(data.payload, null, 2))}</pre>
+                    </section>
+                `;
+            }
+
             return '<div class="empty">No details available.</div>';
         }
 
@@ -3927,9 +5011,9 @@
             }
         }
 
-        function shortLabel(label) {
+        function shortLabel(label, maxLength = 26) {
             const text = String(label || '');
-            return text.length > 26 ? `${text.slice(0, 23)}...` : text;
+            return text.length > maxLength ? `${text.slice(0, Math.max(0, maxLength - 3))}...` : text;
         }
 
         function isNodeActive(node) {
@@ -4015,6 +5099,12 @@
                 };
                 render();
             });
+            document.querySelector('.token-dial-wrap')?.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    document.querySelector('.token-dial-wrap')?.click();
+                }
+            });
 
             $('refresh-button').addEventListener('click', async () => {
                 try {
@@ -4093,7 +5183,16 @@
             document.querySelectorAll('#graph-modes button').forEach((button) => {
                 button.addEventListener('click', async () => {
                     state.graphMode = button.dataset.graphMode;
+                    if (state.graphMode !== 'memory') {
+                        state.memoryViewMode = 'graph';
+                    }
                     render();
+                });
+            });
+
+            document.querySelectorAll('#memory-view-modes button').forEach((button) => {
+                button.addEventListener('click', () => {
+                    setMemoryExplorerMode(button.dataset.memoryViewMode);
                 });
             });
 
@@ -4101,6 +5200,12 @@
                 button.addEventListener('click', () => {
                     state.libraryMode = button.dataset.libraryMode;
                     render();
+                });
+            });
+
+            document.querySelectorAll('#surface-tabs button').forEach((button) => {
+                button.addEventListener('click', () => {
+                    applySurfaceMode(button.dataset.surfaceMode);
                 });
             });
 

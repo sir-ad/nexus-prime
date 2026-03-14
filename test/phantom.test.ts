@@ -125,12 +125,14 @@ async function runTests() {
 
     // ── Import phantom workers ───────────────────────────────────────────────
     console.log('\n📦 Imports');
-    let GhostPass: any, PhantomWorker: any, MergeOracle: any;
+    let GhostPass: any, PhantomWorker: any, MergeOracle: any, doctorGitWorktrees: any;
     try {
         const phantom = await import('../dist/phantom/index.js');
+        const worktreeHealth = await import('../dist/engines/worktree-health.js');
         GhostPass = phantom.GhostPass;
         PhantomWorker = phantom.PhantomWorker;
         MergeOracle = phantom.MergeOracle;
+        doctorGitWorktrees = worktreeHealth.doctorGitWorktrees;
         assert(true, 'phantom/index.ts imports cleanly');
     } catch (e: any) {
         assert(false, 'phantom/index.ts imports cleanly', e.message);
@@ -164,6 +166,17 @@ async function runTests() {
     if (orphans > 0) {
         console.log(`  🧹 Cleaned ${orphans} orphaned worktrees from previous runs`);
     }
+
+    const brokenMetadataRoot = path.join(REPO_ROOT, '.git', 'worktrees', 'verifier-stale-metadata');
+    fs.mkdirSync(brokenMetadataRoot, { recursive: true });
+    fs.writeFileSync(
+        path.join(brokenMetadataRoot, 'gitdir'),
+        path.join(os.tmpdir(), 'nexus-prime-worktrees', 'verifier-stale-metadata', '.git'),
+        'utf8',
+    );
+    const healthBefore = await doctorGitWorktrees(REPO_ROOT);
+    assert(healthBefore.repairedEntries > 0, 'Worktree doctor repairs stale Nexus-owned metadata before worker creation');
+    assert(!fs.existsSync(brokenMetadataRoot), 'Broken Nexus-owned worktree metadata removed during doctor pass');
 
     const worktreesBefore = await PhantomWorker.getWorktreeList(REPO_ROOT);
     assert(worktreesBefore.length === 0, 'No phantom worktrees before test');

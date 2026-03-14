@@ -1,7 +1,7 @@
 /**
  * Nexus Prime - Enhanced with Engines
- * 
- * The Self-Evolving Agent Operating System
+ *
+ * Local-first MCP control plane for coding agents.
  */
 
 import { v4 as uuidv4 } from 'uuid';
@@ -32,6 +32,13 @@ import {
   type ExecutionTask,
   type SubAgentRuntime
 } from './phantom/index.js';
+import { ensureBootstrap } from './engines/client-bootstrap.js';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const PACKAGE_ROOT = path.join(__dirname, '..');
 
 export class NexusPrime {
   private config: NexusConfig;
@@ -126,6 +133,14 @@ export class NexusPrime {
 
   async start(): Promise<void> {
     console.error('🧬 Nexus Prime (Enhanced) starting...');
+
+    const bootstrapManifest = ensureBootstrap({
+      packageRoot: PACKAGE_ROOT,
+      workspaceRoot: process.cwd(),
+      phase: 'runtime',
+      silent: true,
+    });
+    this.runtime.recordBootstrapManifestStatus?.(bootstrapManifest);
 
     const currentClient = detectCurrentClient();
     if (currentClient) {
@@ -290,7 +305,21 @@ export class NexusPrime {
    * Store in memory
    */
   storeMemory(content: string, priority: number = 1.0, tags: string[] = [], parentId?: string, depth?: number): string {
-    const id = this.memoryEngine.store(content, priority, tags, parentId, depth);
+    const controlPlaneResult = this.memoryEngine.storeWithControlPlane?.(content, priority, tags, parentId, depth, {
+      sessionId: this.orchestrator.getSessionState()?.sessionId,
+      scope: tags.includes('#shared') || tags.includes('#worker-shared') ? 'shared' : 'session',
+      source: tags.includes('#worker') ? 'worker' : 'operator',
+      provenance: {
+        source: tags.includes('#worker') ? 'worker' : 'operator',
+        sessionId: this.orchestrator.getSessionState()?.sessionId,
+        summary: 'Stored through NexusPrime storeMemory.',
+        tags,
+      },
+    });
+    const id = controlPlaneResult?.storedIds?.[0] ?? this.memoryEngine.store(content, priority, tags, parentId, depth);
+    this.runtime.recordMemoryHealth?.(this.memoryEngine.getHealthSummary?.());
+    this.runtime.recordMemoryScopeUsage?.(this.memoryEngine.getScopeUsageSummary?.(this.orchestrator.getSessionState()?.sessionId));
+    this.runtime.recordMemoryReconciliationSummary?.(controlPlaneResult?.summary ?? this.memoryEngine.getLastReconciliationSummary?.());
     void this.runtime.dispatchStoredMemory(id, content, priority, tags);
     return id;
   }
@@ -321,6 +350,52 @@ export class NexusPrime {
    */
   async orchestrate(task: string, options?: Partial<ExecutionTask>): Promise<ExecutionRun> {
     return this.orchestrator.orchestrate(task, options);
+  }
+
+  getMemoryHealth() {
+    return this.runtime.getMemoryHealth();
+  }
+
+  getMemoryScopeUsage() {
+    return this.runtime.getMemoryScopeUsage();
+  }
+
+  getSharedMemorySnapshot(limit?: number) {
+    return this.runtime.getSharedMemorySnapshot(limit);
+  }
+
+  getMemoryReconciliationSummary() {
+    return this.runtime.getMemoryReconciliationSummary();
+  }
+
+  traceMemory(id: string) {
+    return this.runtime.traceMemory(id);
+  }
+
+  maintainMemory() {
+    return this.runtime.maintainMemory();
+  }
+
+  exportMemoryBundle(options?: {
+    limit?: number;
+    scope?: 'session' | 'project' | 'user' | 'promoted' | 'shared';
+    state?: 'active' | 'quarantined' | 'scrap';
+    sessionId?: string;
+  }) {
+    return this.runtime.exportMemoryBundle(options);
+  }
+
+  backupMemoryBundle(options?: {
+    limit?: number;
+    scope?: 'session' | 'project' | 'user' | 'promoted' | 'shared';
+    state?: 'active' | 'quarantined' | 'scrap';
+    sessionId?: string;
+  }) {
+    return this.runtime.backupMemoryBundle(options);
+  }
+
+  importMemoryBundle(input: { path?: string; bundle?: unknown }) {
+    return this.runtime.importMemoryBundle(input);
   }
 
 

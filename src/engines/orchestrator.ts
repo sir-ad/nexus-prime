@@ -14,10 +14,17 @@ import { nxl, type AgentArchetype } from './nxl-interpreter.js';
 import { TokenSupremacyEngine, type FileRef } from './token-supremacy.js';
 import { resolveNexusStateDir } from './runtime-registry.js';
 import type {
+  RuntimeArtifactSelectionAudit,
+  RuntimeArtifactOutcomeSnapshot,
+  RuntimeCatalogHealthSnapshot,
+  RuntimeRagUsageSummary,
   RuntimeRegistrySnapshot,
+  RuntimeTaskGraphSnapshot,
   RuntimeOrchestrationSnapshot,
   RuntimePrimaryClientSnapshot,
+  RuntimeSourceAwareTokenBudgetSnapshot,
   RuntimeTokenSummarySnapshot,
+  RuntimeWorkerPlanSnapshot,
 } from './runtime-registry.js';
 import { SessionDNAManager } from './session-dna.js';
 import type { ClientRecord, ClientRegistry } from './client-registry.js';
@@ -29,6 +36,7 @@ import {
   type GovernanceSnapshot,
 } from './instruction-gateway.js';
 import { KnowledgeFabricEngine, type KnowledgeFabricBundle } from './knowledge-fabric.js';
+import { readBootstrapManifest, type BootstrapManifestStatus } from './client-bootstrap.js';
 import {
   createSubAgentRuntime,
   type ExecutionRun,
@@ -87,6 +95,7 @@ export interface SessionAutonomyState {
   lastRunId?: string;
   primaryClient?: RuntimePrimaryClientSnapshot;
   tokenSummary?: RuntimeTokenSummarySnapshot;
+  artifactOutcomeHistory?: Record<string, number>;
 }
 
 export interface SessionBootstrapResult {
@@ -112,6 +121,22 @@ export interface SessionBootstrapResult {
     candidateFiles: string[];
   };
   reviewGates: string[];
+  catalogHealth: RuntimeCatalogHealthSnapshot;
+  sourceMixRecommendation: {
+    dominantSource: string;
+    reasons: string[];
+  };
+  ragCandidateStatus: {
+    attachedCollections: number;
+    retrievedChunks: number;
+    selectedChunks: number;
+    droppedChunks: number;
+    attachedNames: string[];
+  };
+  clientBootstrapStatus?: BootstrapManifestStatus;
+  artifactSelectionAudit: RuntimeArtifactSelectionAudit;
+  taskGraphPreview: RuntimeTaskGraphSnapshot;
+  workerPlanPreview: RuntimeWorkerPlanSnapshot;
   knowledgeFabric?: {
     summary: string;
     dominantSource: string;
@@ -126,6 +151,16 @@ interface CatalogItem {
   id: string;
   name: string;
   body: string;
+}
+
+interface ResolvedSelections {
+  crew?: string;
+  specialists: string[];
+  skills: string[];
+  workflows: string[];
+  hooks: string[];
+  automations: string[];
+  audit: RuntimeArtifactSelectionAudit;
 }
 
 interface OrchestratorOptions {
@@ -221,6 +256,7 @@ export class OrchestratorEngine {
     const intent = this.classifyIntent(task);
     const phases = this.decomposeTask(task);
     const primaryClient = this.resolvePrimaryClient();
+    const bootstrapManifest = readBootstrapManifest();
     const latestDNA = SessionDNAManager.loadLatest();
     const memoryMatches = await this.memory.recall(task, 8);
     const memoryStats = this.memory.getStats();
@@ -241,44 +277,26 @@ export class OrchestratorEngine {
       workers: options.workers,
       optimizationProfile: options.optimizationProfile,
     });
-    const fileRefs = candidateFiles.map((filePath) => this.toFileRef(filePath)).filter((file): file is FileRef => Boolean(file));
-    const tokenOptimizationRequired = Boolean(knowledgeFabric.repo.readingPlan) || fileRefs.length >= 3;
-    const selectedSkills = options.skillNames?.length
-      ? [...options.skillNames]
-      : dedupeStrings([...knowledgeFabric.recommendations.skills, ...planner.selectedSkills, ...this.pickCatalogNames(task, intent, this.runtime.listSkills().map((skill) => ({
-          id: skill.skillId,
-          name: skill.name,
-          body: `${skill.name}\n${skill.instructions}\n${skill.provenance}`,
-        })), 4)]);
-    const selectedWorkflows = options.workflowSelectors?.length
-      ? [...options.workflowSelectors]
-      : dedupeStrings([...knowledgeFabric.recommendations.workflows, ...planner.selectedWorkflows, ...this.pickCatalogNames(task, intent, this.runtime.listWorkflows().map((workflow) => ({
-          id: workflow.workflowId,
-          name: workflow.name,
-          body: `${workflow.name}\n${workflow.description}\n${workflow.domain}`,
-        })), 3)]);
-    const selectedHooks = options.hookSelectors?.length
-      ? [...options.hookSelectors]
-      : dedupeStrings([...knowledgeFabric.recommendations.hooks, ...this.pickCatalogNames(task, intent, this.runtime.listHooks().map((hook) => ({
-          id: hook.hookId,
-          name: hook.name,
-          body: `${hook.name}\n${hook.description}\n${hook.trigger}`,
-        })), intent.riskClass === 'high' ? 2 : 1)]);
-    const selectedAutomations = options.automationSelectors?.length
-      ? [...options.automationSelectors]
-      : dedupeStrings([...knowledgeFabric.recommendations.automations, ...this.pickCatalogNames(task, intent, this.runtime.listAutomations().map((automation) => ({
-          id: automation.automationId,
-          name: automation.name,
-          body: `${automation.name}\n${automation.description}\n${automation.triggerMode}\n${automation.eventTrigger ?? ''}`,
-        })), intent.taskType === 'release' || this.sessionState.repeatedFailures > 0 ? 2 : 1)]);
-    const selectedSpecialists = options.specialistSelectors?.length
-      ? [...options.specialistSelectors]
-      : dedupeStrings([...planner.selectedSpecialists.map((specialist) => specialist.specialistId), ...knowledgeFabric.recommendations.specialists]);
-    const selectedCrew = options.crewSelectors?.length
-      ? options.crewSelectors[0]
-      : planner.selectedCrew?.crewId ?? knowledgeFabric.recommendations.crews[0];
-    const workerCount = this.decideWorkers(options.workers, planner.swarmDecision.workers, phases.length, intent, this.sessionState.repeatedFailures);
+    const selections = this.resolveSelections(task, intent, planner, knowledgeFabric, options);
+    const catalogHealth = this.scanCatalogHealth(selections);
+    const tokenBudget = this.toSourceAwareTokenBudget(knowledgeFabric, plannedFiles, 'knowledge-fabric-source-aware-budget');
+    const tokenOptimizationRequired = plannedFiles.length > 0;
+    const workerCount = this.decideWorkers(
+      options.workers,
+      planner.swarmDecision.workers,
+      phases.length,
+      intent,
+      this.sessionState.repeatedFailures,
+      knowledgeFabric,
+    );
     const mode = this.determineMode(intent, phases.length, workerCount);
+    const taskGraph = this.buildTaskGraph(task, phases, intent);
+    const workerPlan = this.buildWorkerPlan(workerCount, mode, taskGraph, knowledgeFabric);
+    const ragUsageSummary = this.toRagUsageSummary(knowledgeFabric, {
+      usedInPlanner: knowledgeFabric.rag.hits.length > 0,
+      usedInPacket: false,
+      usedInRuntime: false,
+    });
 
     this.sessionState = {
       ...this.sessionState,
@@ -288,12 +306,12 @@ export class OrchestratorEngine {
       phases,
       mode,
       intent,
-      selectedCrew,
-      selectedSpecialists,
-      selectedSkills,
-      selectedWorkflows,
-      selectedHooks,
-      selectedAutomations,
+      selectedCrew: selections.crew,
+      selectedSpecialists: selections.specialists,
+      selectedSkills: selections.skills,
+      selectedWorkflows: selections.workflows,
+      selectedHooks: selections.hooks,
+      selectedAutomations: selections.automations,
       lastMemoryMatches: memoryMatches.slice(0, 6),
       latestSessionDNA: latestDNA
         ? {
@@ -307,6 +325,13 @@ export class OrchestratorEngine {
     this.persistSessionState();
     this.runtime.recordPrimaryClient(primaryClient, this.listDetectedClients());
     this.runtime.recordOrchestrationSnapshot(this.toRuntimeOrchestrationSnapshot(this.sessionState));
+    this.runtime.recordBootstrapManifestStatus(bootstrapManifest);
+    this.runtime.recordCatalogHealth(catalogHealth);
+    this.runtime.recordArtifactSelectionAudit(selections.audit);
+    this.runtime.recordSourceAwareTokenBudget(tokenBudget);
+    this.runtime.recordTaskGraph(taskGraph);
+    this.runtime.recordWorkerPlan(workerPlan);
+    this.runtime.recordRagUsageSummary(ragUsageSummary);
     this.runtime.recordClientToolCall('nexus_session_bootstrap', {
       bootstrapCalled: true,
       plannerCalled: true,
@@ -323,21 +348,29 @@ export class OrchestratorEngine {
       recommendedNextStep: 'nexus_orchestrate',
       recommendedExecutionMode: mode,
       shortlist: {
-        crews: selectedCrew ? [selectedCrew] : [],
-        specialists: selectedSpecialists,
-        skills: selectedSkills,
-        workflows: selectedWorkflows,
-        hooks: selectedHooks,
-        automations: selectedAutomations,
+        crews: selections.crew ? [selections.crew] : [],
+        specialists: selections.specialists,
+        skills: selections.skills,
+        workflows: selections.workflows,
+        hooks: selections.hooks,
+        automations: selections.automations,
       },
       tokenOptimization: {
         required: tokenOptimizationRequired,
-        reason: tokenOptimizationRequired
-          ? (knowledgeFabric.repo.readingPlan ? 'knowledge-fabric-source-aware-budget' : 'candidate-files-above-threshold')
-          : 'candidate-files-below-threshold',
+        reason: tokenBudget.reason,
         candidateFiles: knowledgeFabric.repo.candidateFiles,
       },
       reviewGates: planner.reviewGates.map((gate) => `${gate.gate}:${gate.status}`),
+      catalogHealth,
+      sourceMixRecommendation: {
+        dominantSource: knowledgeFabric.sourceMix.dominantSource,
+        reasons: knowledgeFabric.sourceMix.reasons,
+      },
+      ragCandidateStatus: this.toRagCandidateStatus(knowledgeFabric),
+      clientBootstrapStatus: bootstrapManifest,
+      artifactSelectionAudit: selections.audit,
+      taskGraphPreview: taskGraph,
+      workerPlanPreview: workerPlan,
       knowledgeFabric: {
         summary: knowledgeFabric.summary,
         dominantSource: knowledgeFabric.sourceMix.dominantSource,
@@ -354,6 +387,7 @@ export class OrchestratorEngine {
     const intent = this.classifyIntent(task);
     const phases = this.decomposeTask(task);
     const primaryClient = this.resolvePrimaryClient();
+    const bootstrapManifest = readBootstrapManifest();
     this.runtime.recordClientToolCall('nexus_orchestrate', {
       orchestrateCalled: true,
       plannerCalled: true,
@@ -428,71 +462,47 @@ export class OrchestratorEngine {
         skills: planner.selectedSkills,
       },
     });
-    const fileRefs = candidateFiles.map((filePath) => this.toFileRef(filePath)).filter((file): file is FileRef => Boolean(file));
+    const selections = this.resolveSelections(task, intent, planner, knowledgeFabric, options);
+    const catalogHealth = this.scanCatalogHealth(selections);
     const tokenPlan = knowledgeFabric.repo.readingPlan;
-
-    const selectedSkills = options.skillNames?.length
-      ? [...options.skillNames]
-      : dedupeStrings([...knowledgeFabric.recommendations.skills, ...planner.selectedSkills, ...this.pickCatalogNames(task, intent, this.runtime.listSkills().map((skill) => ({
-          id: skill.skillId,
-          name: skill.name,
-          body: `${skill.name}\n${skill.instructions}\n${skill.provenance}`,
-        })), 4)]);
-    const selectedWorkflows = options.workflowSelectors?.length
-      ? [...options.workflowSelectors]
-      : dedupeStrings([...knowledgeFabric.recommendations.workflows, ...planner.selectedWorkflows, ...this.pickCatalogNames(task, intent, this.runtime.listWorkflows().map((workflow) => ({
-          id: workflow.workflowId,
-          name: workflow.name,
-          body: `${workflow.name}\n${workflow.description}\n${workflow.domain}`,
-        })), 3)]);
-    const selectedHooks = options.hookSelectors?.length
-      ? [...options.hookSelectors]
-      : dedupeStrings([...knowledgeFabric.recommendations.hooks, ...this.pickCatalogNames(task, intent, this.runtime.listHooks().map((hook) => ({
-          id: hook.hookId,
-          name: hook.name,
-          body: `${hook.name}\n${hook.description}\n${hook.trigger}`,
-        })), intent.riskClass === 'high' ? 2 : 1)]);
-    const selectedAutomations = options.automationSelectors?.length
-      ? [...options.automationSelectors]
-      : dedupeStrings([...knowledgeFabric.recommendations.automations, ...this.pickCatalogNames(task, intent, this.runtime.listAutomations().map((automation) => ({
-          id: automation.automationId,
-          name: automation.name,
-          body: `${automation.name}\n${automation.description}\n${automation.triggerMode}\n${automation.eventTrigger ?? ''}`,
-        })), intent.taskType === 'release' || this.sessionState.repeatedFailures > 0 ? 2 : 1)]);
-    const selectedSpecialists = options.specialistSelectors?.length
-      ? [...options.specialistSelectors]
-      : dedupeStrings([...planner.selectedSpecialists.map((specialist) => specialist.specialistId), ...knowledgeFabric.recommendations.specialists]);
-    const selectedCrew = options.crewSelectors?.length
-      ? options.crewSelectors[0]
-      : planner.selectedCrew?.crewId ?? knowledgeFabric.recommendations.crews[0];
+    const tokenBudget = this.toSourceAwareTokenBudget(knowledgeFabric, plannedFiles, 'knowledge-fabric-source-aware-budget');
     markExecutionLedgerStep(ledger, 'catalog-shortlist', 'completed', {
-      summary: 'Built orchestration shortlist across catalogs.',
+      summary: selections.audit.summary,
       details: {
-        selectedCrew,
-        specialists: selectedSpecialists,
-        skills: selectedSkills,
-        workflows: selectedWorkflows,
-        hooks: selectedHooks,
-        automations: selectedAutomations,
+        selectedCrew: selections.crew,
+        specialists: selections.specialists,
+        skills: selections.skills,
+        workflows: selections.workflows,
+        hooks: selections.hooks,
+        automations: selections.automations,
       },
     });
-    if (tokenPlan) {
-      markExecutionLedgerStep(ledger, 'token-optimization', 'completed', {
-        summary: `Optimizer routed ${tokenPlan.files.length} files with ${tokenPlan.savings} estimated token savings.`,
-        details: {
-          inputTokens: tokenPlan.totalEstimatedTokens + tokenPlan.savings,
-          outputTokens: tokenPlan.totalEstimatedTokens,
-          selectedFiles: plannedFiles,
-        },
-      });
-    } else {
-      markExecutionLedgerStep(ledger, 'token-optimization', 'skipped', {
-        reason: fileRefs.length < 3 ? 'candidate-files-below-threshold' : 'no-file-refs',
-        summary: 'Token optimization only auto-runs in the orchestrator when 3+ files are in play.',
-      });
-    }
-    const workerCount = this.decideWorkers(options.workers, planner.swarmDecision.workers, phases.length, intent, this.sessionState.repeatedFailures);
+    markExecutionLedgerStep(ledger, 'token-optimization', 'completed', {
+      summary: `Source-aware budget allocated ${tokenBudget.totalBudget.toLocaleString()} tokens across repo, memory, RAG, patterns, and runtime traces.`,
+      details: {
+        bySource: tokenBudget.bySource,
+        byStage: tokenBudget.byStage,
+        dropped: tokenBudget.dropped,
+        selectedFiles: plannedFiles,
+        estimatedSavings: Number(tokenPlan?.savings ?? 0),
+      },
+    });
+    const workerCount = this.decideWorkers(
+      options.workers,
+      planner.swarmDecision.workers,
+      phases.length,
+      intent,
+      this.sessionState.repeatedFailures,
+      knowledgeFabric,
+    );
     const mode = this.determineMode(intent, phases.length, workerCount);
+    const taskGraph = this.buildTaskGraph(task, phases, intent);
+    const workerPlan = this.buildWorkerPlan(workerCount, mode, taskGraph, knowledgeFabric);
+    const ragUsageSummary = this.toRagUsageSummary(knowledgeFabric, {
+      usedInPlanner: knowledgeFabric.rag.hits.length > 0,
+      usedInPacket: true,
+      usedInRuntime: true,
+    });
     const governance = this.runtime.previewGovernancePreflight({
       goal: task,
       files: plannedFiles,
@@ -515,12 +525,12 @@ export class OrchestratorEngine {
       phases,
       mode,
       intent,
-      selectedCrew,
-      selectedSpecialists,
-      selectedSkills,
-      selectedWorkflows,
-      selectedHooks,
-      selectedAutomations,
+      selectedCrew: selections.crew,
+      selectedSpecialists: selections.specialists,
+      selectedSkills: selections.skills,
+      selectedWorkflows: selections.workflows,
+      selectedHooks: selections.hooks,
+      selectedAutomations: selections.automations,
       lastMemoryMatches: memoryMatches.slice(0, 6),
       latestSessionDNA: latestDNA
         ? {
@@ -537,6 +547,13 @@ export class OrchestratorEngine {
     this.persistSessionState();
     this.runtime.recordPrimaryClient(primaryClient, this.listDetectedClients());
     this.runtime.recordOrchestrationSnapshot(this.toRuntimeOrchestrationSnapshot(sessionState));
+    this.runtime.recordBootstrapManifestStatus(bootstrapManifest);
+    this.runtime.recordCatalogHealth(catalogHealth);
+    this.runtime.recordArtifactSelectionAudit(selections.audit);
+    this.runtime.recordSourceAwareTokenBudget(tokenBudget);
+    this.runtime.recordTaskGraph(taskGraph);
+    this.runtime.recordWorkerPlan(workerPlan);
+    this.runtime.recordRagUsageSummary(ragUsageSummary);
 
     if (tokenPlan) {
       nexusEventBus.emit('tokens.optimized', {
@@ -567,23 +584,23 @@ export class OrchestratorEngine {
       client: primaryClient,
       selectedCrew: planner.selectedCrew,
       selectedSpecialists: planner.selectedSpecialists,
-      selectedSkills: this.runtime.listSkills().filter((skill) => selectedSkills.includes(skill.name)),
-      selectedWorkflows: this.runtime.listWorkflows().filter((workflow) => selectedWorkflows.includes(workflow.name)),
-      selectedHooks: this.runtime.listHooks().filter((hook) => selectedHooks.includes(hook.name)),
-      selectedAutomations: this.runtime.listAutomations().filter((automation) => selectedAutomations.includes(automation.name)),
+      selectedSkills: this.runtime.listSkills().filter((skill) => selections.skills.includes(skill.name)),
+      selectedWorkflows: this.runtime.listWorkflows().filter((workflow) => selections.workflows.includes(workflow.name)),
+      selectedHooks: this.runtime.listHooks().filter((hook) => selections.hooks.includes(hook.name)),
+      selectedAutomations: this.runtime.listAutomations().filter((automation) => selections.automations.includes(automation.name)),
       catalogShortlist: {
-        crews: selectedCrew ? [selectedCrew] : [],
-        specialists: selectedSpecialists,
-        skills: selectedSkills,
-        workflows: selectedWorkflows,
-        hooks: selectedHooks,
-        automations: selectedAutomations,
+        crews: selections.crew ? [selections.crew] : [],
+        specialists: selections.specialists,
+        skills: selections.skills,
+        workflows: selections.workflows,
+        hooks: selections.hooks,
+        automations: selections.automations,
       },
       governance: this.toGovernanceSnapshot(governance),
       federation: this.runtime.getUsageSnapshot().federation,
       tokenPolicy: {
-        applied: Boolean(tokenPlan),
-        reason: tokenPlan ? 'knowledge-fabric-source-aware-budget' : (fileRefs.length < 3 ? 'candidate-files-below-threshold' : 'no-file-refs'),
+        applied: true,
+        reason: tokenBudget.reason,
         candidateFiles,
         selectedFiles: plannedFiles,
         estimatedSavings: Number(tokenPlan?.savings ?? 0),
@@ -620,12 +637,12 @@ export class OrchestratorEngine {
       goal: task,
       files: options.files?.length ? options.files : plannedFiles,
       workers: workerCount,
-      skillNames: selectedSkills,
-      workflowSelectors: selectedWorkflows,
-      hookSelectors: selectedHooks,
-      automationSelectors: selectedAutomations,
-      crewSelectors: options.crewSelectors?.length ? options.crewSelectors : selectedCrew ? [selectedCrew] : [],
-      specialistSelectors: options.specialistSelectors?.length ? options.specialistSelectors : selectedSpecialists,
+      skillNames: selections.skills,
+      workflowSelectors: selections.workflows,
+      hookSelectors: selections.hooks,
+      automationSelectors: selections.automations,
+      crewSelectors: options.crewSelectors?.length ? options.crewSelectors : selections.crew ? [selections.crew] : [],
+      specialistSelectors: options.specialistSelectors?.length ? options.specialistSelectors : selections.specialists,
       optimizationProfile: options.optimizationProfile ?? planner.optimizationProfile,
       executionMode: 'autonomous',
       manualOverrides: [],
@@ -634,6 +651,7 @@ export class OrchestratorEngine {
       knowledgeFabric,
     });
     this.lastRun = run;
+    const artifactOutcome = this.buildArtifactOutcome(selections.audit, run);
 
     army.forEach((agent) => {
       agent.state = run.state === 'failed' ? 'failed' : 'complete';
@@ -647,6 +665,7 @@ export class OrchestratorEngine {
       continuationDepth: Math.max(sessionState.continuationDepth, run.continuationChildren.length > 0 ? 1 : 0),
       lastRunId: run.runId,
       tokenSummary: this.runtime.getTokenTelemetrySummary(),
+      artifactOutcomeHistory: this.mergeArtifactOutcomeHistory(this.sessionState.artifactOutcomeHistory, artifactOutcome),
       selectedCrew: run.plannerState?.selectedCrew?.crewId ?? sessionState.selectedCrew,
       selectedSpecialists: run.plannerState?.selectedSpecialists?.map((specialist) => specialist.specialistId) ?? sessionState.selectedSpecialists,
       selectedSkills: run.activeSkills.map((skill) => skill.name),
@@ -657,6 +676,7 @@ export class OrchestratorEngine {
     this.persistSessionState();
     this.runtime.recordOrchestrationSnapshot(this.toRuntimeOrchestrationSnapshot(this.sessionState));
     this.runtime.recordPrimaryClient(primaryClient, this.listDetectedClients());
+    this.runtime.recordArtifactOutcome(artifactOutcome);
     markExecutionLedgerStep(ledger, 'runtime-execution', run.state === 'failed' ? 'failed' : 'completed', {
       summary: run.result,
       details: {
@@ -669,7 +689,18 @@ export class OrchestratorEngine {
       `Orchestrated run ${run.runId}: ${task} -> ${run.state} (${run.result})`,
       run.state === 'merged' ? 0.88 : 0.72,
       ['#orchestrator', '#session', `#${run.state}`],
+      undefined,
+      undefined,
+      {
+        continuationDepth: options.continuationDepth ?? 0,
+        sourceAutomationId: options.sourceAutomationId,
+        suppressAutomationContinuations: true,
+      },
     );
+    const memoryScopeUsage = this.runtime.getMemoryScopeUsage();
+    const memoryReconciliationSummary = this.runtime.getMemoryReconciliationSummary();
+    this.runtime.recordMemoryScopeUsage(memoryScopeUsage);
+    this.runtime.recordMemoryReconciliationSummary(memoryReconciliationSummary);
     markExecutionLedgerStep(ledger, 'structured-learning', 'completed', {
       summary: 'Stored orchestrator session learning and refreshed runtime metadata.',
       details: { runId: run.runId },
@@ -677,6 +708,12 @@ export class OrchestratorEngine {
     run.executionLedger = ledger;
     run.instructionPacket = instructionPacket;
     run.knowledgeFabric = knowledgeFabric;
+    run.taskGraph = taskGraph;
+    run.workerPlan = workerPlan;
+    run.artifactOutcome = artifactOutcome;
+    run.ragUsageSummary = ragUsageSummary;
+    run.memoryScopeUsage = memoryScopeUsage;
+    run.memoryReconciliationSummary = memoryReconciliationSummary;
     this.runtime.recordExecutionLedger(ledger, 'autonomous');
     this.runtime.recordInstructionPacket(instructionPacket, {
       executionMode: 'autonomous',
@@ -825,6 +862,7 @@ export class OrchestratorEngine {
       selectedHooks: [],
       selectedAutomations: [],
       lastMemoryMatches: [],
+      artifactOutcomeHistory: {},
     };
   }
 
@@ -1063,7 +1101,274 @@ export class OrchestratorEngine {
     }
   }
 
+  private resolveSelections(
+    task: string,
+    intent: AutonomyIntent,
+    planner: Awaited<ReturnType<SubAgentRuntime['planExecution']>>,
+    knowledgeFabric: KnowledgeFabricBundle,
+    options: Partial<ExecutionTask>,
+  ): ResolvedSelections {
+    const skillItems = this.runtime.listSkills().map((skill) => ({
+      id: skill.skillId,
+      name: skill.name,
+      body: `${skill.name}\n${skill.instructions}\n${skill.provenance}`,
+    }));
+    const workflowItems = this.runtime.listWorkflows().map((workflow) => ({
+      id: workflow.workflowId,
+      name: workflow.name,
+      body: `${workflow.name}\n${workflow.description}\n${workflow.domain}`,
+    }));
+    const hookItems = this.runtime.listHooks().map((hook) => ({
+      id: hook.hookId,
+      name: hook.name,
+      body: `${hook.name}\n${hook.description}\n${hook.trigger}`,
+    }));
+    const automationItems = this.runtime.listAutomations().map((automation) => ({
+      id: automation.automationId,
+      name: automation.name,
+      body: `${automation.name}\n${automation.description}\n${automation.triggerMode}\n${automation.eventTrigger ?? ''}`,
+    }));
+    const specialistItems = this.runtime.listSpecialists().map((specialist) => ({
+      id: specialist.specialistId,
+      name: specialist.name,
+      body: `${specialist.name}\n${specialist.description}\n${specialist.mission}\n${specialist.domains.join(' ')}`,
+    }));
+    const crewItems = this.runtime.listCrews().map((crew) => ({
+      id: crew.crewId,
+      name: crew.name,
+      body: `${crew.name}\n${crew.summary}\n${crew.domains.join(' ')}`,
+    }));
+
+    const skillSelection = this.resolveCatalogVotes('skill', task, intent, skillItems, {
+      explicit: options.skillNames,
+      planner: planner.selectedSkills,
+      knowledge: knowledgeFabric.recommendations.skills,
+      scorerLimit: 5,
+      limit: 5,
+      selector: 'name',
+    });
+    const workflowSelection = this.resolveCatalogVotes('workflow', task, intent, workflowItems, {
+      explicit: options.workflowSelectors,
+      planner: planner.selectedWorkflows,
+      knowledge: knowledgeFabric.recommendations.workflows,
+      scorerLimit: 4,
+      limit: 4,
+      selector: 'name',
+    });
+    const hookSelection = this.resolveCatalogVotes('hook', task, intent, hookItems, {
+      explicit: options.hookSelectors,
+      planner: [],
+      knowledge: knowledgeFabric.recommendations.hooks,
+      scorerLimit: intent.riskClass === 'high' ? 3 : 2,
+      limit: intent.riskClass === 'high' ? 3 : 2,
+      selector: 'name',
+    });
+    const automationSelection = this.resolveCatalogVotes('automation', task, intent, automationItems, {
+      explicit: options.automationSelectors,
+      planner: [],
+      knowledge: knowledgeFabric.recommendations.automations,
+      scorerLimit: intent.taskType === 'release' || this.sessionState.repeatedFailures > 0 ? 3 : 2,
+      limit: intent.taskType === 'release' || this.sessionState.repeatedFailures > 0 ? 3 : 2,
+      selector: 'name',
+    });
+    const specialistSelection = this.resolveCatalogVotes('specialist', task, intent, specialistItems, {
+      explicit: options.specialistSelectors,
+      planner: planner.selectedSpecialists.map((specialist) => specialist.specialistId),
+      knowledge: knowledgeFabric.recommendations.specialists,
+      scorerLimit: 4,
+      limit: 4,
+      selector: 'id',
+    });
+    const crewSelection = this.resolveCatalogVotes('crew', task, intent, crewItems, {
+      explicit: options.crewSelectors,
+      planner: planner.selectedCrew ? [planner.selectedCrew.crewId] : [],
+      knowledge: knowledgeFabric.recommendations.crews,
+      scorerLimit: 2,
+      limit: 1,
+      selector: 'id',
+    });
+
+    const selected = [
+      ...skillSelection.selectedEntries,
+      ...workflowSelection.selectedEntries,
+      ...hookSelection.selectedEntries,
+      ...automationSelection.selectedEntries,
+      ...specialistSelection.selectedEntries,
+      ...crewSelection.selectedEntries,
+    ];
+    const rejected = [
+      ...skillSelection.rejectedEntries,
+      ...workflowSelection.rejectedEntries,
+      ...hookSelection.rejectedEntries,
+      ...automationSelection.rejectedEntries,
+      ...specialistSelection.rejectedEntries,
+      ...crewSelection.rejectedEntries,
+    ];
+
+    return {
+      crew: crewSelection.selectedValues[0],
+      specialists: specialistSelection.selectedValues,
+      skills: skillSelection.selectedValues,
+      workflows: workflowSelection.selectedValues,
+      hooks: hookSelection.selectedValues,
+      automations: automationSelection.selectedValues,
+      audit: {
+        generatedAt: Date.now(),
+        summary: `Selected ${selected.length} artifact(s) after planner, knowledge-fabric, and scorer audit.`,
+        selected,
+        rejected,
+      },
+    };
+  }
+
+  private resolveCatalogVotes(
+    kind: RuntimeArtifactSelectionAudit['selected'][number]['kind'],
+    task: string,
+    intent: AutonomyIntent,
+    items: CatalogItem[],
+    input: {
+      explicit?: string[];
+      planner?: string[];
+      knowledge?: string[];
+      scorerLimit: number;
+      limit: number;
+      selector: 'id' | 'name';
+    },
+  ): {
+    selectedValues: string[];
+    selectedEntries: RuntimeArtifactSelectionAudit['selected'];
+    rejectedEntries: RuntimeArtifactSelectionAudit['rejected'];
+  } {
+    const explicit = dedupeStrings(input.explicit ?? []);
+    if (explicit.length > 0) {
+      const selectedEntries = explicit.map((value) => this.toArtifactAuditEntry(kind, value, items, {
+        score: 1,
+        source: 'explicit',
+        confidence: 'high',
+        reason: 'User provided a hard constraint.',
+        selector: input.selector,
+      }));
+      return { selectedValues: explicit, selectedEntries, rejectedEntries: [] };
+    }
+
+    const votes = new Map<string, {
+      value: string;
+      item?: CatalogItem;
+      score: number;
+      source: 'explicit' | 'planner' | 'knowledge-fabric' | 'scorer';
+      confidence: 'high' | 'medium' | 'low';
+      reasons: string[];
+    }>();
+
+    const applyVote = (
+      value: string,
+      source: 'planner' | 'knowledge-fabric' | 'scorer',
+      score: number,
+      confidence: 'high' | 'medium' | 'low',
+      reason: string,
+    ) => {
+      const key = value.trim();
+      if (!key) return;
+      const item = items.find((entry) => (input.selector === 'id' ? entry.id === key : entry.name === key));
+      const existing = votes.get(key);
+      if (existing) {
+        existing.score += score;
+        existing.reasons.push(reason);
+        if (source === 'planner' || (source === 'knowledge-fabric' && existing.source === 'scorer')) {
+          existing.source = source;
+        }
+        if (confidence === 'high' || (confidence === 'medium' && existing.confidence === 'low')) {
+          existing.confidence = confidence;
+        }
+        if (item && !existing.item) existing.item = item;
+        return;
+      }
+      votes.set(key, {
+        value: key,
+        item,
+        score,
+        source,
+        confidence,
+        reasons: [reason],
+      });
+    };
+
+    (input.planner ?? []).forEach((value) => {
+      applyVote(value, 'planner', 0.92, 'high', 'Planner selected this artifact for the run.');
+    });
+    (input.knowledge ?? []).forEach((value) => {
+      applyVote(value, 'knowledge-fabric', 0.76, 'medium', 'Knowledge Fabric recommended this artifact from cross-source evidence.');
+    });
+    this.pickCatalogEntries(task, intent, items, input.scorerLimit).forEach((entry) => {
+      applyVote(input.selector === 'id' ? entry.item.id : entry.item.name, 'scorer', Math.min(0.7, entry.score / 10), entry.score >= 9 ? 'medium' : 'low', `Keyword scorer matched the task with score ${entry.score}.`);
+    });
+
+    const ranked = [...votes.values()]
+      .map((entry) => {
+        const artifactId = entry.item?.id ?? entry.value;
+        const historyScore = this.getArtifactHistoryScore(kind, artifactId);
+        return {
+          ...entry,
+          score: entry.score + historyScore,
+          reasons: historyScore
+            ? [...entry.reasons, `Historical effectiveness adjusted score by ${historyScore.toFixed(2)}.`]
+            : entry.reasons,
+        };
+      })
+      .sort((left, right) => right.score - left.score || (left.item?.name ?? left.value).localeCompare(right.item?.name ?? right.value));
+    const selected = ranked.slice(0, input.limit);
+    const rejected = ranked.slice(input.limit, input.limit + 6);
+
+    return {
+      selectedValues: selected.map((entry) => entry.value),
+      selectedEntries: selected.map((entry) => this.toArtifactAuditEntry(kind, entry.value, items, {
+        score: entry.score,
+        source: entry.source,
+        confidence: entry.confidence,
+        reason: entry.reasons.join(' '),
+        selector: input.selector,
+      })),
+      rejectedEntries: rejected.map((entry) => this.toArtifactAuditEntry(kind, entry.value, items, {
+        score: entry.score,
+        source: entry.source,
+        confidence: entry.confidence,
+        reason: `Rejected after audit. ${entry.reasons.join(' ')}`,
+        selector: input.selector,
+      }, false)),
+    };
+  }
+
+  private toArtifactAuditEntry(
+    kind: RuntimeArtifactSelectionAudit['selected'][number]['kind'],
+    value: string,
+    items: CatalogItem[],
+    input: {
+      score: number;
+      source: 'explicit' | 'planner' | 'knowledge-fabric' | 'scorer';
+      confidence: 'high' | 'medium' | 'low';
+      reason: string;
+      selector: 'id' | 'name';
+    },
+    selected: boolean = true,
+  ): RuntimeArtifactSelectionAudit['selected'][number] {
+    const item = items.find((entry) => (input.selector === 'id' ? entry.id === value : entry.name === value));
+    return {
+      kind,
+      id: item?.id ?? value,
+      name: item?.name ?? value,
+      selected,
+      score: Number(input.score.toFixed(2)),
+      source: input.source,
+      confidence: input.confidence,
+      reason: input.reason,
+    };
+  }
+
   private pickCatalogNames(task: string, intent: AutonomyIntent, items: CatalogItem[], limit: number): string[] {
+    return this.pickCatalogEntries(task, intent, items, limit).map((entry) => entry.item.name);
+  }
+
+  private pickCatalogEntries(task: string, intent: AutonomyIntent, items: CatalogItem[], limit: number): Array<{ item: CatalogItem; score: number }> {
     const keywords = extractKeywords(`${task} ${intent.taskType} ${intent.riskClass}`);
     return items
       .map((item) => ({
@@ -1072,8 +1377,340 @@ export class OrchestratorEngine {
       }))
       .filter((entry) => entry.score > 0)
       .sort((left, right) => right.score - left.score || left.item.name.localeCompare(right.item.name))
-      .slice(0, limit)
-      .map((entry) => entry.item.name);
+      .slice(0, limit);
+  }
+
+  private scanCatalogHealth(selections: ResolvedSelections): RuntimeCatalogHealthSnapshot {
+    const scanLocalDirectory = (relativeDir: string) => {
+      const localDirectory = path.join(this.repoRoot, relativeDir);
+      if (!fs.existsSync(localDirectory)) {
+        return { localDirectory, readable: false, files: 0, issues: [`Missing ${relativeDir}`] };
+      }
+      try {
+        const files = fs.readdirSync(localDirectory).filter((entry) => !entry.startsWith('.')).length;
+        return { localDirectory, readable: true, files, issues: [] as string[] };
+      } catch {
+        return { localDirectory, readable: false, files: 0, issues: [`Unreadable ${relativeDir}`] };
+      }
+    };
+    const skillsDir = scanLocalDirectory('.agent/skills');
+    const workflowsDir = scanLocalDirectory('.agent/workflows');
+    const hooksDir = scanLocalDirectory('.agent/hooks');
+    const automationsDir = scanLocalDirectory('.agent/automations');
+    const specialistsAvailable = this.runtime.listSpecialists().length;
+    const crewsAvailable = this.runtime.listCrews().length;
+    const issues = [
+      ...skillsDir.issues,
+      ...workflowsDir.issues,
+      ...hooksDir.issues,
+      ...automationsDir.issues,
+    ];
+    const overall = issues.length > 0 ? 'degraded' : 'healthy';
+
+    return {
+      scannedAt: Date.now(),
+      overall,
+      issues,
+      categories: {
+        skills: {
+          available: this.runtime.listSkills().length,
+          usable: this.runtime.listSkills().length,
+          selected: selections.skills.length,
+          rejected: Math.max(0, this.runtime.listSkills().length - selections.skills.length),
+          readable: skillsDir.readable,
+          localDirectory: skillsDir.localDirectory,
+          localOverrideFiles: skillsDir.files,
+          issues: skillsDir.issues,
+        },
+        workflows: {
+          available: this.runtime.listWorkflows().length,
+          usable: this.runtime.listWorkflows().length,
+          selected: selections.workflows.length,
+          rejected: Math.max(0, this.runtime.listWorkflows().length - selections.workflows.length),
+          readable: workflowsDir.readable,
+          localDirectory: workflowsDir.localDirectory,
+          localOverrideFiles: workflowsDir.files,
+          issues: workflowsDir.issues,
+        },
+        hooks: {
+          available: this.runtime.listHooks().length,
+          usable: this.runtime.listHooks().length,
+          selected: selections.hooks.length,
+          rejected: Math.max(0, this.runtime.listHooks().length - selections.hooks.length),
+          readable: hooksDir.readable,
+          localDirectory: hooksDir.localDirectory,
+          localOverrideFiles: hooksDir.files,
+          issues: hooksDir.issues,
+        },
+        automations: {
+          available: this.runtime.listAutomations().length,
+          usable: this.runtime.listAutomations().length,
+          selected: selections.automations.length,
+          rejected: Math.max(0, this.runtime.listAutomations().length - selections.automations.length),
+          readable: automationsDir.readable,
+          localDirectory: automationsDir.localDirectory,
+          localOverrideFiles: automationsDir.files,
+          issues: automationsDir.issues,
+        },
+        specialists: {
+          available: specialistsAvailable,
+          usable: specialistsAvailable,
+          selected: selections.specialists.length,
+          rejected: Math.max(0, specialistsAvailable - selections.specialists.length),
+          readable: true,
+          issues: [],
+        },
+        crews: {
+          available: crewsAvailable,
+          usable: crewsAvailable,
+          selected: selections.crew ? 1 : 0,
+          rejected: Math.max(0, crewsAvailable - (selections.crew ? 1 : 0)),
+          readable: true,
+          issues: [],
+        },
+      },
+    };
+  }
+
+  private toSourceAwareTokenBudget(
+    knowledgeFabric: KnowledgeFabricBundle,
+    selectedFiles: string[],
+    reason: string,
+  ): RuntimeSourceAwareTokenBudgetSnapshot {
+    return {
+      applied: true,
+      reason,
+      totalBudget: knowledgeFabric.tokenBudget.totalBudget,
+      bySource: knowledgeFabric.tokenBudget.bySource,
+      byStage: knowledgeFabric.tokenBudget.byStage,
+      dropped: knowledgeFabric.tokenBudget.dropped,
+      dominantSource: knowledgeFabric.sourceMix.dominantSource,
+    };
+  }
+
+  private toRagCandidateStatus(knowledgeFabric: KnowledgeFabricBundle): SessionBootstrapResult['ragCandidateStatus'] {
+    const selectedChunks = knowledgeFabric.provenance.entries.filter((entry) => entry.sourceClass === 'rag' && entry.selected !== false).length;
+    const droppedChunks = knowledgeFabric.tokenBudget.dropped.filter((entry) => entry.sourceClass === 'rag').length;
+    return {
+      attachedCollections: knowledgeFabric.rag.attachedCollections.length,
+      retrievedChunks: knowledgeFabric.rag.hits.length,
+      selectedChunks,
+      droppedChunks,
+      attachedNames: knowledgeFabric.rag.attachedCollections.map((collection) => collection.name),
+    };
+  }
+
+  private toRagUsageSummary(
+    knowledgeFabric: KnowledgeFabricBundle,
+    usage: {
+      usedInPlanner: boolean;
+      usedInPacket: boolean;
+      usedInRuntime: boolean;
+    },
+  ): RuntimeRagUsageSummary {
+    const candidate = this.toRagCandidateStatus(knowledgeFabric);
+    return {
+      generatedAt: Date.now(),
+      attachedCollections: candidate.attachedCollections,
+      attachedNames: candidate.attachedNames,
+      retrievedChunks: candidate.retrievedChunks,
+      selectedChunks: candidate.selectedChunks,
+      droppedChunks: candidate.droppedChunks,
+      dominantSource: candidate.selectedChunks > 0 ? 'rag' : knowledgeFabric.sourceMix.dominantSource,
+      usedInPlanner: usage.usedInPlanner,
+      usedInPacket: usage.usedInPacket,
+      usedInRuntime: usage.usedInRuntime,
+    };
+  }
+
+  private buildTaskGraph(task: string, phases: string[], intent: AutonomyIntent): RuntimeTaskGraphSnapshot {
+    const graphPhases: RuntimeTaskGraphSnapshot['phases'] = [
+      {
+        id: 'phase-plan',
+        title: 'Plan and decompose',
+        goal: task,
+        kind: 'plan',
+        branch: 0,
+        dependsOn: [],
+      },
+      ...phases.map((phase, index) => ({
+        id: `phase-${index + 1}`,
+        title: shortLabel(phase, 56),
+        goal: phase,
+        kind: this.classifyPhaseKind(phase, intent, index, phases.length),
+        branch: phases.length > 1 ? index + 1 : 1,
+        dependsOn: index === 0 ? ['phase-plan'] : [`phase-${index}`],
+      })),
+      {
+        id: 'phase-verify',
+        title: 'Verify and govern',
+        goal: `Verify ${task}`,
+        kind: 'verify',
+        branch: 0,
+        dependsOn: phases.length > 0 ? [`phase-${phases.length}`] : ['phase-plan'],
+      },
+    ];
+    const implementationPhases = graphPhases.filter((phase) => phase.kind === 'implement' || phase.kind === 'research');
+    const independentBranches = Math.max(implementationPhases.length, phases.length > 1 ? phases.length : 1);
+    return {
+      generatedAt: Date.now(),
+      summary: `${graphPhases.length} phases across ${independentBranches} branch(es).`,
+      branchCount: new Set(graphPhases.map((phase) => phase.branch)).size,
+      independentBranches,
+      dominantKind: implementationPhases[0]?.kind ?? 'plan',
+      phases: graphPhases,
+    };
+  }
+
+  private buildWorkerPlan(
+    workerCount: number,
+    mode: RuntimeOrchestrationSnapshot['mode'],
+    taskGraph: RuntimeTaskGraphSnapshot,
+    knowledgeFabric: KnowledgeFabricBundle,
+  ): RuntimeWorkerPlanSnapshot {
+    const lanes: RuntimeWorkerPlanSnapshot['lanes'] = [
+      {
+        role: 'planner',
+        count: 1,
+        reason: 'Non-trivial autonomous runs always start with planner/decomposer authority.',
+      },
+      {
+        role: 'coder',
+        count: Math.max(2, Math.min(3, workerCount - 1)),
+        reason: 'Runtime clamps to at least two coder workers for implementation pressure.',
+      },
+    ];
+    if ((knowledgeFabric.rag.hits.length > 0) || (knowledgeFabric.patterns.selected.length > 0)) {
+      lanes.push({
+        role: 'researcher',
+        count: 1,
+        reason: 'RAG, patterns, or external context require a scout lane for grounding.',
+      });
+    }
+    if (taskGraph.independentBranches >= 2) {
+      lanes.push({
+        role: 'integrator',
+        count: 1,
+        reason: 'Multiple branches need an integration lane before merge/apply.',
+      });
+      lanes.push({
+        role: 'reviewer',
+        count: 1,
+        reason: 'Multi-branch work gets a distinct reviewer lane before completion.',
+      });
+    }
+    if (mode === 'continuation-capable') {
+      lanes.push({
+        role: 'continuation',
+        count: 1,
+        reason: 'Continuation-capable mode keeps a bounded follow-up lane available.',
+      });
+    }
+    const totalWorkers = lanes.reduce((sum, lane) => sum + lane.count, 0);
+    return {
+      generatedAt: Date.now(),
+      mode,
+      totalWorkers,
+      continuationAllowed: mode === 'continuation-capable',
+      summary: `${totalWorkers} planned worker lanes across ${taskGraph.independentBranches} branch(es).`,
+      lanes,
+    };
+  }
+
+  private buildArtifactOutcome(
+    audit: RuntimeArtifactSelectionAudit,
+    run: ExecutionRun,
+  ): RuntimeArtifactOutcomeSnapshot {
+    const activeNames = new Set([
+      ...(run.activeSkills ?? []).map((skill) => skill.name),
+      ...(run.activeWorkflows ?? []).map((workflow) => workflow.name),
+      ...(run.activeHooks ?? []).map((hook) => hook.name),
+      ...(run.activeAutomations ?? []).map((automation) => automation.name),
+      ...(run.plannerState?.selectedSpecialists ?? []).map((specialist) => specialist.name),
+      ...(run.plannerState?.selectedCrew ? [run.plannerState.selectedCrew.name] : []),
+    ]);
+    const verifiedWorkers = run.workerResults.filter((worker) => worker.verified).length;
+    const outcomes = audit.selected.map((entry) => {
+      const active = activeNames.has(entry.name);
+      const helpful = active && (run.state === 'merged' || verifiedWorkers > 0);
+      const harmful = run.state === 'failed' && entry.confidence === 'low';
+      const redundant = !active && entry.score < 0.75;
+      const outcome: RuntimeArtifactOutcomeSnapshot['outcomes'][number]['outcome'] = harmful
+        ? 'harmful'
+        : helpful
+          ? 'helpful'
+          : redundant
+            ? 'redundant'
+            : 'neutral';
+      const score = outcome === 'helpful'
+        ? 0.9
+        : outcome === 'neutral'
+          ? 0.5
+          : outcome === 'redundant'
+            ? 0.25
+            : -0.35;
+      const reason = harmful
+        ? 'Low-confidence artifact stayed selected in a failed run.'
+        : helpful
+          ? 'Artifact stayed active through a verified or merged run.'
+          : redundant
+            ? 'Artifact was shortlisted but did not materially contribute at runtime.'
+            : 'Artifact remained valid but the run evidence was mixed.';
+      return {
+        kind: entry.kind,
+        id: entry.id,
+        name: entry.name,
+        outcome,
+        score,
+        reason,
+      };
+    });
+    return {
+      generatedAt: Date.now(),
+      summary: `${outcomes.filter((entry) => entry.outcome === 'helpful').length} helpful · ${outcomes.filter((entry) => entry.outcome === 'redundant').length} redundant · ${outcomes.filter((entry) => entry.outcome === 'harmful').length} harmful`,
+      outcomes,
+    };
+  }
+
+  private mergeArtifactOutcomeHistory(
+    existing: Record<string, number> | undefined,
+    snapshot: RuntimeArtifactOutcomeSnapshot,
+  ): Record<string, number> {
+    const next = { ...(existing ?? {}) };
+    for (const outcome of snapshot.outcomes) {
+      const key = this.artifactHistoryKey(outcome.kind, outcome.id);
+      next[key] = Number((((next[key] ?? 0) * 0.72) + outcome.score).toFixed(2));
+    }
+    return next;
+  }
+
+  private getArtifactHistoryScore(
+    kind: RuntimeArtifactSelectionAudit['selected'][number]['kind'],
+    id: string,
+  ): number {
+    const history = this.sessionState.artifactOutcomeHistory ?? {};
+    return history[this.artifactHistoryKey(kind, id)] ?? 0;
+  }
+
+  private artifactHistoryKey(
+    kind: RuntimeArtifactSelectionAudit['selected'][number]['kind'],
+    id: string,
+  ): string {
+    return `${kind}:${id}`;
+  }
+
+  private classifyPhaseKind(
+    phase: string,
+    intent: AutonomyIntent,
+    index: number,
+    total: number,
+  ): RuntimeTaskGraphSnapshot['phases'][number]['kind'] {
+    const lower = phase.toLowerCase();
+    if (/(research|investigate|explore|audit|inspect)/.test(lower)) return 'research';
+    if (/(verify|test|review|check|validate)/.test(lower)) return 'verify';
+    if (intent.taskType === 'release' && index === total - 1) return 'release';
+    if (index === 0 && /(plan|decompose|scope)/.test(lower)) return 'plan';
+    return 'implement';
   }
 
   private decideWorkers(
@@ -1082,14 +1719,18 @@ export class OrchestratorEngine {
     phaseCount: number,
     intent: AutonomyIntent,
     repeatedFailures: number,
+    knowledgeFabric?: KnowledgeFabricBundle,
   ): number {
     if (typeof requestedWorkers === 'number' && requestedWorkers > 0) {
       return Math.max(2, Math.min(7, requestedWorkers));
     }
-    const baseline = Math.max(2, plannedWorkers, phaseCount);
+    const baseline = Math.max(4, plannedWorkers + 1, phaseCount + 2);
     const failureBoost = repeatedFailures > 0 ? 1 : 0;
     const riskBoost = intent.riskClass === 'high' ? 1 : 0;
-    return Math.min(7, baseline + failureBoost + riskBoost);
+    const ragBoost = (knowledgeFabric?.rag.hits.length ?? 0) > 0 ? 1 : 0;
+    const patternBoost = (knowledgeFabric?.patterns.selected.length ?? 0) > 1 ? 1 : 0;
+    const multiPhaseBoost = phaseCount > 1 ? 1 : 0;
+    return Math.min(7, baseline + failureBoost + riskBoost + ragBoost + patternBoost + multiPhaseBoost);
   }
 
   private determineMode(intent: AutonomyIntent, phaseCount: number, workers: number): RuntimeOrchestrationSnapshot['mode'] {
@@ -1129,6 +1770,12 @@ function scorePath(filePath: string, keywords: string[]): number {
 
 function dedupeStrings(values: string[]): string[] {
   return [...new Set(values.filter(Boolean))];
+}
+
+function shortLabel(value: string, limit: number): string {
+  const normalized = String(value ?? '').trim();
+  if (normalized.length <= limit) return normalized;
+  return `${normalized.slice(0, Math.max(0, limit - 1)).trimEnd()}…`;
 }
 
 export const createOrchestrator = (

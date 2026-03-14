@@ -76,14 +76,24 @@ import {
     RuntimeRegistry,
     createEmptyUsageState,
     createEmptyTokenSummary,
+    type RuntimeArtifactSelectionAudit,
+    type RuntimeArtifactOutcomeSnapshot,
+    type RuntimeCatalogHealthSnapshot,
     type RuntimeClientInstructionStatus,
+    type RuntimeMemoryHealthSnapshot,
+    type RuntimeMemoryReconciliationSummary,
+    type RuntimeMemoryScopeUsageSnapshot,
+    type RuntimeRagUsageSummary,
     type RuntimeRegistrySnapshot,
     type RuntimeOrchestrationSnapshot,
     type RuntimePrimaryClientSnapshot,
     type RuntimeSequenceComplianceSnapshot,
+    type RuntimeSourceAwareTokenBudgetSnapshot,
+    type RuntimeTaskGraphSnapshot,
     type RuntimeTokenRunSnapshot,
     type RuntimeTokenSummarySnapshot,
     type RuntimeUsageCategory,
+    type RuntimeWorkerPlanSnapshot,
 } from '../engines/runtime-registry.js';
 import {
     InstructionGateway,
@@ -95,6 +105,14 @@ import {
     type OrchestrationExecutionMode,
 } from '../engines/instruction-gateway.js';
 import type { KnowledgeFabricBundle, KnowledgeFabricSnapshot } from '../engines/knowledge-fabric.js';
+import type { BootstrapManifestStatus } from '../engines/client-bootstrap.js';
+import {
+    WorktreeDoctorError,
+    doctorGitWorktrees,
+    summarizeWorktreeHealth,
+    toWorktreeRemediation,
+    type WorktreeHealthSnapshot,
+} from '../engines/worktree-health.js';
 import { MergeOracle } from './merge-oracle.js';
 import type { MergeDecision, WorkerResult } from './index.js';
 import type { FileRef, ReadingPlan } from '../engines/token-supremacy.js';
@@ -278,6 +296,15 @@ export interface WorkerContextPacket {
     reviewGates: ReviewGateResult[];
     continuation?: ContinuationProposal;
     phasePackets: WorkerPhasePacket[];
+    sharedMemory: Array<{
+        id: string;
+        excerpt: string;
+        scope: string;
+        state: string;
+        importanceScore: number;
+        relevanceScore: number;
+        tags: string[];
+    }>;
 }
 
 export interface CommandRecord {
@@ -374,6 +401,12 @@ export interface ExecutionRun {
     instructionPacket?: InstructionPacket;
     executionLedger?: ExecutionLedger;
     knowledgeFabric?: KnowledgeFabricBundle;
+    taskGraph?: RuntimeTaskGraphSnapshot;
+    workerPlan?: RuntimeWorkerPlanSnapshot;
+    artifactOutcome?: RuntimeArtifactOutcomeSnapshot;
+    ragUsageSummary?: RuntimeRagUsageSummary;
+    memoryScopeUsage?: RuntimeMemoryScopeUsageSnapshot;
+    memoryReconciliationSummary?: RuntimeMemoryReconciliationSummary;
 }
 
 export interface SubAgentRuntimeOptions {
@@ -432,17 +465,31 @@ class WorktreeSession {
         private repoRoot: string,
         private workerId: string,
         private role: WorkerRole,
-        private recorder: ArtifactRecorder
+        private recorder: ArtifactRecorder,
+        private reportHealth?: (snapshot: WorktreeHealthSnapshot) => void,
     ) {
         this.worktreeDir = path.join(os.tmpdir(), 'nexus-prime-worktrees', `${role}-${workerId}`);
     }
 
     async create(): Promise<void> {
         fs.mkdirSync(path.dirname(this.worktreeDir), { recursive: true });
-        await exec(`git worktree add --detach ${quote(this.worktreeDir)}`, {
-            cwd: this.repoRoot,
-            maxBuffer: 1024 * 1024 * 20,
-        });
+        const health = await doctorGitWorktrees(this.repoRoot);
+        this.reportHealth?.(health);
+
+        try {
+            await exec(`git worktree add --detach ${quote(this.worktreeDir)}`, {
+                cwd: this.repoRoot,
+                maxBuffer: 1024 * 1024 * 20,
+            });
+        } catch (error: any) {
+            const retryHealth = await doctorGitWorktrees(this.repoRoot);
+            this.reportHealth?.(retryHealth);
+            throw new WorktreeDoctorError(
+                `Unable to prepare ${this.role} worktree. ${summarizeWorktreeHealth(retryHealth)}`,
+                retryHealth,
+                toWorktreeRemediation(error, this.worktreeDir),
+            );
+        }
     }
 
     async run(command: string, allowFailure: boolean = false): Promise<CommandRecord> {
@@ -529,7 +576,8 @@ class WorktreeSession {
                 maxBuffer: 1024 * 1024 * 20,
             });
         } catch {
-            // best effort
+            const health = await doctorGitWorktrees(this.repoRoot);
+            this.reportHealth?.(health);
         }
     }
 
@@ -1109,7 +1157,21 @@ export class SubAgentRuntime {
         const coderManifests = manifests.filter((manifest) => manifest.role === 'coder');
         const coderResults = await Promise.all(coderManifests.map((manifest) => this.runCoderWorker(runId, recorder, manifest)));
         run.workerResults = coderResults;
+        await this.shareWorkerLearnings(runId, task.goal, coderResults);
+        manifests.forEach((manifest) => {
+            manifest.context = this.buildWorkerContext(
+                runId,
+                task,
+                manifest,
+                run.activeSkills,
+                run.activeWorkflows,
+                planner.plannerState,
+                manifest.context?.phasePackets ?? [],
+            );
+        });
         recorder.writeJson('worker-results.json', coderResults);
+        recorder.writeJson('manifests.json', manifests);
+        this.writeManifestContexts(recorder, manifests);
 
         const beforeVerifyHooks = this.hookRuntime.dispatch('before-verify', activeHooks, {
             goal: task.goal,
@@ -1445,6 +1507,102 @@ export class SubAgentRuntime {
         });
     }
 
+    recordCatalogHealth(snapshot: RuntimeCatalogHealthSnapshot | undefined): RuntimeRegistrySnapshot {
+        return this.persistRuntimeSnapshot({
+            catalogHealth: snapshot,
+            lastHeartbeatAt: Date.now(),
+            lastActivityAt: Date.now(),
+        });
+    }
+
+    recordArtifactSelectionAudit(snapshot: RuntimeArtifactSelectionAudit | undefined): RuntimeRegistrySnapshot {
+        return this.persistRuntimeSnapshot({
+            artifactSelectionAudit: snapshot,
+            lastHeartbeatAt: Date.now(),
+            lastActivityAt: Date.now(),
+        });
+    }
+
+    recordArtifactOutcome(snapshot: RuntimeArtifactOutcomeSnapshot | undefined): RuntimeRegistrySnapshot {
+        return this.persistRuntimeSnapshot({
+            artifactOutcome: snapshot,
+            lastHeartbeatAt: Date.now(),
+            lastActivityAt: Date.now(),
+        });
+    }
+
+    recordMemoryHealth(snapshot: RuntimeMemoryHealthSnapshot | undefined): RuntimeRegistrySnapshot {
+        return this.persistRuntimeSnapshot({
+            memoryHealth: snapshot,
+            lastHeartbeatAt: Date.now(),
+            lastActivityAt: Date.now(),
+        });
+    }
+
+    recordMemoryScopeUsage(snapshot: RuntimeMemoryScopeUsageSnapshot | undefined): RuntimeRegistrySnapshot {
+        return this.persistRuntimeSnapshot({
+            memoryScopeUsage: snapshot,
+            lastHeartbeatAt: Date.now(),
+            lastActivityAt: Date.now(),
+        });
+    }
+
+    recordMemoryReconciliationSummary(snapshot: RuntimeMemoryReconciliationSummary | undefined): RuntimeRegistrySnapshot {
+        return this.persistRuntimeSnapshot({
+            memoryReconciliationSummary: snapshot,
+            lastHeartbeatAt: Date.now(),
+            lastActivityAt: Date.now(),
+        });
+    }
+
+    recordBootstrapManifestStatus(snapshot: BootstrapManifestStatus | undefined): RuntimeRegistrySnapshot {
+        return this.persistRuntimeSnapshot({
+            bootstrapManifestStatus: snapshot,
+            lastHeartbeatAt: Date.now(),
+            lastActivityAt: Date.now(),
+        });
+    }
+
+    recordSourceAwareTokenBudget(snapshot: RuntimeSourceAwareTokenBudgetSnapshot | undefined): RuntimeRegistrySnapshot {
+        return this.persistRuntimeSnapshot({
+            sourceAwareTokenBudget: snapshot,
+            lastHeartbeatAt: Date.now(),
+            lastActivityAt: Date.now(),
+        });
+    }
+
+    recordTaskGraph(snapshot: RuntimeTaskGraphSnapshot | undefined): RuntimeRegistrySnapshot {
+        return this.persistRuntimeSnapshot({
+            taskGraph: snapshot,
+            lastHeartbeatAt: Date.now(),
+            lastActivityAt: Date.now(),
+        });
+    }
+
+    recordWorkerPlan(snapshot: RuntimeWorkerPlanSnapshot | undefined): RuntimeRegistrySnapshot {
+        return this.persistRuntimeSnapshot({
+            workerPlan: snapshot,
+            lastHeartbeatAt: Date.now(),
+            lastActivityAt: Date.now(),
+        });
+    }
+
+    recordRagUsageSummary(snapshot: RuntimeRagUsageSummary | undefined): RuntimeRegistrySnapshot {
+        return this.persistRuntimeSnapshot({
+            ragUsageSummary: snapshot,
+            lastHeartbeatAt: Date.now(),
+            lastActivityAt: Date.now(),
+        });
+    }
+
+    recordWorktreeHealth(snapshot: WorktreeHealthSnapshot | undefined): RuntimeRegistrySnapshot {
+        return this.persistRuntimeSnapshot({
+            worktreeHealth: snapshot,
+            lastHeartbeatAt: Date.now(),
+            lastActivityAt: Date.now(),
+        });
+    }
+
     recordClientToolCall(
         toolName: string,
         options: {
@@ -1746,20 +1904,161 @@ export class SubAgentRuntime {
         });
     }
 
-    async storeMemoryAndDispatch(content: string, priority: number = 0.7, tags: string[] = [], parentId?: string, depth?: number): Promise<{
+    getMemoryHealth(): RuntimeMemoryHealthSnapshot {
+        const summary = this.memoryEngine?.getHealthSummary?.() ?? {
+            generatedAt: Date.now(),
+            total: 0,
+            active: 0,
+            quarantined: 0,
+            scrap: 0,
+            promoted: 0,
+            shared: 0,
+            topTags: [],
+        };
+        this.recordMemoryHealth(summary);
+        return summary;
+    }
+
+    getMemoryScopeUsage(): RuntimeMemoryScopeUsageSnapshot {
+        const sessionId = this.runtimeSnapshot.orchestration?.sessionId;
+        const summary = this.memoryEngine?.getScopeUsageSummary?.(sessionId) ?? {
+            generatedAt: Date.now(),
+            byScope: {},
+            byState: {},
+            sharedContextCount: 0,
+        };
+        this.recordMemoryScopeUsage(summary);
+        return summary;
+    }
+
+    getSharedMemorySnapshot(limit: number = 12) {
+        const sessionId = this.runtimeSnapshot.orchestration?.sessionId;
+        const shared = this.memoryEngine?.listSharedSnapshots?.(limit, sessionId)
+            ?? this.getSharedMemoryContext().slice(0, Math.max(1, limit));
+        this.recordMemoryScopeUsage(this.memoryEngine?.getScopeUsageSummary?.(sessionId));
+        return shared;
+    }
+
+    getMemoryReconciliationSummary(): RuntimeMemoryReconciliationSummary {
+        const summary = this.memoryEngine?.getLastReconciliationSummary?.() ?? {
+            generatedAt: Date.now(),
+            actionCounts: {
+                ADD: 0,
+                UPDATE: 0,
+                MERGE: 0,
+                DELETE: 0,
+                NONE: 0,
+                QUARANTINE: 0,
+            },
+            entries: [],
+        };
+        this.recordMemoryReconciliationSummary(summary);
+        return summary;
+    }
+
+    traceMemory(id: string) {
+        const detail = this.memoryEngine?.trace?.(id);
+        this.recordMemoryScopeUsage(this.memoryEngine?.getScopeUsageSummary?.(this.runtimeSnapshot.orchestration?.sessionId));
+        return detail;
+    }
+
+    maintainMemory() {
+        const result = this.memoryEngine?.maintain?.() ?? {
+            generatedAt: Date.now(),
+            expired: 0,
+            cooled: 0,
+            quarantined: 0,
+            scrapMarked: 0,
+            retained: 0,
+        };
+        this.recordMemoryHealth(this.memoryEngine?.getHealthSummary?.());
+        this.recordMemoryScopeUsage(this.memoryEngine?.getScopeUsageSummary?.(this.runtimeSnapshot.orchestration?.sessionId));
+        this.recordMemoryReconciliationSummary(this.memoryEngine?.getLastReconciliationSummary?.());
+        return result;
+    }
+
+    exportMemoryBundle(options: {
+        limit?: number;
+        scope?: 'session' | 'project' | 'user' | 'promoted' | 'shared';
+        state?: 'active' | 'quarantined' | 'scrap';
+        sessionId?: string;
+    } = {}) {
+        return this.memoryEngine?.exportBundle?.(options);
+    }
+
+    backupMemoryBundle(options: {
+        limit?: number;
+        scope?: 'session' | 'project' | 'user' | 'promoted' | 'shared';
+        state?: 'active' | 'quarantined' | 'scrap';
+        sessionId?: string;
+    } = {}) {
+        return this.memoryEngine?.backupBundle?.(options);
+    }
+
+    importMemoryBundle(input: { path?: string; bundle?: unknown }) {
+        const result = this.memoryEngine?.importBundle?.(input as any) ?? {
+            imported: 0,
+            duplicates: 0,
+            quarantined: 0,
+            importedIds: [],
+        };
+        this.recordMemoryHealth(this.memoryEngine?.getHealthSummary?.());
+        this.recordMemoryScopeUsage(this.memoryEngine?.getScopeUsageSummary?.(this.runtimeSnapshot.orchestration?.sessionId));
+        this.recordMemoryReconciliationSummary(this.memoryEngine?.getLastReconciliationSummary?.());
+        return result;
+    }
+
+    async storeMemoryAndDispatch(
+        content: string,
+        priority: number = 0.7,
+        tags: string[] = [],
+        parentId?: string,
+        depth?: number,
+        options: {
+            continuationDepth?: number;
+            sourceAutomationId?: string;
+            suppressAutomationContinuations?: boolean;
+        } = {},
+    ): Promise<{
         id: string;
         hookEvents: Array<Record<string, unknown>>;
         automationDispatches: Awaited<ReturnType<AutomationRuntime['dispatch']>>;
         continuationRuns: ExecutionRun[];
     }> {
-        const id = this.memoryEngine
-            ? this.memoryEngine.store(content, priority, tags, parentId, depth)
-            : String(this.defaultMemoryBackend.store(content, priority, tags, parentId, depth));
-        const dispatched = await this.dispatchStoredMemory(id, content, priority, tags);
+        const controlPlaneResult = this.memoryEngine?.storeWithControlPlane?.(content, priority, tags, parentId, depth, {
+            sessionId: this.runtimeSnapshot.orchestration?.sessionId,
+            scope: tags.includes('#shared') || tags.includes('#worker-shared') ? 'shared' : 'session',
+            source: tags.includes('#worker') ? 'worker' : 'runtime',
+            provenance: {
+                source: tags.includes('#worker') ? 'worker' : 'runtime',
+                sessionId: this.runtimeSnapshot.orchestration?.sessionId,
+                summary: 'Stored through runtime memory control plane.',
+                references: [this.runtimeSnapshot.latestRun?.runId].filter(Boolean) as string[],
+                tags,
+            },
+        });
+        const id = controlPlaneResult?.storedIds?.[0]
+            ?? (this.memoryEngine
+                ? this.memoryEngine.store(content, priority, tags, parentId, depth)
+                : String(this.defaultMemoryBackend.store(content, priority, tags, parentId, depth)));
+        this.recordMemoryHealth(this.memoryEngine?.getHealthSummary?.());
+        this.recordMemoryScopeUsage(this.memoryEngine?.getScopeUsageSummary?.(this.runtimeSnapshot.orchestration?.sessionId));
+        this.recordMemoryReconciliationSummary(controlPlaneResult?.summary ?? this.memoryEngine?.getLastReconciliationSummary?.());
+        const dispatched = await this.dispatchStoredMemory(id, content, priority, tags, options);
         return { id, ...dispatched };
     }
 
-    async dispatchStoredMemory(id: string, content: string, priority: number = 0.7, tags: string[] = []): Promise<{
+    async dispatchStoredMemory(
+        id: string,
+        content: string,
+        priority: number = 0.7,
+        tags: string[] = [],
+        options: {
+            continuationDepth?: number;
+            sourceAutomationId?: string;
+            suppressAutomationContinuations?: boolean;
+        } = {},
+    ): Promise<{
         hookEvents: Array<Record<string, unknown>>;
         automationDispatches: Awaited<ReturnType<AutomationRuntime['dispatch']>>;
         continuationRuns: ExecutionRun[];
@@ -1812,45 +2111,47 @@ export class SubAgentRuntime {
             });
         }
 
-        const continuationRuns = await this.executeAutomationContinuations({
-            ...({
-                runId: `memory-${id}`,
-                goal: content,
-                state: 'merged',
-                mode: 'real',
-                continuationChildren: [],
-            } as ExecutionRun),
-            plannerState: undefined,
-            plannerResult: undefined,
-            workerManifests: [],
-            activeSkills: [],
-            activeWorkflows: [],
-            activeHooks: [],
-            activeAutomations: [],
-            selectedBackends: {
-                memoryBackend: this.defaultMemoryBackend.descriptor.kind,
-                compressionBackend: this.defaultCompressionBackend?.descriptor.kind ?? 'deterministic-token-supremacy',
-                consensusPolicy: 'multi-tier-byzantine',
-                dslCompiler: this.defaultDslCompiler?.descriptor.kind ?? 'deterministic-nxl-compiler',
-            },
-            workerResults: [],
-            verificationResults: [],
-            skillEvents: [],
-            workflowEvents: [],
-            hookEvents: hooks.events,
-            automationEvents: automations.map((dispatch) => ({ type: 'automation.dispatched', ...dispatch })),
-            backendEvidence: { notes: [], memory: {}, compression: {}, consensus: {}, dsl: {}, fallbacks: [] },
-            promotionDecisions: [],
-            shieldDecisions: [],
-            memoryChecks: [],
-            federationState: this.federation.getSnapshot(),
-            artifactsPath: this.resolveArtifactsRoot(),
-            artifactsIndex: {},
-            result: content,
-        }, automations, {
-            continuationDepth: 0,
-            sourceAutomationId: undefined,
-        });
+        const continuationRuns = options.suppressAutomationContinuations
+            ? []
+            : await this.executeAutomationContinuations({
+                ...({
+                    runId: `memory-${id}`,
+                    goal: content,
+                    state: 'merged',
+                    mode: 'real',
+                    continuationChildren: [],
+                } as ExecutionRun),
+                plannerState: undefined,
+                plannerResult: undefined,
+                workerManifests: [],
+                activeSkills: [],
+                activeWorkflows: [],
+                activeHooks: [],
+                activeAutomations: [],
+                selectedBackends: {
+                    memoryBackend: this.defaultMemoryBackend.descriptor.kind,
+                    compressionBackend: this.defaultCompressionBackend?.descriptor.kind ?? 'deterministic-token-supremacy',
+                    consensusPolicy: 'multi-tier-byzantine',
+                    dslCompiler: this.defaultDslCompiler?.descriptor.kind ?? 'deterministic-nxl-compiler',
+                },
+                workerResults: [],
+                verificationResults: [],
+                skillEvents: [],
+                workflowEvents: [],
+                hookEvents: hooks.events,
+                automationEvents: automations.map((dispatch) => ({ type: 'automation.dispatched', ...dispatch })),
+                backendEvidence: { notes: [], memory: {}, compression: {}, consensus: {}, dsl: {}, fallbacks: [] },
+                promotionDecisions: [],
+                shieldDecisions: [],
+                memoryChecks: [],
+                federationState: this.federation.getSnapshot(),
+                artifactsPath: this.resolveArtifactsRoot(),
+                artifactsIndex: {},
+                result: content,
+            }, automations, {
+                continuationDepth: Math.max(0, Number(options.continuationDepth ?? 0)),
+                sourceAutomationId: options.sourceAutomationId,
+            });
 
         return { hookEvents: hooks.events, automationDispatches: automations, continuationRuns };
     }
@@ -2247,7 +2548,13 @@ export class SubAgentRuntime {
     }
 
     private async runCoderWorker(runId: string, recorder: ArtifactRecorder, manifest: WorkerManifest): Promise<RuntimeWorkerResult> {
-        const session = new WorktreeSession(this.repoRoot, `${runId}-${manifest.workerId}`, 'coder', recorder);
+        const session = new WorktreeSession(
+            this.repoRoot,
+            `${runId}-${manifest.workerId}`,
+            'coder',
+            recorder,
+            (snapshot) => this.recordWorktreeHealth(snapshot),
+        );
         const start = Date.now();
         const learnings: string[] = [];
         const workerDir = recorder.workerDir(manifest.workerId);
@@ -2315,6 +2622,10 @@ export class SubAgentRuntime {
                 modifiedFiles,
             };
         } catch (error: any) {
+            const learnings = [String(error?.message ?? error)];
+            if (error instanceof WorktreeDoctorError) {
+                learnings.push(...error.remediation);
+            }
             return {
                 workerId: manifest.workerId,
                 role: manifest.role,
@@ -2324,7 +2635,7 @@ export class SubAgentRuntime {
                 outcome: 'failed',
                 confidence: 0,
                 tokensUsed: 0,
-                learnings: [`Worker failed: ${String(error?.message ?? error)}`],
+                learnings,
                 verified: false,
                 artifactsPath: workerDir,
                 modifiedFiles: [],
@@ -2340,7 +2651,13 @@ export class SubAgentRuntime {
         manifest: WorkerManifest,
         target?: RuntimeWorkerResult
     ): Promise<WorkerVerification> {
-        const verifier = new WorktreeSession(this.repoRoot, `${runId}-${manifest.workerId}`, 'verifier', recorder);
+        const verifier = new WorktreeSession(
+            this.repoRoot,
+            `${runId}-${manifest.workerId}`,
+            'verifier',
+            recorder,
+            (snapshot) => this.recordWorktreeHealth(snapshot),
+        );
         const records: CommandRecord[] = [];
         const artifactsPath = recorder.workerDir(manifest.workerId);
 
@@ -2394,6 +2711,18 @@ export class SubAgentRuntime {
                 summary: passed
                     ? `Verifier passed ${records.length} command(s).`
                     : `Verifier failed ${records.filter(record => record.exitCode !== 0).length} command(s).`,
+                artifactsPath,
+            };
+        } catch (error: any) {
+            const summary = error instanceof WorktreeDoctorError
+                ? `Verifier degraded before execution. ${error.message}`
+                : `Verifier failed before execution: ${String(error?.message ?? error)}`;
+            return {
+                workerId: manifest.targetWorkerId ?? 'unknown',
+                verifierId: manifest.workerId,
+                passed: false,
+                commands: [],
+                summary,
                 artifactsPath,
             };
         } finally {
@@ -2818,6 +3147,7 @@ export class SubAgentRuntime {
             skipReasons,
             lastToolCalls: patch.lastToolCalls ?? this.runtimeSnapshot?.lastToolCalls ?? [],
             clientInstructionStatus: patch.clientInstructionStatus ?? this.runtimeSnapshot?.clientInstructionStatus,
+            worktreeHealth: patch.worktreeHealth ?? this.runtimeSnapshot?.worktreeHealth,
             sequenceCompliance: patch.sequenceCompliance ?? this.runtimeSnapshot?.sequenceCompliance,
         };
         nextSnapshot.sequenceCompliance = this.deriveSequenceCompliance(nextSnapshot);
@@ -3047,7 +3377,50 @@ export class SubAgentRuntime {
             reviewGates: plannerState?.reviewGates ?? [],
             continuation: plannerState?.continuation,
             phasePackets,
+            sharedMemory: this.getSharedMemoryContext(),
         };
+    }
+
+    private async shareWorkerLearnings(runId: string, goal: string, results: RuntimeWorkerResult[]): Promise<void> {
+        if (!this.memoryEngine || results.length === 0) return;
+        const summaries = results
+            .map((result) => {
+                const learningText = Array.isArray(result.learnings)
+                    ? result.learnings
+                        .map((entry) => String(entry).trim())
+                        .filter(Boolean)
+                        .slice(0, 2)
+                        .join(' | ')
+                    : '';
+                if (!learningText) return null;
+                return `${result.workerId} (${result.role}) -> ${learningText}`;
+            })
+            .filter((entry): entry is string => Boolean(entry));
+        if (summaries.length === 0) return;
+
+        await this.storeMemoryAndDispatch(
+            `Shared worker learnings for ${goal}: ${summaries.join(' ; ')}`,
+            0.62,
+            ['#worker', '#worker-shared', '#shared', `#run:${runId}`],
+            undefined,
+            undefined,
+            { suppressAutomationContinuations: true },
+        );
+    }
+
+    private getSharedMemoryContext(): WorkerContextPacket['sharedMemory'] {
+        if (!this.memoryEngine) return [];
+        const shared = this.memoryEngine.listSnapshots(6, { scope: 'shared' });
+        const fallback = shared.length > 0 ? shared : this.memoryEngine.listSnapshots(6, { recencyMs: 3 * 24 * 60 * 60 * 1000 });
+        return fallback.slice(0, 6).map((memory) => ({
+            id: memory.id,
+            excerpt: memory.excerpt,
+            scope: memory.scope,
+            state: memory.state,
+            importanceScore: memory.importanceScore,
+            relevanceScore: memory.relevanceScore,
+            tags: memory.tags,
+        }));
     }
 
     private writeManifestContexts(recorder: ArtifactRecorder, manifests: WorkerManifest[]): void {

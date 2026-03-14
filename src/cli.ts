@@ -18,6 +18,7 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { PODNetwork } from './engines/pod-network.js';
 import { InstructionGateway, type ClientBootstrapArtifact } from './engines/instruction-gateway.js';
+import { ensureBootstrap, collectBootstrapManifest } from './engines/client-bootstrap.js';
 
 
 const tokenEngine = new TokenSupremacyEngine();
@@ -31,14 +32,19 @@ const __dirname = dirname(__filename);
 const PACKAGE_ROOT = join(__dirname, '..');
 const packageJson = JSON.parse(readFileSync(join(__dirname, '..', 'package.json'), 'utf8'));
 
-type SetupClientId = 'cursor' | 'claude' | 'opencode' | 'windsurf' | 'antigravity';
+type SetupClientId = 'cursor' | 'claude' | 'opencode' | 'windsurf' | 'antigravity' | 'codex';
+
+type SetupInstructionMode = 'replace' | 'codex-managed-agents';
 
 interface SetupDefinition {
   id: SetupClientId;
   label: string;
   configPath?: string;
-  instructionFiles: Array<{ path: string; content: string }>;
+  instructionFiles: Array<{ path: string; content: string; mode?: SetupInstructionMode }>;
 }
+
+const CODEX_MANAGED_START = '<!-- nexus-prime:codex-bootstrap:start -->';
+const CODEX_MANAGED_END = '<!-- nexus-prime:codex-bootstrap:end -->';
 
 function printExecutionSummary(execution: ExecutionRun): void {
   const verifiedWorkers = execution.workerResults.filter(result => result.verified).length;
@@ -98,13 +104,81 @@ function writeOpencodeConfig(targetPath: string): void {
   writeFileSync(targetPath, JSON.stringify(existing, null, 2));
 }
 
-function buildInstructionFiles(clientId: SetupClientId): Array<{ path: string; content: string }> {
+function renderCodexManagedBlock(content: string): string {
+  return [
+    CODEX_MANAGED_START,
+    '## Nexus Prime Bootstrap (managed)',
+    '',
+    '> This block is managed by `nexus-prime setup codex`.',
+    '> Keep your project-specific Codex guidance above or below it.',
+    '',
+    content.trim(),
+    CODEX_MANAGED_END,
+  ].join('\n');
+}
+
+function mergeCodexAgentsContent(existingContent: string | null, content: string): string {
+  const managedBlock = renderCodexManagedBlock(content);
+  const existing = existingContent ?? '';
+
+  if (!existing.trim()) {
+    return [
+      '# AGENTS.md',
+      '',
+      'This file is used by Codex and other repo-local agent tooling.',
+      '',
+      managedBlock,
+      '',
+    ].join('\n');
+  }
+
+  const startIndex = existing.indexOf(CODEX_MANAGED_START);
+  const endIndex = existing.indexOf(CODEX_MANAGED_END);
+  if (startIndex >= 0 && endIndex > startIndex) {
+    const before = existing.slice(0, startIndex).trimEnd();
+    const after = existing.slice(endIndex + CODEX_MANAGED_END.length).trimStart();
+    return [
+      before,
+      before ? '' : undefined,
+      managedBlock,
+      after ? '' : undefined,
+      after,
+      '',
+    ].filter((value): value is string => value !== undefined).join('\n');
+  }
+
+  return [
+    existing.trimEnd(),
+    '',
+    managedBlock,
+    '',
+  ].join('\n');
+}
+
+function hasCurrentCodexManagedBlock(targetPath: string, content: string): 'missing' | 'drifted' | 'installed' {
+  if (!existsSync(targetPath)) return 'missing';
+  const existing = readFileSync(targetPath, 'utf8');
+  const startIndex = existing.indexOf(CODEX_MANAGED_START);
+  const endIndex = existing.indexOf(CODEX_MANAGED_END);
+  if (startIndex < 0 || endIndex <= startIndex) return 'drifted';
+  const currentBlock = existing.slice(startIndex, endIndex + CODEX_MANAGED_END.length).trim();
+  return currentBlock === renderCodexManagedBlock(content).trim() ? 'installed' : 'drifted';
+}
+
+function buildInstructionFiles(clientId: SetupClientId): Array<{ path: string; content: string; mode?: SetupInstructionMode }> {
   const gateway = new InstructionGateway(PACKAGE_ROOT);
   const bundle = gateway.renderClientBootstrapBundle(clientId === 'claude' ? 'claude-code' : clientId, {
     toolProfile: 'autonomous',
   });
   const workspaceRoot = process.cwd();
 
+  if (clientId === 'codex') {
+    return bundle.artifacts.map((artifact: ClientBootstrapArtifact) => ({
+      path: join(workspaceRoot, 'AGENTS.md'),
+      content: artifact.content,
+      mode: 'codex-managed-agents',
+    }));
+  }
   if (clientId === 'cursor') {
     return bundle.artifacts.map((artifact: ClientBootstrapArtifact) => ({
       path: join(workspaceRoot, '.cursor', 'rules', artifact.fileName),
@@ -132,6 +206,13 @@ function buildInstructionFiles(clientId: SetupClientId): Array<{ path: string; c
 
 function getSetupDefinition(clientId: SetupClientId): SetupDefinition {
   const instructionFiles = buildInstructionFiles(clientId);
+  if (clientId === 'codex') {
+    return {
+      id: clientId,
+      label: 'Codex',
+      instructionFiles,
+    };
+  }
   if (clientId === 'cursor') {
     return {
       id: clientId,
@@ -182,6 +263,11 @@ function installSetup(definition: SetupDefinition): void {
   }
   for (const file of definition.instructionFiles) {
     ensureParentDir(file.path);
+    if (file.mode === 'codex-managed-agents') {
+      const existing = existsSync(file.path) ? readFileSync(file.path, 'utf8') : null;
+      writeFileSync(file.path, mergeCodexAgentsContent(existing, file.content), 'utf8');
+      continue;
+    }
     writeFileSync(file.path, file.content, 'utf8');
   }
 }
@@ -235,6 +321,12 @@ function hasExpectedConfig(definition: SetupDefinition): boolean {
 function instructionState(definition: SetupDefinition): 'missing' | 'drifted' | 'installed' {
   let hasAny = false;
   for (const file of definition.instructionFiles) {
+    if (file.mode === 'codex-managed-agents') {
+      const codexState = hasCurrentCodexManagedBlock(file.path, file.content);
+      if (codexState === 'drifted') return 'drifted';
+      if (codexState === 'installed') hasAny = true;
+      continue;
+    }
     if (!existsSync(file.path)) continue;
     hasAny = true;
     if (readFileSync(file.path, 'utf8') !== file.content) {
@@ -249,17 +341,28 @@ function statusForDefinition(definition: SetupDefinition): { state: 'missing' | 
   const configOk = definition.configPath ? hasExpectedConfig(definition) : true;
   const instructions = instructionState(definition);
   if (configOk && instructions === 'installed') {
-    return { state: 'installed', summary: 'Config and client instructions are current' };
+    return {
+      state: 'installed',
+      summary: definition.configPath ? 'Config and client instructions are current' : 'Managed client instructions are current',
+    };
   }
   if ((definition.configPath && existsSync(definition.configPath)) || instructions !== 'missing') {
-    return { state: 'drifted', summary: 'Setup exists but is missing the autonomous profile or current instructions' };
+    return {
+      state: 'drifted',
+      summary: definition.configPath
+        ? 'Setup exists but is missing the autonomous profile or current instructions'
+        : 'A client instruction file exists, but the managed Nexus Prime bootstrap block is missing or outdated',
+    };
   }
-  return { state: 'missing', summary: 'Setup not installed yet' };
+  return {
+    state: 'missing',
+    summary: definition.configPath ? 'Setup not installed yet' : 'No managed client instruction file installed yet',
+  };
 }
 
 program
   .name('nexus-prime')
-  .description('🧬 Nexus Prime - The Self-Evolving Agent Operating System')
+  .description('🧬 Nexus Prime - Local-first MCP control plane for coding agents')
   .version(packageJson.version);
 
 program
@@ -329,6 +432,56 @@ Add this to your "mcpServers" configuration:
 Restart your agent to complete the installation.
     `);
   });
+
+program
+  .command('bootstrap')
+  .description('Internal auto-bootstrap support for install/startup flows')
+  .addCommand(
+    new Command('home')
+      .option('--silent', 'Suppress console output')
+      .action((options: { silent?: boolean }) => {
+        const manifest = ensureBootstrap({
+          packageRoot: PACKAGE_ROOT,
+          workspaceRoot: process.cwd(),
+          phase: 'install',
+          silent: options.silent,
+        });
+        if (!options.silent) {
+          console.log('✅ Home-scoped Nexus Prime bootstrap refreshed');
+          manifest.clients.forEach((client) => {
+            console.log(`  - ${client.label}: ${client.state}`);
+          });
+        }
+      })
+  )
+  .addCommand(
+    new Command('runtime')
+      .option('--silent', 'Suppress console output')
+      .action((options: { silent?: boolean }) => {
+        const manifest = ensureBootstrap({
+          packageRoot: PACKAGE_ROOT,
+          workspaceRoot: process.cwd(),
+          phase: 'runtime',
+          silent: options.silent,
+        });
+        if (!options.silent) {
+          console.log('✅ Runtime bootstrap refreshed');
+          manifest.clients.forEach((client) => {
+            console.log(`  - ${client.label}: ${client.state}`);
+          });
+        }
+      })
+  )
+  .addCommand(
+    new Command('status')
+      .action(() => {
+        const manifest = collectBootstrapManifest({
+          packageRoot: PACKAGE_ROOT,
+          workspaceRoot: process.cwd(),
+        });
+        console.log(JSON.stringify(manifest, null, 2));
+      })
+  );
 
 program
   .command('mcp')
@@ -714,6 +867,21 @@ program
   .command('setup')
   .description('Install MCP config plus client-native Nexus Prime instructions')
   .addCommand(
+    new Command('codex')
+      .description('Integrate with Codex by creating or updating a managed AGENTS.md block')
+      .option('--dry-run', 'Preview changes')
+      .action((options) => {
+        const definition = getSetupDefinition('codex');
+        if (options.dryRun) {
+          printSetupPreview(definition);
+          return;
+        }
+        installSetup(definition);
+        console.log(`✅ Nexus Prime installed for Codex`);
+        definition.instructionFiles.forEach((file) => console.log(`   AGENTS: ${file.path}`));
+      })
+  )
+  .addCommand(
     new Command('cursor')
       .description('Integrate with Cursor')
       .option('--dry-run', 'Preview changes')
@@ -795,20 +963,36 @@ program
       })
   )
   .addCommand(
+    new Command('all')
+      .description('Install Nexus Prime for all supported clients in the current workspace')
+      .option('--dry-run', 'Preview changes')
+      .action((options) => {
+        const definitions = (['codex', 'cursor', 'claude', 'opencode', 'windsurf', 'antigravity'] as SetupClientId[])
+          .map((clientId) => getSetupDefinition(clientId));
+        if (options.dryRun) {
+          definitions.forEach((definition) => printSetupPreview(definition));
+          return;
+        }
+        definitions.forEach((definition) => installSetup(definition));
+        console.log('✅ Nexus Prime installed for all supported clients');
+        definitions.forEach((definition) => {
+          console.log(`   ${definition.label}`);
+          if (definition.configPath) console.log(`     MCP: ${definition.configPath}`);
+          definition.instructionFiles.forEach((file) => console.log(`     Instruction: ${file.path}`));
+        });
+      })
+  )
+  .addCommand(
     new Command('status')
       .description('Check integration status')
       .action(() => {
         console.log('📋 Integration Status:');
-        (['cursor', 'claude', 'opencode', 'windsurf', 'antigravity'] as SetupClientId[]).forEach((clientId) => {
+        (['codex', 'cursor', 'claude', 'opencode', 'windsurf', 'antigravity'] as SetupClientId[]).forEach((clientId) => {
           const definition = getSetupDefinition(clientId);
           const status = statusForDefinition(definition);
           const icon = status.state === 'installed' ? '✅' : status.state === 'drifted' ? '🟡' : '❌';
           console.log(`  - ${definition.label}: ${icon} ${status.summary}`);
         });
-        const codexStatus = existsSync(join(process.cwd(), 'AGENTS.md'))
-          ? '✅ Repo-local AGENTS.md present (Codex uses repo instructions plus MCP profile)'
-          : '🟡 No repo-local AGENTS.md detected for Codex';
-        console.log(`  - Codex: ${codexStatus}`);
       })
   );
 

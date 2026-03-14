@@ -15,13 +15,13 @@
   <meta property="og:description"
     content="Bootstrap memory and context, let Nexus orchestrate execution, attach session RAG collections, and inspect runtime truth, token telemetry, provenance, hooks, automations, crews, specialists, and federation state." />
   <meta property="og:type" content="website" />
-  <meta property="og:image" content="https://sir-ad.github.io/nexus-prime/assets/screenshots/dashboard_v3.8.0.png" />
+  <meta property="og:image" content="https://sir-ad.github.io/nexus-prime/assets/screenshots/dashboard_runtime_overview.png" />
   <meta name="robots" content="index,follow" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Nexus Prime — MCP Control Plane" />
   <meta name="twitter:description"
     content="Bootstrap, orchestrate, inspect runtime truth, and ground runs with session-first RAG in a local-first runtime for coding agents." />
-  <meta name="twitter:image" content="https://sir-ad.github.io/nexus-prime/assets/screenshots/dashboard_v3.8.0.png" />
+  <meta name="twitter:image" content="https://sir-ad.github.io/nexus-prime/assets/screenshots/dashboard_runtime_overview.png" />
 
   <!-- Preconnect & Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -742,6 +742,7 @@
       <a class="nav-logo" href="#">nexus-prime</a>
       <ul class="nav-links">
         <li><a href="#documentation">Documentation</a></li>
+        <li><a href="./catalog.html">Catalog</a></li>
         <li><a href="#architecture">Architecture</a></li>
         <li><a href="#capabilities">Capabilities</a></li>
         <li><a href="#tooling">Tools</a></li>
@@ -753,6 +754,7 @@
         <summary>Menu</summary>
         <div class="mobile-nav-links">
           <a href="#documentation">Documentation</a>
+          <a href="./catalog.html">Catalog</a>
           <a href="#architecture">Architecture</a>
           <a href="#capabilities">Capabilities</a>
           <a href="#tooling">Tools</a>
@@ -775,10 +777,11 @@
       </p>
 
       <div class="showcase-image">
-        <img src="./assets/screenshots/dashboard_v3.8.0.png"
-          alt="Nexus Prime dashboard showing runtime truth, token telemetry, knowledge fabric, and operator actions">
+        <img src="./assets/screenshots/dashboard_runtime_overview.png"
+          alt="Nexus Prime dashboard showing a centered memory graph, runtime truth, compact token telemetry, and operator actions"
+          width="1710" height="931">
       </div>
-      <div class="showcase-caption">Inspect the live runtime: lifetime token telemetry, runtime truth, knowledge provenance, and operator actions in one place.</div>
+      <div class="showcase-caption">Inspect the live runtime: a centered memory graph, lifetime token telemetry, runtime truth, and operator actions in one cockpit.</div>
 
       <div class="hero-actions">
         <a class="btn-primary" href="#install">
@@ -797,6 +800,12 @@
         before integrating Nexus Prime into your stack.</p>
 
       <div class="cap-grid">
+        <a class="cap-card" href="./catalog.html">
+          <span class="cap-icon">🧭</span>
+          <h3>Catalog</h3>
+          <p>Generated feature registry for MCP surfaces, client bootstrap targets, dashboard capabilities, runtime subsystems, and release gates.</p>
+          <span class="cap-tag">Platform Inventory</span>
+        </a>
         <a class="cap-card" href="./knowledge-base.html">
           <span class="cap-icon">📚</span>
           <h3>Knowledge Base</h3>
@@ -851,9 +860,9 @@
       </div>
 
       <div class="showcase-image">
-        <img src="./assets/screenshots/swarm_trace.png" alt="Swarm trace showing multiple worker nodes coordinating through the pod network" width="1024" height="822">
+        <img src="./assets/screenshots/dashboard_runtime_overview.png" alt="Nexus Prime dashboard overview with centered memory graph, runtime truth, and operator signals" width="1710" height="931">
       </div>
-      <div class="showcase-caption">Mandatory Induction: A 7-worker swarm coordinating via POD Network.</div>
+      <div class="showcase-caption">Worktree-backed execution stays visible: runtime truth, memory graph, and operator signals stay anchored to persisted snapshots.</div>
     </article>
 
     <article id="capabilities">
@@ -887,6 +896,13 @@
         </div>
       </div>
 
+      <div class="showcase-image" style="margin-top: 32px;">
+        <img src="./assets/screenshots/dashboard_knowledge_focus.png"
+          alt="Nexus Prime dashboard showing knowledge workflow, session-first RAG collections, source mix, and by-source token allocation"
+          width="1600" height="1280">
+      </div>
+      <div class="showcase-caption">Knowledge view: create a collection, ingest source text or files, attach it to the runtime, and inspect what the orchestrator actually retrieved.</div>
+
 
     </article>
 
@@ -897,20 +913,16 @@
 
       <!-- LANGUAGE SPEC -->
       <details>
-        <summary>📜 Language Specifics (NXL Specification)</summary>
+        <summary>🗂 Runtime Contract</summary>
         <div class="details-content">
-          <p>The <b>Nexus eXpansion Language (NXL)</b> is a declarative syntax for swarm induction. It allows developers
-            to define agent archetypes and behavior triggers without hard-coding logic.</p>
+          <p>Nexus Prime stays intentionally simple at the public contract layer:</p>
           <pre>
-# NXL Swarm Induction Spec
-swarm: "ForensicAudit"
-archetype: "DeepResearcher"
-induction:
-  trigger: "large_rewrite"
-  threshold: 0.85
-  capacity: 7_workers
-  network: "private_pod"
-  consensus: "byzantine_fault_tolerant"</pre>
+1. nexus_session_bootstrap(goal, files?)
+2. nexus_orchestrate(prompt)
+3. Persist packet, ledger, token telemetry, provenance, and session DNA
+4. Inspect runtime truth in the dashboard or via MCP
+          </pre>
+          <p>Low-level tools remain available for diagnostics and expert override, but they are not the default path for external clients.</p>
         </div>
       </details>
 
@@ -960,14 +972,14 @@ induction:
 
       <!-- INTEGRATION -->
       <details>
-        <summary>🛠️ Building on Nexus Prime (Integration API)</summary>
+        <summary>🛠️ Building on Nexus Prime</summary>
         <div class="details-content">
-          <p>Extend the meta-framework by registering your own <b>Skill Cards</b> or hooking into the <b>Evolution
-              Engine</b>.</p>
+          <p>Extend the shipped control plane through the supported operator surfaces instead of patching core entrypoints:</p>
           <ul>
-            <li>Inject custom declarative skills via <code>nexus_skill_register</code>.</li>
-            <li>Implement state-aware adapters for external tool-chains.</li>
-            <li>Subscribe to the POD Network for inter-worker telemetry.</li>
+            <li>Install client-native bootstrap files with <code>nexus-prime setup &lt;client&gt;</code> or <code>setup all</code>.</li>
+            <li>Inspect or override the planner with <code>nexus_plan_execution</code>.</li>
+            <li>Ground runs with session-first RAG collections and inspect what the runtime actually retrieved.</li>
+            <li>Use the feature catalog and runtime catalog to understand what ships before adding new surfaces.</li>
           </ul>
         </div>
       </details>
@@ -1040,7 +1052,7 @@ induction:
     <article id="install">
       <span class="section-label">Deployment</span>
       <h2 class="section-title">Get from install to useful behavior quickly.</h2>
-      <p class="section-sub">Install the MCP server, provision a client-native instruction surface, then verify the bootstrap-orchestrate path.</p>
+      <p class="section-sub">Install the MCP server, let Nexus auto-establish bootstrap artifacts, then verify the bootstrap-orchestrate path. `setup` remains the explicit refresh path when you want to force regeneration for a client.</p>
 
       <div class="terminal-console">
         <p class="terminal-comment"># Global installation</p>
@@ -1049,13 +1061,40 @@ induction:
         <p class="terminal-comment"># Start the MCP server</p>
         <p class="terminal-command-alt">npx nexus-prime mcp</p>
 
+        <p class="terminal-comment"># Install/start auto-creates home bootstrap; first repo run writes workspace files</p>
+        <p class="terminal-command-alt">nexus-prime bootstrap status</p>
+
         <br>
         <p class="terminal-comment"># Automated Client Integrations</p>
+        <p class="terminal-command">nexus-prime setup codex</p>
         <p class="terminal-command">nexus-prime setup cursor</p>
         <p class="terminal-command">nexus-prime setup claude</p>
+        <p class="terminal-command">nexus-prime setup opencode</p>
         <p class="terminal-command">nexus-prime setup windsurf</p>
         <p class="terminal-command">nexus-prime setup antigravity</p>
+        <p class="terminal-command">nexus-prime setup all</p>
         <p class="terminal-command-alt">nexus-prime setup status</p>
+      </div>
+    </article>
+
+    <article id="catalog">
+      <span class="section-label">Inventory</span>
+      <h2 class="section-title">See the shipped platform, not a guessed tool list.</h2>
+      <p class="section-sub">The generated catalog keeps the README, docs, and dashboard aligned around the same runtime inventory.</p>
+
+      <div class="cap-grid">
+        <a class="cap-card" href="./catalog.html">
+          <span class="cap-icon">🧾</span>
+          <h3>Feature Registry</h3>
+          <p>Generated counts and tables for MCP surfaces, client bootstrap targets, dashboard capabilities, runtime subsystems, and release gates.</p>
+          <span class="cap-tag">Generated</span>
+        </a>
+        <a class="cap-card" href="./knowledge-base.html">
+          <span class="cap-icon">🧠</span>
+          <h3>Runtime Catalog</h3>
+          <p>Deeper operator reference for packets, ledgers, tokens, memory scopes, governance, and runtime behavior.</p>
+          <span class="cap-tag">Reference</span>
+        </a>
       </div>
     </article>
 
@@ -1096,13 +1135,14 @@ induction:
   <footer>
     <div class="footer-logo">⬡ nexus-prime</div>
     <div class="footer-links">
+      <a href="./catalog.html">Catalog</a>
       <a href="./knowledge-base.html">Knowledge Base</a>
       <a href="./integrations.html">Integrations</a>
       <a href="./architecture-diagrams.html">Architecture Diagrams</a>
       <a href="https://github.com/sir-ad/nexus-prime" target="_blank" rel="noopener">GitHub</a>
       <a href="https://www.npmjs.com/package/nexus-prime" target="_blank" rel="noopener">NPM Registry</a>
     </div>
-    <div class="footer-copy">MIT License © 2026 Sir-Ad. Built for the next generation of autonomous architecture.</div>
+    <div class="footer-copy">MIT License © 2026 Sir-Ad. Built for agent builders who want a real control plane, not a loose bag of tools.</div>
   </footer>
 
 </body>

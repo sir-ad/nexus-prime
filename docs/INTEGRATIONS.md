@@ -2,6 +2,11 @@
 
 This document provides detailed instructions for integrating Nexus Prime as an MCP (Model Context Protocol) server into various AI coding environments.
 
+Useful public references:
+- Docs home: `https://sir-ad.github.io/nexus-prime/`
+- Platform catalog: `https://sir-ad.github.io/nexus-prime/catalog.html`
+- Architecture diagrams: `https://sir-ad.github.io/nexus-prime/architecture-diagrams.html`
+
 ## Automated Setup
 
 The easiest way to integrate is using the `nexus-prime setup` command:
@@ -11,12 +16,16 @@ The easiest way to integrate is using the `nexus-prime setup` command:
 npm install -g nexus-prime
 
 # Run setup for your tool
+nexus-prime setup codex
 nexus-prime setup cursor
 nexus-prime setup claude
 nexus-prime setup opencode
 nexus-prime setup windsurf
 nexus-prime setup antigravity
+nexus-prime setup all
 ```
+
+Home-scoped bootstrap is also created automatically on install or first binary start, and the first Nexus run inside a repo writes the workspace-scoped client files it needs. Use `nexus-prime setup <client>` or `nexus-prime setup all` when you want to force-refresh them.
 
 ## Supported Tools
 
@@ -49,7 +58,9 @@ Opencode uses a `config.json` with an `mcp` server list plus a generated project
 - **Home-Scoped Skill Bundle**: `~/.antigravity/skills/nexus-prime/`
 
 ### 🔴 Codex
-Codex uses the repo-local `AGENTS.md` plus the autonomous MCP profile. There is no separate Codex-only setup artifact today.
+Codex now has an automated setup path that creates or updates a managed Nexus Prime bootstrap block in the repo-local `AGENTS.md`.
+- **Automated**: `nexus-prime setup codex`
+- **Project Instruction**: `AGENTS.md` (managed Nexus Prime bootstrap block)
 
 ## Verification
 
@@ -57,6 +68,7 @@ After integration, verify the connection from your tool:
 1. Open the tool's AI or Settings pane.
 2. Look for "nexus-prime-mcp" in the connected servers list.
 3. Call `nexus_session_bootstrap` to confirm the bridge and the default runtime path are active.
+4. For non-trivial work, follow with `nexus_orchestrate` instead of chaining low-level tools by hand.
 
 ## Troubleshooting
 

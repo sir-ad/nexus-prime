@@ -741,6 +741,9 @@ export class InstructionGateway {
         if (family === 'cursor') {
             return [{ fileName: 'nexus-prime.mdc', format: 'mdc', content: envelope.content }];
         }
+        if (family === 'codex') {
+            return [{ fileName: 'AGENTS.md', format: 'markdown', content: this.renderCompactCodexBootstrap() }];
+        }
         if (family === 'windsurf') {
             return [{ fileName: '.windsurfrules', format: 'windsurfrules', content: envelope.content }];
         }
@@ -783,6 +786,20 @@ export class InstructionGateway {
 
         if (current.trim()) chunks.push(current.trim());
         return chunks;
+    }
+
+    private renderCompactCodexBootstrap(): string {
+        return [
+            '## Nexus Prime Managed Bootstrap',
+            '',
+            '- Start non-trivial work with `nexus_session_bootstrap(goal, files?)`.',
+            '- Then call `nexus_orchestrate(prompt=<raw user request>)` unless low-level control is explicitly required.',
+            '- Use `nexus_plan_execution` only when a plan-before-run is requested.',
+            '- Discover catalogs only when needed: `nexus_list_skills`, `nexus_list_workflows`, `nexus_list_hooks`, `nexus_list_automations`, `nexus_list_specialists`, `nexus_list_crews`.',
+            '- Before reading 3+ files, call `nexus_optimize_tokens(...)`.',
+            '- Before risky mutation, call `nexus_mindkit_check(...)`.',
+            '- Worker context lives in `.agent/runtime/context.json`; the compiled packet lives in `.agent/runtime/packet.json`.',
+        ].join('\n');
     }
 }
 

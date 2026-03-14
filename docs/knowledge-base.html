@@ -6,7 +6,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Knowledge Base | Nexus Prime</title>
     <meta name="description"
-        content="Developer documentation, API reference, and language integration guide for Nexus Prime." />
+        content="Operator and integrator reference for Nexus Prime runtime behavior, MCP usage, session-first RAG, token telemetry, and runtime truth." />
+    <link rel="canonical" href="https://sir-ad.github.io/nexus-prime/knowledge-base.html" />
+    <meta property="og:title" content="Knowledge Base | Nexus Prime" />
+    <meta property="og:description" content="Operator and integrator reference for Nexus Prime runtime behavior, MCP usage, session-first RAG, token telemetry, and runtime truth." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://sir-ad.github.io/nexus-prime/knowledge-base.html" />
+    <meta property="og:image" content="https://sir-ad.github.io/nexus-prime/assets/screenshots/dashboard_runtime_overview.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="https://sir-ad.github.io/nexus-prime/assets/screenshots/dashboard_runtime_overview.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link
         href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Inter:wght@300;400;500;600;700;900&display=swap"
@@ -128,6 +136,39 @@
         .nav-cta:hover {
             background: #00ffaa;
             box-shadow: 0 0 20px rgba(0, 255, 136, 0.4);
+        }
+
+        .mobile-nav {
+            display: none;
+            width: 100%;
+            margin-top: 12px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: rgba(13, 24, 40, 0.94);
+        }
+
+        .mobile-nav summary {
+            list-style: none;
+            cursor: pointer;
+            padding: 12px 16px;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--green);
+        }
+
+        .mobile-nav summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .mobile-nav-links {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding: 0 16px 16px;
+        }
+
+        .mobile-nav-links a {
+            color: var(--text-dim);
+            text-decoration: none;
         }
 
         .container {
@@ -374,6 +415,14 @@
         }
 
         @media (max-width: 900px) {
+            .nav-links {
+                display: none;
+            }
+
+            .mobile-nav {
+                display: block;
+            }
+
             .container {
                 grid-template-columns: 1fr;
             }
@@ -391,15 +440,27 @@
 
     <!-- NAV -->
     <nav>
-        <a class="nav-logo" href="index.html">nexus-prime</a>
+        <a class="nav-logo" href="./index.html">nexus-prime</a>
         <ul class="nav-links">
-            <li><a href="index.html">Overview</a></li>
-            <li><a href="knowledge-base.html" class="active">Knowledge Base</a></li>
-            <li><a href="integrations.html">Integrations</a></li>
-            <li><a href="architecture-diagrams.html">Architecture Diagrams</a></li>
+            <li><a href="./index.html">Overview</a></li>
+            <li><a href="./catalog.html">Catalog</a></li>
+            <li><a href="./knowledge-base.html" class="active">Knowledge Base</a></li>
+            <li><a href="./integrations.html">Integrations</a></li>
+            <li><a href="./architecture-diagrams.html">Architecture Diagrams</a></li>
         </ul>
-        <a class="nav-cta" href="index.html#documentation">Docs Home →</a>
-        <a class="nav-cta" href="https://github.com/sir-ad/nexus-prime" target="_blank">GitHub →</a>
+        <a class="nav-cta" href="./index.html#documentation">Docs Home →</a>
+        <a class="nav-cta" href="https://github.com/sir-ad/nexus-prime" target="_blank" rel="noopener">GitHub →</a>
+        <details class="mobile-nav">
+            <summary>Menu</summary>
+            <div class="mobile-nav-links">
+                <a href="./index.html">Overview</a>
+                <a href="./catalog.html">Catalog</a>
+                <a href="./knowledge-base.html">Knowledge Base</a>
+                <a href="./integrations.html">Integrations</a>
+                <a href="./architecture-diagrams.html">Architecture Diagrams</a>
+                <a href="https://github.com/sir-ad/nexus-prime" target="_blank" rel="noopener">GitHub</a>
+            </div>
+        </details>
     </nav>
 
     <div class="container">
@@ -414,9 +475,9 @@
             </div>
 
             <div class="sidebar-group">
-                <div class="sidebar-title">Agent Programming</div>
+                <div class="sidebar-title">Runtime Contract</div>
                 <ul class="sidebar-nav">
-                    <li><a href="#agent-language">Nexus Prime Language</a></li>
+                    <li><a href="#agent-language">Client Operating Guideline</a></li>
                     <li><a href="#telemetry">Session Telemetry</a></li>
                 </ul>
             </div>
@@ -440,7 +501,7 @@
 
         <!-- CONTENT -->
         <main>
-            <h1>Developer Knowledge Base</h1>
+            <h1>Operator Knowledge Base</h1>
             <p>This page is for operators and integrators who need to understand how Nexus Prime behaves at runtime, how the MCP path should be used, and what the dashboard is actually reporting.</p>
 
             <!-- INTRO -->
@@ -608,11 +669,12 @@
     <footer>
         <div class="footer-logo">⬡ nexus-prime docs</div>
         <div class="footer-links">
-            <a href="index.html">Overview</a>
-            <a href="knowledge-base.html">Knowledge Base</a>
-            <a href="integrations.html">Integrations</a>
-            <a href="architecture-diagrams.html">Architecture Diagrams</a>
-            <a href="https://github.com/sir-ad/nexus-prime" target="_blank">GitHub</a>
+            <a href="./index.html">Overview</a>
+            <a href="./catalog.html">Catalog</a>
+            <a href="./knowledge-base.html">Knowledge Base</a>
+            <a href="./integrations.html">Integrations</a>
+            <a href="./architecture-diagrams.html">Architecture Diagrams</a>
+            <a href="https://github.com/sir-ad/nexus-prime" target="_blank" rel="noopener">GitHub</a>
         </div>
     </footer>
 

@@ -1,4 +1,4 @@
-name: Test Engines
+name: Runtime Integration
 
 on:
   push:
@@ -7,16 +7,17 @@ on:
     branches: [main]
 
 jobs:
-  test:
+  integration:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
       - run: npm ci
       - run: npm run build
-      - run: npm run lint
-      - run: npm run test
+      - run: tsx test/memory.test.ts
+      - run: tsx test/phantom.test.ts
+      - run: tsx test/rag-collections.test.ts

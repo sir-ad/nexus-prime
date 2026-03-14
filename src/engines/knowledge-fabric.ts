@@ -162,7 +162,7 @@ export class KnowledgeFabricEngine {
     compose(input: ComposeInput): KnowledgeFabricBundle {
         const runtimeSnapshot = input.runtimeSnapshot ?? this.runtimeRegistry.read(input.runtimeId);
         const fileRefs = input.candidateFiles.map((entry) => toFileRef(entry)).filter((entry): entry is FileRef => Boolean(entry));
-        const readingPlan = fileRefs.length >= 3 ? this.tokenEngine.plan(input.task, fileRefs) : undefined;
+        const readingPlan = fileRefs.length > 0 ? this.tokenEngine.plan(input.task, fileRefs) : undefined;
         const selectedFiles = readingPlan
             ? readingPlan.files.filter((file) => file.action !== 'skip').map((file) => file.file.path)
             : input.candidateFiles;
@@ -387,7 +387,7 @@ export class KnowledgeFabricEngine {
         const normalized = normalizeBudget(base, input.totalBudget);
         const dropped: Array<{ sourceClass: KnowledgeSourceClass; label: string; reason: string }> = [];
         if (!input.readingPlan) {
-            dropped.push({ sourceClass: 'repo', label: 'repo-plan', reason: 'fewer-than-3-files' });
+            dropped.push({ sourceClass: 'repo', label: 'repo-plan', reason: 'no-readable-candidate-files' });
         }
         if (input.ragHits.length === 0) {
             dropped.push({ sourceClass: 'rag', label: 'rag-hits', reason: 'no-attached-collection-matches' });

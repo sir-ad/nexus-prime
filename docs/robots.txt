@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://sir-ad.github.io/nexus-prime/sitemap.xml
