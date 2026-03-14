@@ -15,13 +15,13 @@
   <meta property="og:description"
     content="Bootstrap memory and context, let Nexus orchestrate execution, attach session RAG collections, and inspect runtime truth, token telemetry, provenance, hooks, automations, crews, specialists, and federation state." />
   <meta property="og:type" content="website" />
-  <meta property="og:image" content="https://sir-ad.github.io/nexus-prime/assets/screenshots/dashboard_runtime_overview.png" />
+  <meta property="og:image" content="https://sir-ad.github.io/nexus-prime/assets/screenshots/dashboard_cockpit_hero.png" />
   <meta name="robots" content="index,follow" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Nexus Prime — MCP Control Plane" />
   <meta name="twitter:description"
     content="Bootstrap, orchestrate, inspect runtime truth, and ground runs with session-first RAG in a local-first runtime for coding agents." />
-  <meta name="twitter:image" content="https://sir-ad.github.io/nexus-prime/assets/screenshots/dashboard_runtime_overview.png" />
+  <meta name="twitter:image" content="https://sir-ad.github.io/nexus-prime/assets/screenshots/dashboard_cockpit_hero.png" />
 
   <!-- Preconnect & Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -485,35 +485,113 @@
     /* Showcase Graphics */
     .showcase-image {
       margin-top: 3rem;
-      margin-bottom: 3rem;
+      margin-bottom: 1rem;
       border: 1px solid rgba(0, 255, 65, 0.2);
-      border-radius: 20px;
+      border-radius: 22px;
       overflow: hidden;
-      box-shadow: 0 0 50px rgba(0, 255, 65, 0.15);
-      transition: transform 0.5s;
+      box-shadow: 0 0 50px rgba(0, 255, 65, 0.12);
+      transition: box-shadow 0.3s ease;
       display: block;
-      max-width: 1000px;
+      width: min(100%, 1420px);
       margin-left: auto;
       margin-right: auto;
+      background: rgba(0, 0, 0, 0.45);
     }
 
     .showcase-image:hover {
-      transform: scale(1.02);
-      box-shadow: 0 0 60px rgba(0, 255, 65, 0.25);
+      box-shadow: 0 0 60px rgba(0, 255, 65, 0.2);
     }
 
     .showcase-image img {
       width: 100%;
+      height: auto;
+      object-fit: contain;
       display: block;
+    }
+
+    .hero-proof {
+      width: min(100%, 1500px);
+      margin-top: 3.5rem;
     }
 
     .showcase-caption {
       text-align: center;
-      font-size: 0.85rem;
+      font-size: 0.9rem;
       color: var(--text-muted);
-      font-style: italic;
-      margin-top: -2rem;
-      margin-bottom: 3rem;
+      margin: 0 auto 3rem;
+      max-width: 860px;
+      line-height: 1.7;
+    }
+
+    .proof-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 24px;
+      margin-top: 32px;
+    }
+
+    .proof-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 28px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    }
+
+    .proof-kicker {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.72rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--cyan);
+      display: block;
+      margin-bottom: 14px;
+    }
+
+    .proof-panel h3 {
+      font-size: 1.3rem;
+      margin-bottom: 10px;
+    }
+
+    .proof-panel p {
+      color: var(--text-dim);
+      margin-bottom: 16px;
+    }
+
+    .console-proof {
+      background: rgba(0, 0, 0, 0.58);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 16px;
+      padding: 18px 20px;
+      max-width: 860px;
+      margin: 0 auto;
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+    }
+
+    .console-proof .terminal-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+      display: block;
+    }
+
+    .console-proof pre {
+      margin: 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.9rem;
+      line-height: 1.7;
+      color: #d6e4ee;
+    }
+
+    .cap-why {
+      display: block;
+      margin-top: 14px;
+      color: var(--text-dim);
+      font-size: 0.92rem;
+      line-height: 1.7;
     }
 
     /* Tables */
@@ -776,12 +854,12 @@
         verified runtime.
       </p>
 
-      <div class="showcase-image">
-        <img src="./assets/screenshots/dashboard_runtime_overview.png"
-          alt="Nexus Prime dashboard showing a centered memory graph, runtime truth, compact token telemetry, and operator actions"
-          width="1710" height="931">
+      <div class="showcase-image hero-proof">
+        <img src="./assets/screenshots/dashboard_cockpit_hero.png"
+          alt="Nexus Prime dashboard showing a graph-centered cockpit with memory topology, token telemetry, and runtime controls"
+          width="1024" height="586">
       </div>
-      <div class="showcase-caption">Inspect the live runtime: a centered memory graph, lifetime token telemetry, runtime truth, and operator actions in one cockpit.</div>
+      <div class="showcase-caption">Inspect the live runtime naturally: one wide cockpit band for graph context, token telemetry, runtime truth, and operator actions.</div>
 
       <div class="hero-actions">
         <a class="btn-primary" href="#install">
@@ -860,9 +938,9 @@
       </div>
 
       <div class="showcase-image">
-        <img src="./assets/screenshots/dashboard_runtime_overview.png" alt="Nexus Prime dashboard overview with centered memory graph, runtime truth, and operator signals" width="1710" height="931">
+        <img src="./assets/screenshots/dashboard_runtime_sequence.png" alt="Nexus Prime dashboard showing graph-first runtime truth, memory explorer, and execution context" width="1710" height="931">
       </div>
-      <div class="showcase-caption">Worktree-backed execution stays visible: runtime truth, memory graph, and operator signals stay anchored to persisted snapshots.</div>
+      <div class="showcase-caption">Worktree-backed execution stays visible: runtime truth, graph context, and operator signals stay anchored to persisted snapshots instead of host-process noise.</div>
     </article>
 
     <article id="capabilities">
@@ -872,36 +950,84 @@
       <div class="cap-grid">
         <div class="cap-card">
           <span class="cap-icon">🧠</span>
-          <h3>3-Tier Semantic Memory</h3>
-          <p>Persistent recall plus session context so clients can start with prior learnings instead of browsing blind.</p>
+          <h3>Memory Fabric</h3>
+          <p>Persistent recall plus reconciliation so clients start from prior learnings instead of browsing blind.</p>
           <span class="cap-tag">nexus_recall_memory</span>
+          <span class="cap-why">Why it matters: shared memory, trace, quarantine, and durable recall stay visible in one operator surface.</span>
         </div>
         <div class="cap-card">
           <span class="cap-icon">✂️</span>
-          <h3>Lifetime Token Telemetry</h3>
-          <p>Token-aware routing and persisted telemetry so the runtime can show what was compressed, forwarded, retrieved, or skipped.</p>
+          <h3>Source-Aware Token Budget</h3>
+          <p>Token-aware routing and persisted telemetry show what was compressed, forwarded, retrieved, or skipped.</p>
           <span class="cap-tag">nexus_optimize_tokens</span>
+          <span class="cap-why">Why it matters: Nexus records exactly what context made it into the packet and what was dropped by budget.</span>
         </div>
         <div class="cap-card">
           <span class="cap-icon">🐝</span>
-          <h3>Phantom Swarms</h3>
-          <p>Verified worktree-backed execution with review gates, bounded continuations, and auditable artifacts.</p>
+          <h3>Worktree-Backed Swarms</h3>
+          <p>Verified worktree execution with review gates, bounded continuations, and auditable artifacts.</p>
           <span class="cap-tag">nexus_orchestrate</span>
+          <span class="cap-why">Why it matters: multi-step work can fan out into coder and verifier lanes without polluting the main checkout.</span>
         </div>
         <div class="cap-card">
           <span class="cap-icon">🧭</span>
           <h3>Runtime Truth</h3>
           <p>Packets, ledgers, token timelines, hooks, automations, federation state, crews, and specialists all report from persisted runtime data.</p>
           <span class="cap-tag">/api/usage</span>
+          <span class="cap-why">Why it matters: the dashboard is reporting what happened in the runtime, not what the UI host process happens to remember.</span>
+        </div>
+        <div class="cap-card">
+          <span class="cap-icon">🗂️</span>
+          <h3>Session-First RAG</h3>
+          <p>Collections attach to the runtime, not the client, and only top matching chunks are retrieved during orchestration.</p>
+          <span class="cap-tag">Knowledge view</span>
+          <span class="cap-why">Why it matters: operators can see attached, retrieved, selected, and dropped context instead of trusting prompt stuffing.</span>
+        </div>
+        <div class="cap-card">
+          <span class="cap-icon">🔌</span>
+          <h3>Bootstrap Surfaces</h3>
+          <p>Codex, Cursor, Claude Code, Opencode, Windsurf, and Antigravity all have generated bootstrap targets.</p>
+          <span class="cap-tag">setup all</span>
+          <span class="cap-why">Why it matters: users do not need to manually copy repo bootstrap files before Nexus becomes usable.</span>
+        </div>
+      </div>
+
+      <div class="proof-grid">
+        <div class="proof-panel">
+          <span class="proof-kicker">Control Plane</span>
+          <h3>Bootstrap to runtime is explicit.</h3>
+          <p>The public contract stays small: bootstrap the session, let the orchestrator choose the execution shape, and inspect persisted runtime truth afterward.</p>
+          <div class="mermaid">
+            flowchart LR
+            Client["Client"] --> Bootstrap["Bootstrap"]
+            Bootstrap --> Orchestrate["Orchestrate"]
+            Orchestrate --> Runtime["Worktree Runtime"]
+            Runtime --> Truth["Runtime Truth"]
+            Runtime --> Memory["Memory + DNA"]
+          </div>
+        </div>
+        <div class="proof-panel">
+          <span class="proof-kicker">Knowledge Path</span>
+          <h3>Memory, RAG, and token budget stay explicit.</h3>
+          <p>Collections attach to the runtime, memory recall feeds the planner, and the token budget records what was selected or dropped before the packet is compiled.</p>
+          <div class="mermaid">
+            flowchart LR
+            Attach["Attach collection"] --> Gate["RAG gate"]
+            Memory["Memory recall"] --> Budget["Token budget"]
+            Gate --> Budget
+            Budget --> Packet["Instruction packet"]
+            Packet --> Run["Runtime execution"]
+            Run --> Trace["Truth + provenance"]
+          </div>
         </div>
       </div>
 
       <div class="showcase-image" style="margin-top: 32px;">
-        <img src="./assets/screenshots/dashboard_knowledge_focus.png"
+        <img src="./assets/screenshots/dashboard_knowledge_trace.png"
           alt="Nexus Prime dashboard showing knowledge workflow, session-first RAG collections, source mix, and by-source token allocation"
           width="1600" height="1280">
       </div>
-      <div class="showcase-caption">Knowledge view: create a collection, ingest source text or files, attach it to the runtime, and inspect what the orchestrator actually retrieved.</div>
+      <div class="showcase-caption">Knowledge view: create a collection, attach it to the runtime, and inspect what the orchestrator actually retrieved, selected, or dropped.</div>
 
 
     </article>
@@ -1103,11 +1229,11 @@
         <summary>📜 Recent Changelog</summary>
         <div class="details-content">
           <ul>
+            <li><strong>v3.12.0:</strong> Rebuilt README/docs hierarchy, replaced repeated proof imagery, expanded generated inventory counts, and prepared release surfaces for GitHub release and npm publish.</li>
             <li><strong>v3.11.0:</strong> Knowledge Fabric, session-first RAG collections, pattern registry, release QA hardening, and secured RAG ingestion.</li>
             <li><strong>v3.10.0:</strong> Added `nexus_session_bootstrap`, autonomous MCP tool profiles, compact client bootstrap installers, and public-surface trust checks.</li>
             <li><strong>v3.9.0:</strong> Shared instruction gateway, compact AGENTS manual, execution ledgers, and cross-client packet renderers.</li>
             <li><strong>v3.8.0:</strong> Orchestrator-first execution, persisted token telemetry, and runtime/client truth in the dashboard.</li>
-            <li><strong>v3.7.0:</strong> Shared runtime registry, worker context handoff, bounded automation continuations, and explicit relay status.</li>
           </ul>
         </div>
       </details>

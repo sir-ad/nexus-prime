@@ -93,8 +93,9 @@ function test() {
   assert.ok(catalogHtml.includes('rel="canonical"'), 'catalog page should declare a canonical URL');
   assert.ok(indexHtml.includes('property="og:image"'), 'landing page should declare an og:image');
   assert.ok(indexHtml.includes('name="twitter:image"'), 'landing page should declare a Twitter preview image');
-  assert.ok(indexHtml.includes('dashboard_runtime_overview.png'), 'landing page should reference the current overview screenshot');
-  assert.ok(indexHtml.includes('dashboard_knowledge_focus.png'), 'landing page should reference the current knowledge screenshot');
+  assert.ok(indexHtml.includes('dashboard_cockpit_hero.png'), 'landing page should reference the current hero screenshot');
+  assert.ok(indexHtml.includes('dashboard_runtime_sequence.png'), 'landing page should reference the runtime sequence screenshot');
+  assert.ok(indexHtml.includes('dashboard_knowledge_trace.png'), 'landing page should reference the current knowledge screenshot');
   assert.ok(catalogHtml.includes('./assets/feature-registry.json'), 'catalog page should load the generated feature registry asset');
   assert.ok(knowledgeHtml.includes('rel="canonical"'), 'knowledge base should declare a canonical URL');
   assert.ok(integrationsHtml.includes('rel="canonical"'), 'integrations should declare a canonical URL');

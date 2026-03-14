@@ -12,7 +12,7 @@
   [![Views](https://img.shields.io/endpoint?style=for-the-badge&logo=github&url=https%3A%2F%2Fgist.githubusercontent.com%2Fsir-ad%2Fbbf9ebc77ccb2097ccf760bec3825ab7%2Fraw%2Fviews.json)](https://github.com/sir-ad/nexus-prime)
   [![Clones](https://img.shields.io/endpoint?style=for-the-badge&logo=github&url=https%3A%2F%2Fgist.githubusercontent.com%2Fsir-ad%2Fbbf9ebc77ccb2097ccf760bec3825ab7%2Fraw%2Fclones.json)](https://github.com/sir-ad/nexus-prime)
   <!-- traffic-badges:end -->
-  
+
   <!-- AI / Agentic Widgets -->
   [![AI Framework](https://img.shields.io/badge/AI-Framework-FF9900?style=for-the-badge)](https://github.com/topics/ai)
   [![LLM Ready](https://img.shields.io/badge/LLM-Ready-00A67E?style=for-the-badge)](https://github.com/topics/llm)
@@ -25,46 +25,23 @@
 
 ---
 
-### ⚡ Quick Install
-```bash
-# Global installation (recommended)
-npm i -g nexus-prime
+**Nexus Prime** is a local-first MCP control plane for coding agents. It gives clients a default path that starts with bootstrap context, flows through orchestrated execution, and ends with persisted runtime truth instead of ad-hoc tool chaining.
 
-# Run directly
-npx nexus-prime mcp
-```
-
-Home-scoped bootstrap now runs automatically on install or first binary start, and the first Nexus run inside a repo writes the workspace-scoped client files it needs. `nexus-prime setup <client>` and `nexus-prime setup all` remain the explicit refresh/fix path when you want to force regeneration.
-
----
-
-**Nexus Prime** is a local-first MCP control plane for coding agents. Run it as an MCP server or integrate it programmatically to give your client **persistent memory, orchestrator-first execution, token-aware file routing, crews/specialists/skills/workflows selection, runtime truth in the dashboard, and verified worktree-backed execution.**
-
-### Default external-client path
-```txt
-nexus_session_bootstrap(goal, files?)
-nexus_orchestrate(prompt="<raw user request>")
-```
-
-Use `nexus_plan_execution` only when you explicitly want a plan before mutation. Let Nexus choose crews, specialists, skills, workflows, hooks, automations, worker count, and token strategy unless you need hard constraints.
-
-**Website:** [sir-ad.github.io/nexus-prime](https://sir-ad.github.io/nexus-prime/)
+**Website:** [sir-ad.github.io/nexus-prime](https://sir-ad.github.io/nexus-prime/)<br>
 **Documentation:** [Catalog](https://sir-ad.github.io/nexus-prime/catalog.html) · [Knowledge Base](https://sir-ad.github.io/nexus-prime/knowledge-base.html) · [Integrations](https://sir-ad.github.io/nexus-prime/integrations.html) · [Architecture Diagrams](https://sir-ad.github.io/nexus-prime/architecture-diagrams.html)
-
----
 
 ## What Nexus Prime is
 
-Nexus Prime is a **local-first MCP control plane** for coding agents. It sits between the client and the repo so the client does not have to improvise session recovery, context selection, worker shape, verification, or handoff.
+Nexus Prime sits between the client and the repo so the client does not have to improvise session recovery, context selection, worker shape, verification, or memory handoff.
 
-What it gives you in practice:
+What that means in practice:
 
-- **Bootstrap-first execution** so non-trivial work starts with memory, stats, catalog health, source mix, and next-step guidance.
-- **Orchestrator-first runtime** so the default path is one raw prompt into `nexus_orchestrate`, not manual subsystem wiring.
-- **Worktree-backed swarms** with a runtime ledger, verifier lanes, and explicit worktree health.
-- **Session-first RAG** where collections are attached to a runtime and only top matching chunks are retrieved during orchestration.
+- **Bootstrap-first execution** so non-trivial work starts with memory, stats, catalog health, source mix, and the recommended next step.
+- **Orchestrator-first runtime** so the public path is one raw prompt into `nexus_orchestrate`, not a manual chain of low-level tools.
+- **Worktree-backed execution** with explicit verifier lanes, worktree health, and runtime ledgers.
+- **Session-first RAG** where attached collections are gated, retrieved, budgeted, and traced instead of dumped into prompts wholesale.
 - **Persisted runtime truth** so the dashboard reflects runtime snapshots, not whichever process happens to host the UI.
-- **Lifetime token telemetry** so token savings, by-source allocation, and drop decisions survive restart.
+- **Lifetime token telemetry** so compression, by-source allocation, and drop decisions survive restart.
 
 ## Why it is different
 
@@ -77,33 +54,84 @@ What it gives you in practice:
 | Runtime truth | Depends on the active host process | Shared runtime snapshots back the dashboard and API surfaces |
 | Follow-up learning | Optional and easy to skip | Session DNA, memory reconciliation, and execution ledgers are first-class outputs |
 
-## Fast path
+## ⚡ Quick Install
 
 ```bash
-npm install -g nexus-prime
+# Global installation (recommended)
+npm i -g nexus-prime
+
+# Start the MCP server
 npx nexus-prime mcp
-nexus-prime setup all
-nexus-prime setup status
 ```
 
-For a real task, the stable public contract is:
+Home-scoped bootstrap now runs automatically on install or first binary start, and the first Nexus run inside a repo writes the workspace-scoped client files it needs. `nexus-prime setup <client>` and `nexus-prime setup all` remain the explicit refresh/fix path when you want to force regeneration.
+
+## Default bootstrap-orchestrate path
 
 ```txt
 nexus_session_bootstrap(goal="<task>", files=[...])
 nexus_orchestrate(prompt="<raw user request>")
 ```
 
-Use `nexus_plan_execution` only when you explicitly want the ledger before mutation.
+Use `nexus_plan_execution` only when you explicitly want the ledger before mutation. Let Nexus choose crews, specialists, skills, workflows, hooks, automations, worker count, and token strategy unless you need hard constraints.
 
-## Proof surfaces
+## Proof Screens
+
+<div align="center">
+  <img src="./docs/assets/screenshots/dashboard_cockpit_hero.png" alt="Nexus Prime dashboard showing a graph-centered cockpit with memory topology, token telemetry, and runtime controls" width="1024" height="586">
+  <br>
+  <i>Graph-centered cockpit view: the dashboard keeps memory context, runtime truth, and operator controls in one place instead of hiding them behind separate tools.</i>
+</div>
 
 - [Catalog](https://sir-ad.github.io/nexus-prime/catalog.html): generated registry for MCP surfaces, client targets, dashboard capabilities, runtime subsystems, and release gates.
 - [Knowledge Base](https://sir-ad.github.io/nexus-prime/knowledge-base.html): runtime contract, packets, ledgers, memory, token telemetry, and guardrails.
 - [Integrations](https://sir-ad.github.io/nexus-prime/integrations.html): verified setup for Codex, Cursor, Claude Code, Opencode, Windsurf, and Antigravity/OpenClaw.
 - [Architecture Diagrams](https://sir-ad.github.io/nexus-prime/architecture-diagrams.html): shipped diagrams for the control plane, worktree lifecycle, memory fabric, RAG gate, token budget, runtime truth, and release pipeline.
 
+## 🧠 Core Capabilities
+
+### 1. Session Bootstrap and Orchestration
+- **Outcome:** external clients start from one disciplined path instead of a tool buffet.
+- **How:** `nexus_session_bootstrap` recovers context and `nexus_orchestrate` owns decomposition, asset selection, execution, and verification.
+- **Proof:** runtime ledgers, worker plans, and selection audits are persisted into runtime truth.
+
+### 2. Worktree-Backed Swarms and Verification
+- **Outcome:** multi-file work can fan out without polluting the main checkout.
+- **How:** coder and verifier lanes execute in isolated worktrees with an explicit worktree-health pass before creation.
+- **Proof:** the runtime records worktree health, degraded fallback, verifier status, and merge/apply outcomes.
+
+### 3. Memory Fabric and Reconciliation
+- **Outcome:** memories stay useful instead of becoming a raw transcript dump.
+- **How:** the memory control plane applies fact extraction, reconciliation, quarantine, portability, and vault projection on top of the SQLite + graph base.
+- **Proof:** the dashboard exposes memory health, scope, trace, and shared-worker context.
+
+### 4. Session-First RAG Gate
+- **Outcome:** attached corpora help when relevant without flooding prompts.
+- **How:** collections are attached to the runtime, retrieved only when relevant, and traced into planner, packet, and provenance.
+- **Proof:** the knowledge view records attached, retrieved, selected, and dropped context.
+
+### 5. Source-Aware Token Budgeting
+- **Outcome:** context selection becomes a budgeted routing problem instead of “read everything.”
+- **How:** Nexus budgets across repo, memory, RAG, patterns, and runtime traces, then persists what was selected and what was dropped.
+- **Proof:** lifetime token telemetry, by-source allocation, and per-run drilldowns survive restart.
+
+### 6. Runtime Truth and Dashboard
+- **Outcome:** operators can inspect what actually happened in the runtime without trusting live-only host state.
+- **How:** packets, ledgers, token summaries, client bootstrap truth, worktree health, and run snapshots all come from persisted runtime state.
+- **Proof:** the dashboard shows graph-first context, execution history, governance, and catalog truth from the same runtime ledger.
+
+### 7. Client Bootstrap and MCP Profiles
+- **Outcome:** users do not have to manually copy bootstrap files for every client.
+- **How:** install/start establishes home-scoped surfaces, first repo run writes workspace-scoped surfaces, and `setup all` remains the explicit repair path.
+- **Proof:** Codex, Cursor, Claude Code, Opencode, Windsurf, and Antigravity/OpenClaw all have generated bootstrap targets.
+
+### 8. Release and Governance Surfaces
+- **Outcome:** the product story and the ship path stay aligned.
+- **How:** feature registry generation, public-surface scans, release smoke, dependency audit, and runtime smoke all sit in the release gate.
+- **Proof:** README, docs, dashboard catalog, and release notes all consume the same generated inventory.
+
 <details>
-<summary><b>📐 Control Plane Snapshot</b></summary>
+<summary><b>📐 Diagram: bootstrap → orchestrate → runtime → truth</b></summary>
 
 ```mermaid
 flowchart LR
@@ -111,215 +139,53 @@ flowchart LR
     Bootstrap --> Plan["nexus_plan_execution (optional)"]
     Bootstrap --> Orchestrate["nexus_orchestrate"]
     Plan --> Orchestrate
-    Orchestrate --> Runtime["SubAgent Runtime"]
-    Runtime --> Dashboard["Dashboard + API"]
+    Orchestrate --> Runtime["Worktree-backed runtime"]
+    Runtime --> Dashboard["Dashboard + API truth"]
+    Runtime --> Memory["Memory fabric + session DNA"]
     Runtime --> Client
 ```
 
 </details>
 
 <details>
-<summary><b>🛠️ What ships today</b></summary>
-
-- Automatic home-scoped and workspace-scoped client bootstrap
-- Bootstrap/orchestrate runtime contract
-- Feature registry and runtime catalog generation
-- Graph-centered dashboard with runtime truth
-- Session-first RAG collections
-- Memory control plane and portability tools
-- Worktree doctor ahead of runtime/verifier worktree creation
-- Release QA gates for build, lint, tests, package smoke, audit, workflow lint, and runtime smoke
-
-</details>
-
----
-
-## 🏛️ Architecture & Swarm Topology
-
-Nexus Prime enables true parallelization by isolating agents into dynamically generated Git worktrees. Inter-worker communication happens over the local **POD Network**, and merges are mediated by the **Merge Oracle**.
+<summary><b>🧠 Diagram: memory + RAG + token-budget flow</b></summary>
 
 ```mermaid
-sequenceDiagram
-    participant U as User / Agent (Cursor/Claude)
-    participant M as MCP Adapter
-    participant G as MindKit Guardrails
-    participant T as Token Optimizer
-    participant E as Core Engines (Memory/Evolution)
-    participant W as Phantom Workers
-    
-    U->>M: Call Tool (e.g., nexus_spawn_workers)
-    M->>G: nexus_mindkit_check()
-    G-->>M: PASS / FAIL
-    M->>T: nexus_optimize_tokens()
-    T-->>M: Reading Plan (READ/OUTLINE/SKIP)
-    M->>E: Execute Logic
-    E->>W: Spawn parallel worktrees (if needed)
-    W-->>E: Results
-    E->>E: Store Experience (Cortex/Zettelkasten)
-    E-->>M: Final Result
-    M-->>U: JSON-RPC Response
+flowchart TD
+    Repo["Repo files"] --> Fabric["Knowledge Fabric"]
+    Memory["Memory recall + stats"] --> Fabric
+    Rag["Attached RAG collections"] --> Fabric
+    Patterns["Patterns + runtime traces"] --> Fabric
+    Fabric --> Budget["Source-aware token budget"]
+    Budget --> Packet["Instruction packet"]
+    Budget --> Runtime["Runtime execution"]
+    Runtime --> Truth["Provenance + runtime truth"]
 ```
 
-### 🐝 Phantom Swarm Execution Topology
+</details>
 
-The original Phantom concept remains central to Nexus Prime: `GhostPass()` evaluates risk, workers execute in isolated worktrees, shared runtime context keeps them aligned, and the merge layer decides what lands back on the main branch.
+<details>
+<summary><b>🚢 Diagram: repo change → QA gate → GitHub release → npm publish</b></summary>
 
-```text
-┌─────────────────────────────────────────────────────────────────────┐
-│ SWARM EXECUTION TOPOLOGY                                            │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                                     │
-│  [Main Branch] ──▶ GhostPass() (Risk Analysis)                      │
-│                          │                                          │
-│           ┌──────────────┼──────────────┐                           │
-│           │              │              │                           │
-│     [Worktree A]   [Worktree B]   [Worktree C]                      │
-│     (UX Agent)     (API Agent)    (DB Agent)                        │
-│           │              │              │                           │
-│           └────┬─────────┴─────────┬────┘                           │
-│                │                   │                                │
-│                ▼                   ▼                                │
-│        Shared Runtime Context (correlated worker state)             │
-│                │                                                    │
-│                ▼                   ▼                                │
-│      Merge Oracle (Byzantine Consensus + Hierarchical Synthesis)    │
-│                │                                                    │
-│                ▼                                                    │
-│  [Main Branch] ◀── Commit & State Collapse                          │
-└─────────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart LR
+    Change["Repo changes"] --> Generate["Generate registry + catalog"]
+    Generate --> QA["qa:release"]
+    QA --> Tag["Tag v3.12.0"]
+    Tag --> Release["GitHub release"]
+    Release --> Publish["release.published workflow"]
+    Publish --> Npm["npm publish --provenance"]
 ```
+
+</details>
 
 <div align="center">
-  <img src="./docs/assets/screenshots/dashboard_runtime_overview.png" alt="Nexus Prime dashboard showing a centered memory graph, runtime truth, compact token telemetry, and operator actions" width="1710" height="931">
+  <img src="./docs/assets/screenshots/dashboard_knowledge_trace.png" alt="Nexus Prime dashboard showing session-first RAG collections, source mix, provenance, and by-source token allocation" width="1600" height="1280">
   <br>
-  <i>Graph-centered runtime console: memory topology in the middle, lifetime token telemetry on the left, and runtime truth in one operator view.</i>
+  <i>Knowledge and token trace view: Nexus shows what attached collections contributed, what token budgeting kept, and what the runtime dropped.</i>
 </div>
 
-### Execution Protocol (Agent Orchestrator)
-
-When invoking `nexus_spawn_workers`, workflow execution, or a runtime swarm task, Nexus Prime follows explicit routing patterns rather than improvised worker fan-out:
-
-| Request Intent | Sub-Agents Spawned | Execution Order |
-| :--- | :--- | :--- |
-| Full stack feature | UX Designer + Backend Engineer | Parallel, cross-communicating via POD |
-| Database migration | DB Architect + Backend Engineer | Sequential, schema first |
-| Bug hunt | 3x QA / verifier workers | Parallel competitive |
-| Refactor module | Senior Coder + Security / verifier pass | Sequential pipeline |
-
-```typescript
-import { PhantomSwarm } from 'nexus-prime/orchestrator';
-
-const swarm = new PhantomSwarm();
-
-const results = await swarm.dispatch({
-  goal: 'Migrate user settings to Postgres',
-  agents: ['db-migrator', 'api-refactor'],
-  topology: 'parallel-mesh',
-});
-
-swarm.on('consensus.reach', (state) => {
-  console.log(`Merged ${state.filesResolved} files with ${state.confidence}% certainty.`);
-});
-```
-
----
-
-## 🧠 Core Capabilities
-
-### 1. 3-Tier Semantic Memory (Cortex)
-<details>
-<summary><b>View Details</b></summary>
-Solves the "catastrophic forgetting" problem. Every insight is tagged, prioritized, and linked into a persistent SQLite Zettelkasten.
-- **Prefrontal**: Active working set stored in-memory for instant recall.
-- **Hippocampus**: Session-level episodic buffer caching recent states.
-- **Cortex**: Long-term SQLite storage utilizing Vector embeddings (**HNSW**) and relational graph mapping.
-</details>
-
-### 2. Lifetime Token Routing and Telemetry
-<details>
-<summary><b>View Details</b></summary>
-Formulates context selection as a budgeted routing problem, solving for maximum information gain against token cost. The runtime persists token telemetry so the dashboard can show lifetime compression totals, by-source allocation, and per-run drilldowns instead of waiting for live-only events.
-
-<div align="center">
-  <img src="./docs/assets/screenshots/dashboard_knowledge_focus.png" alt="Nexus Prime dashboard showing session-first RAG collections, source mix, provenance, and by-source token allocation" width="1600" height="1280">
-  <br>
-  <i>Session-first RAG and token budgeting: Nexus retrieves top matching chunks, records provenance, and shows what was selected or dropped.</i>
-</div>
-
-</details>
-
-### 3. Phantom Worker Swarms
-<details>
-<summary><b>View Details</b></summary>
-Parallelize complex tasks using isolated Git Worktrees. Ghost Pass performs read-only risk analysis, coder workers execute real file mutations in detached worktrees, verifier workers run build/test commands independently, and the Merge Oracle selects the final patch with an auditable artifact trail.
-</details>
-
-### 4. Live Skills, Workflows, and Derivation
-<details>
-<summary><b>View Details</b></summary>
-Nexus Prime now ships bundled domain skill packs and workflow packs for **marketing, product, backend, frontend, sales, finance, workflows, and orchestration**. Runs can generate new skills and workflows, deploy them at runtime checkpoints, and promote them only after verifier evidence plus multi-tier consensus.
-</details>
-
-### 5. Runtime Console
-<details>
-<summary><b>View Details</b></summary>
-The built-in dashboard exposes active and recent runs, worker states, verifier results, knowledge collections, backend catalogs, skills, workflows, live events, and docs/release health from the same runtime ledger that powers CLI and MCP execution.
-</details>
-
-### 6. Coordination and Continuation Layer
-<details>
-<summary><b>View Details</b></summary>
-Runs carry shared runtime context, review gates, continuation traces, and execution ledgers so follow-up work can stay bounded, inspectable, and governed instead of relying on ad-hoc worker fan-out.
-</details>
-
----
-
-## 🛠️ MCP Control Surfaces
-
-Nexus Prime ships a broad MCP surface, but the default external-client path should stay small:
-
-```txt
-nexus_session_bootstrap(goal, files?)
-nexus_orchestrate(prompt="<raw request>")
-```
-
-These are the most important operator-facing surfaces:
-
-| Tool | Capability | Tier |
-| :--- | :--- | :--- |
-| `nexus_session_bootstrap` | Recover memory, inspect stats, see the recommended next step | Core |
-| `nexus_orchestrate` | Raw-prompt autonomous execution path | Core |
-| `nexus_store_memory` | Store finding/insight | Core |
-| `nexus_recall_memory` | Semantically recall context | Core |
-| `nexus_plan_execution` | Inspect the execution ledger before mutation | Planning |
-| `nexus_optimize_tokens` | Manual token-plan inspection or override | Optimization |
-| `nexus_spawn_workers` | Execute parallel worktree swarm with verification and artifacts | Autonomy |
-| `nexus_mindkit_check` | Guardrail validation | Safety |
-| `nexus_ghost_pass` | Pre-flight risk analysis | Analysis |
-| `nexus_run_status` | Inspect run ledger state | Runtime |
-| `nexus_list_skills` / `nexus_list_workflows` | Inspect available runtime assets when you need explicit control | Runtime |
-| `nexus_list_hooks` / `nexus_list_automations` | Inspect operating-layer behavior and follow-up execution | Runtime |
-
-### Real Runtime Execution
-```bash
-# Execute a real runtime task with explicit actions
-nexus-prime execute <agent-id> "apply runtime patch" \
-  --files README.md package.json \
-  --verify "npm run build" \
-  --skills backend-playbook orchestration-playbook \
-  --workflows backend-execution-loop \
-  --compression-backend meta-compression \
-  --actions-file ./actions.json
-
-# Execute an expert runtime manifest directly
-nexus-prime execute <agent-id> "ship release workflow" --nxl-file ./plan.runtime.yaml
-```
-
-Each run returns a real execution state plus an artifact directory containing manifests, worker diffs, verifier output, and the final merge decision.
-
----
-
-## 🚀 Get Started
+## 🚀 Client Setup and Runtime Contract
 
 ### Supported MCP Clients
 Nexus Prime currently provides automated setup for:
@@ -334,119 +200,55 @@ Codex now has a first-class setup path too: `nexus-prime setup codex` creates or
 
 ### Automated Integration
 ```bash
-# Setup Cursor integration
 nexus-prime setup codex
-
-# Setup Cursor integration
 nexus-prime setup cursor
-
-# Setup Claude Code integration
 nexus-prime setup claude
-
-# Setup Windsurf
 nexus-prime setup windsurf
-
-# Setup Antigravity / OpenClaw
 nexus-prime setup antigravity
-
-# Or install every supported client surface for this workspace
 nexus-prime setup all
-
-# Check all integration statuses
 nexus-prime setup status
 ```
 
----
+### Runtime contract
 
-## 📜 Changelog
-### v3.11.0 "Knowledge Fabric"
-- **New Knowledge Fabric layer now assembles bounded execution bundles across repo code, memory, session RAG collections, reusable patterns, and prior runtime traces**
-- **Session-first RAG collections and the pattern registry now feed orchestrated runs, runtime truth, and dashboard provenance instead of living outside the control plane**
-- **`CI & Publish` now mirrors the real release gate on pull requests with build, lint, full tests, and `npm pack --dry-run` before publish is allowed**
-- **RAG collection IDs are sanitized before filesystem access, and remote URL ingestion now times out instead of hanging indefinitely**
-- **TypeScript tests and public-surface checks now run through `tsx`, keeping local and GitHub Actions behavior aligned**
+```txt
+1. nexus_session_bootstrap(goal, files?)
+2. nexus_orchestrate(prompt)
+3. Persist packet, ledger, token telemetry, provenance, and session DNA
+4. Inspect runtime truth in the dashboard or via MCP
+```
 
-### v3.10.0 "Autonomous Bootstrap"
-- **New `nexus_session_bootstrap` entrypoint gives external clients one compact session-start tool with memory recall, stats, shortlist guidance, and token-optimization expectations**
-- **MCP now defaults to an `autonomous` tool profile, keeping `nexus_session_bootstrap` and `nexus_orchestrate` first while reserving the full expert surface for manual work**
-- **`nexus-prime setup` now installs client-native bootstrap instructions for Codex, Cursor, Windsurf, Claude Code, Opencode, and Antigravity/OpenClaw**
-- **Runtime snapshots now expose bootstrap/orchestrate compliance, recent tool-call chains, and client instruction status in the dashboard truth model**
-- **README, docs, and public-surface scanning now align the public story with the real orchestrator-first product and guard against obvious disclosure drift**
+### Operator-facing proof
 
-### v3.9.0 "Instruction Gateway"
-- **Shared instruction gateway compiles AGENTS, `.agent/rules/*`, and runtime selections into a deduplicated packet for every orchestrated run**
-- **Cross-client packet renderers now support Codex, Claude Code, Antigravity/OpenClaw, Cursor, Windsurf, and Opencode from one protocol path**
-- **Execution ledgers and compiled packets are persisted and exposed in the dashboard via `/api/orchestration/ledger` and `/api/instruction-packet`**
-- **AGENTS is now a compact human manual, while `.agent/runtime/packet.json` and `.agent/runtime/packet.md` serve as the machine-facing handoff**
-- **Continuation children no longer overwrite the parent runtime's canonical orchestration snapshot**
+```txt
+Called Nexus Session Bootstrap tool from Nexus Prime MCP
 
-### v3.8.0 "Orchestrator Control Plane"
-- **New `nexus_orchestrate` raw-prompt entrypoint plus discovery APIs for skills, workflows, hooks, and automations**
-- **Orchestrator-first execution path now owns intent analysis, context loading, token planning, artifact selection, and bounded autonomous runtime preparation**
-- **Persisted orchestration and token telemetry with `/api/orchestration/session`, `/api/tokens/*`, and a dashboard token analyzer**
-- **Primary-client precedence now correctly shows active Codex sessions ahead of stale Claude footprints while preserving installed/idle visibility**
-- **AGENTS rewritten as an orchestrator-first operating manual with subsystem trigger guidance and worker context handoff rules**
+Session bootstrap ready.
+- Client: Codex (primaryActive)
+- Recommended next step: nexus_orchestrate
+- Token optimization: required
+- Knowledge fabric: repo
+```
 
-### v3.7.0 "Runtime Truth"
-- **Shared runtime registry with `/api/runtimes` and `/api/usage` so the dashboard reports each live runtime truthfully**
-- **Worker context handoff artifacts under `.agent/runtime/context.json` and `.agent/runtime/context.md`**
-- **Skills, workflows, specialist profile excerpts, review gates, and phase hook effects now feed real worker execution paths**
-- **Queued automation follow-up runs now execute with bounded continuation depth and loop suppression**
-- **Explicit federation relay status for configured vs degraded NexusNet mode**
-- **AGENTS and `.agent` conventions updated to match planner surfaces, runtime handoff, and the enforced 2-coder minimum**
+```txt
+Called Nexus Memory Stats tool from Nexus Prime MCP
 
-### v3.5.0 "Runtime Intel"
-- **Broader built-in skill/workflow packs for PDLC, GTM, writing, deep-tech, API, data, Python, Django, TypeScript, Node, React, AI, security, and economics**
-- **First-class HookArtifact runtime with lifecycle checkpoint triggers**
-- **First-class AutomationArtifact runtime with bounded follow-up execution and connector delivery records**
-- **Balanced SecurityShield for patch apply, promotions, connectors, and memory governance**
-- **Memory checks for duplicates, contradictions, secret exposure, unsupported claims, and low-provenance/noise**
-- **Real local-federation snapshot with peers, health, relay learnings, and published traces**
-- **MCP, CLI, and dashboard support for hooks, automations, memory audit, and federation status**
+Memory inventory ready.
+- Prefrontal: working set
+- Hippocampus: recent session buffer
+- Cortex: durable long-term store
+- Zettelkasten links: persisted graph relationships
+```
 
-### v3.4.0 "Dashboard Overhaul"
-- **Heartbeat Throttling**: Eliminated refresh storm from client heartbeats — graph stays stable.
-- **Smart Empty States**: Token dial, event filters, and graph all show context-aware placeholder UI.
-- **14 Default Skills**: session-start-research, prompt-architect, architecture-scout, debug-forensics, refactor-guardian, documentation-writer, dependency-auditor, performance-profiler + original 6.
-- **3 Default Workflows**: full-audit-loop, research-and-implement, release-pipeline — auto-seeded on first load.
-- **Graph Caching**: Memory topology preserves last-known-good state during refreshes.
-- **Version & User Display**: Header now shows package version and git username correctly.
-- **README Audit**: Updated changelog, fixed maintainer reference, verified all screenshot paths.
-
-### v3.3.0 "Dashboard Polish"
-- **Tool Spend Tracker**: Estimated cost visualization for token usage across sessions.
-- **Skill UI**: In-dashboard skill creation form and seed button for default skills.
-- **Tool Detection**: Improved client heuristic detection via environment variables and process scanning.
-- **Dashboard Stability**: Fixed flickering, memory graph load order, and token dial responsiveness.
-
-### v3.2.0 "Runtime Closure"
-- **Topology Console**: Rebuilt dashboard with memory graph, run graph, and POD network visualization.
-- **SSE Live Stream**: Server-Sent Events for real-time event broadcasting with exponential backoff.
-- **Backend Registry**: Selectable memory, compression, and DSL compiler backends.
-- **Security Hardening**: Content Security Policy headers and input sanitization.
-
-### v3.0.0 "The Pulse Update"
-- **POD Telemetry**: Real-time heartbeat visualization of worker sync.
-- **Improved Tokens**: Optimized HyperTune for large monorepo traversal.
-
-### v1.5.0 "Intelligence Expansion"
-- **Mandatory Induction**: Automatically triggers swarms for complex goals (>50 chars).
-- **Thermodynamic Memory**: Integrated entropy decay and gravitational attention.
-- **Federation Engine**: Automated knowledge sharing via GitHub Gist Relay (NexusNet).
-- **Declarative Runtime Graphs**: Added a manifest-driven expert surface for describing runtime graphs.
-- **Token Telemetry Console**: Real-time token analytics and runtime visualization.
-
-### v1.4.0
-- **Auto-Setup**: Added `nexus-prime setup` for one-click IDE integration.
-- **Attention Stream Backend**: Introduced experimental continuous-attention compression primitives.
-- **Git Worktree 2.0**: Improved performance for massive parallelization (>10 workers).
-
----
 <!-- feature-registry:start -->
 <details>
 <summary><b>🧭 Platform Feature Registry</b></summary>
 
-Generated from shared feature metadata at 2026-03-14T11:58:33.291Z.
+Generated from shared feature metadata at 2026-03-14T13:10:06.287Z.
+
+Inventory Snapshot: 109 skills · 64 workflows · 5 hooks · 3 automations · 7 crews · 139 specialists
+
+Control Plane Snapshot: 9 MCP surfaces · 6 client targets · 5 dashboard capabilities · 6 runtime subsystems · 5 release gates
 
 <details>
 <summary><b>MCP Surfaces</b> (9)</summary>
@@ -538,6 +340,8 @@ Quality and security checks required before release.
 <summary><b>🗂 Runtime Catalog</b></summary>
 
 Generated from bundled runtime catalogs plus repo-local overrides via `npm run generate:readme-catalog`.
+
+Inventory Snapshot: 109 skills · 64 workflows · 5 hooks · 3 automations · 7 crews
 
 <details>
 <summary><b>Skills</b> (109)</summary>
@@ -769,6 +573,19 @@ Generated from bundled runtime catalogs plus repo-local overrides via `npm run g
 
 </details>
 <!-- runtime-catalog:end -->
+
+## 📜 Release History
+
+<details open>
+<summary><b>v3.12.0</b> · 2026-03-14 · Public surface, proof screenshots, and release visibility</summary>
+
+- Rebuilt the README hierarchy around what Nexus Prime is, why it is different, the bootstrap-orchestrate path, and proof-backed capabilities.
+- Replaced repeated landing-page imagery with a graph-first hero, a distinct runtime-sequence proof image, and clearer knowledge-trace placement.
+- Expanded the generated inventory surfaces so README, docs, and dashboard all show counts for skills, workflows, hooks, automations, crews, specialists, MCP surfaces, client targets, dashboard capabilities, runtime subsystems, and release gates.
+- Converted the changelog to version-level toggle history and prepared the `v3.12.0` release draft for GitHub release publication and npm publish.
+
+Full notes: [releases/v3.12.0.md](./releases/v3.12.0.md) · Full history: [CHANGELOG.md](./CHANGELOG.md)
+</details>
 
 <details>
 <summary><b>📈 Star History</b></summary>

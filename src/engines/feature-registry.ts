@@ -173,11 +173,18 @@ export function renderFeatureRegistryMarkdown(document: FeatureRegistryDocument)
         '</details>',
     ].join('\n')).join('\n\n');
 
+    const inventorySnapshot = [
+        `Inventory Snapshot: ${document.counts.skills} skills · ${document.counts.workflows} workflows · ${document.counts.hooks} hooks · ${document.counts.automations} automations · ${document.counts.crews} crews · ${document.counts.specialists} specialists`,
+        `Control Plane Snapshot: ${document.counts.mcpSurfaces} MCP surfaces · ${document.counts.clientTargets} client targets · ${document.counts.dashboardCapabilities} dashboard capabilities · ${document.counts.runtimeSubsystems} runtime subsystems · ${document.counts.releaseGates} release gates`,
+    ].join('\n\n');
+
     return [
         '<details>',
         '<summary><b>🧭 Platform Feature Registry</b></summary>',
         '',
         `Generated from shared feature metadata at ${document.generatedAt}.`,
+        '',
+        inventorySnapshot,
         '',
         sections,
         '',

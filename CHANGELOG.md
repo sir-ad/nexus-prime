@@ -1,8 +1,33 @@
 # Changelog
 
-All notable changes to Nexus Prime will be documented in this file.
+All notable changes to Nexus Prime are documented here.
 
-## [3.11.0] - 2026-03-12
+Release Index: [v3.12.0 release note](./releases/v3.12.0.md)
+
+<details open>
+<summary><b>v3.12.0</b> · 2026-03-14 · Public surface, proof screens, and release visibility</summary>
+
+### Added
+- **Release draft**: Added `releases/v3.12.0.md` so GitHub release publication and npm publish can ship from a complete release artifact.
+- **Stable public proof assets**: Added stable screenshot aliases for the graph-first cockpit hero, runtime sequence view, and knowledge trace view so public docs stop depending on version-stamped asset names.
+- **Release history surface**: Added a top-level README release-history section that links the latest release note and full changelog.
+
+### Changed
+- **README hierarchy**: Rebuilt the README around what Nexus Prime is, why it is different, quick install, the bootstrap-orchestrate path, proof screens, capability families, runtime contract, generated registry, and generated runtime catalog.
+- **Website proof layout**: Replaced repeated dashboard imagery with a graph-first hero, a separate runtime-sequence proof module, and a distinct knowledge-trace section while keeping screenshot sizing natural and responsive.
+- **Capability story**: Expanded public capability copy so orchestration, worktree-backed swarms, memory fabric, session-first RAG, token budgeting, runtime truth, client bootstrap, and release/governance surfaces read like shipped product behavior rather than terse labels.
+- **Generated inventory**: Feature-registry and runtime-catalog markdown now surface compact inventory snapshots and clearer counts for skills, workflows, hooks, automations, crews, specialists, MCP surfaces, client targets, dashboard capabilities, runtime subsystems, and release gates.
+- **Docs release framing**: Landing-page changelog, proof captions, and public metadata now align around `v3.12.0` and the current control-plane story.
+
+### Fixed
+- **Repeated hero imagery**: The website no longer repeats the same dashboard overview image across multiple sections.
+- **Shrunken screenshot presentation**: Public screenshots now render as natural-width proof modules instead of small thumbnails inside oversized containers.
+- **Docs/test drift**: README/docs tests and public-surface checks now point at the stable public screenshot names instead of retired overview/knowledge asset names.
+
+</details>
+
+<details>
+<summary><b>v3.11.0</b> · 2026-03-12 · Knowledge fabric and release QA hardening</summary>
 
 ### Added
 - **Knowledge Fabric Layer**: Added a new orchestration-time knowledge fabric that assembles bounded execution bundles across repo context, memory, session RAG collections, reusable patterns, and prior runtime traces.
@@ -22,7 +47,10 @@ All notable changes to Nexus Prime will be documented in this file.
 - **Hanging Remote RAG Fetches**: URL-based ingestion now times out cleanly instead of waiting indefinitely on slow or misbehaving hosts.
 - **CI Runtime Parity**: Release and PR workflows no longer fail on GitHub Actions from direct `node *.ts` execution against ESM TypeScript test files.
 
-## [3.10.0] - 2026-03-12
+</details>
+
+<details>
+<summary><b>v3.10.0</b> · 2026-03-12 · Bootstrap-first MCP flow and public trust checks</summary>
 
 ### Added
 - **Session Bootstrap MCP Entry Point**: Added `nexus_session_bootstrap` so external clients can start from a compact session-start tool that returns client identity, memory recall, stats, shortlist guidance, and token-optimization expectations.
@@ -43,7 +71,10 @@ All notable changes to Nexus Prime will be documented in this file.
 - **Public Docs Drift**: Removed stale claims like the old fixed tool count and outdated setup wording, fixed the `NUXUS_PRIME_MCP` typo, added a working mobile-nav fallback, and aligned knowledge-base copy to human operators.
 - **Public Exposure Risk**: The repo now guards against accidental publication of secret-like strings, local home-directory paths, and other obvious public-surface leaks in tested docs and release artifacts.
 
-## [3.9.0] - 2026-03-12
+</details>
+
+<details>
+<summary><b>v3.9.0</b> · 2026-03-12 · Instruction gateway and execution ledger truth</summary>
 
 ### Added
 - **Instruction Gateway**: Added a shared `InstructionGateway` that compiles `AGENTS.md`, `.agent/rules/*`, and runtime-selected context into a deduplicated, token-budgeted instruction packet for active runs.
@@ -61,10 +92,13 @@ All notable changes to Nexus Prime will be documented in this file.
 - **Execution Truth Drift**: Internal continuation runs no longer overwrite the canonical packet-bearing orchestration snapshot for the parent runtime.
 - **Prompt Noise Regression**: Compiled packets now deduplicate repeated AGENTS/rules sections and avoid dumping the full installed skill catalog into model-facing context.
 
-## [3.8.0] - 2026-03-11
+</details>
+
+<details>
+<summary><b>v3.8.0</b> · 2026-03-11 · Orchestrator-first control plane</summary>
 
 ### Added
-- **Autonomy Orchestrator**: Added an orchestrator-first control plane that classifies raw prompts, loads memory/session context, decomposes work, selects crews/specialists/skills/workflows/hooks/automations, and prepares the runtime package before execution.
+- **Autonomy Orchestrator**: Added an orchestrator-first control plane that classifies raw prompts, loads memory/session context, decomposes work, selects crews, specialists, skills, workflows, hooks, automations, and prepares the runtime package before execution.
 - **Primary MCP Entry Point**: Added `nexus_orchestrate` for bounded autonomous raw-prompt execution, plus read-only discovery APIs for `nexus_list_skills`, `nexus_list_workflows`, `nexus_list_hooks`, and `nexus_list_automations`.
 - **Persisted Orchestration Telemetry**: Added per-runtime orchestration snapshots, session state, token summaries, token timelines, and per-run token drilldowns in the runtime registry.
 - **Dashboard Control-Plane APIs**: Added `/api/orchestration/session`, `/api/tokens/summary`, `/api/tokens/timeline`, `/api/tokens/runs/:runId`, and `/api/clients/primary`.
@@ -81,7 +115,10 @@ All notable changes to Nexus Prime will be documented in this file.
 - **Token Event Type Drift**: Expanded the event-bus token payload contract so richer token telemetry no longer depends on untyped runtime/orchestrator emissions.
 - **Session Identity Access**: Added direct session-id access in Session DNA so orchestrator session state stays aligned with the active runtime handoff.
 
-## [3.7.0] - 2026-03-11
+</details>
+
+<details>
+<summary><b>v3.7.0</b> · 2026-03-11 · Shared runtime registry and worker handoff</summary>
 
 ### Added
 - **Shared Runtime Registry**: Added a filesystem-backed per-runtime snapshot registry so active Nexus runtimes can publish their own usage truth across process boundaries.
@@ -91,7 +128,7 @@ All notable changes to Nexus Prime will be documented in this file.
 
 ### Changed
 - **Runtime Consumption**: Active skills, workflows, specialist profile excerpts, review gates, and hook-added phase context now flow into worker manifests and deterministic execution instead of remaining mostly metadata.
-- **Dashboard Truth Model**: The shared dashboard can now reuse a host process without conflating that host's in-memory state with another runtime's activity, and the UI exposes runtime selection with explicit used/stale/not-used states.
+- **Dashboard Truth Model**: The shared dashboard can now reuse a host process without conflating that host's in-memory state with another runtime's activity, and the UI exposes runtime selection with explicit used, stale, and not-used states.
 - **Automation Lifecycle**: Queued automation follow-up runs now execute through a bounded continuation path with parent/source tracking and loop suppression.
 - **Federation Status Surface**: Federation snapshots now include explicit relay configuration and degradation details instead of implying that NexusNet relay operations are live.
 - **Agent Protocol Docs**: Updated AGENTS guidance to reflect planner surfaces, enforced two-coder minimums, and `.agent/runtime` worker context handoff.
@@ -102,7 +139,10 @@ All notable changes to Nexus Prime will be documented in this file.
 - **POD Minimum Enforcement**: Runtime worker selection now clamps coder counts to a minimum of two, matching the documented protocol.
 - **Shared Dashboard Misreporting**: Reused dashboard hosts no longer make a newer runtime look idle just because the host process did not own that activity.
 
-## [3.6.0] - 2026-03-11
+</details>
+
+<details>
+<summary><b>v3.6.0</b> · 2026-03-11 · Planner overlay and specialist roster</summary>
 
 ### Added
 - **Native Specialist Roster**: Added a generated first-party specialist corpus plus crew templates for PDLC, implementation, GTM, content, finance, security, and research motions.
@@ -119,21 +159,24 @@ All notable changes to Nexus Prime will be documented in this file.
 - **Tool Policy Truthfulness**: Planner-selected tool policy is now enforced per worker role instead of remaining metadata-only, while explicit action-driven runs remain backward-compatible.
 - **Non-Coder Tool Leakage**: Planner and verifier manifests no longer inherit write-capable tool permissions from mutate specialists when those tools are only meant for coder workers.
 
-## [3.5.0] - 2026-03-11
+</details>
+
+<details>
+<summary><b>v3.5.0</b> · 2026-03-11 · Hooks, automations, shield, and federation truth</summary>
 
 ### Added
 - **Expanded Living Product Brain**: Added broader bundled skill/workflow coverage for PDLC, GTM, writing, deep-tech, API, data, Python, Django, TypeScript, Node, React, AI, security, economics, plus builder/operator and approval-loop artifact families.
-- **Hook Runtime**: Added first-class hook artifacts with checkpoint/event triggers for `run.created`, `before-read`, `before-mutate`, `before-verify`, `retry`, `run.failed`, `run.verified`, `promotion.approved`, `memory.stored`, and `shield.blocked`.
+- **Hook Runtime**: Added first-class hook artifacts with checkpoint and event triggers for `run.created`, `before-read`, `before-mutate`, `before-verify`, `retry`, `run.failed`, `run.verified`, `promotion.approved`, `memory.stored`, and `shield.blocked`.
 - **Automation Runtime**: Added first-class automation artifacts for event-driven, scheduled, and connector-bound workflows, including bounded follow-up execution and connector delivery records.
 - **Security Shield**: Added a final shield layer for patch apply, promotion, connector delivery, and memory governance decisions with `allow`, `warn`, `quarantine`, and `block` outcomes.
-- **Memory Audit Surfaces**: Added structured memory checks, audit reports, duplicate/contradiction detection, quarantine listing, and promotion-safety signals.
+- **Memory Audit Surfaces**: Added structured memory checks, audit reports, duplicate and contradiction detection, quarantine listing, and promotion-safety signals.
 - **Federation State Model**: Replaced the mock federation surface with a real local-federation snapshot containing peer inventory, heartbeat aging, relay learnings, and published traces.
-- **New MCP / CLI / Dashboard APIs**: Added hook, automation, memory-audit, and federation control/read surfaces across runtime APIs.
+- **New MCP / CLI / Dashboard APIs**: Added hook, automation, memory-audit, and federation control and read surfaces across runtime APIs.
 
 ### Changed
 - **Runtime Ledger**: Execution runs now record active hooks, active automations, shield decisions, memory checks, and federation state alongside skills, workflows, verifier evidence, and promotions.
 - **Runtime Lifecycle**: Hook dispatch, automation dispatch, memory checks, and shield evaluation now participate directly in the real execution path instead of being external concepts.
-- **Dashboard APIs**: Added `/api/hooks`, `/api/automations`, `/api/memory/audit`, `/api/memory/quarantine`, and `/api/federation`, plus deploy/run routes for hooks and automations.
+- **Dashboard APIs**: Added `/api/hooks`, `/api/automations`, `/api/memory/audit`, `/api/memory/quarantine`, and `/api/federation`, plus deploy and run routes for hooks and automations.
 - **CLI Execution Inputs**: `nexus-prime execute` now accepts hook selectors, automation selectors, shield policy, and memory policy.
 
 ### Fixed
@@ -141,7 +184,10 @@ All notable changes to Nexus Prime will be documented in this file.
 - **Federation Truthfulness**: Removed the fake gist-style publish IDs from the federation engine and replaced them with local-federation state and auditable trace handling.
 - **Memory Safety Gates**: High-risk secret-bearing memories and unsupported claim patterns are now flagged before promotion-oriented use.
 
-## [3.2.2] - 2026-03-09
+</details>
+
+<details>
+<summary><b>v3.2.2</b> · 2026-03-09 · Dashboard compatibility contract</summary>
 
 ### Added
 - **Dashboard Compatibility Contract**: Added `dashboardApiVersion`, route capability flags, dashboard mode, and active dashboard URL to `/api/health` so clients can detect stale or incompatible dashboard servers.
@@ -156,7 +202,10 @@ All notable changes to Nexus Prime will be documented in this file.
 - **Empty Dashboard on Active MCP**: Fixed the stale-process failure where an old MCP/dashboard server could serve the latest HTML shell but not the newer `/api/*` routes, leaving the dashboard visually empty.
 - **Legacy Stream Rendering**: Normalized legacy SSE event payloads in the browser so the live stream no longer degrades into repeated `n/a` cards when older event shapes appear.
 
-## [3.2.1] - 2026-03-09
+</details>
+
+<details>
+<summary><b>v3.2.1</b> · 2026-03-09 · Topology-first dashboard restore</summary>
 
 ### Added
 - **Topology-First Dashboard APIs**: Added `/api/memory`, `/api/memory/:id`, `/api/memory/:id/network`, `/api/pod`, `/api/pod/:workerId`, `/api/clients`, and `/api/events` to back the restored dashboard with real runtime data.
@@ -169,15 +218,18 @@ All notable changes to Nexus Prime will be documented in this file.
 - **Memory Surface**: Memory snapshots now expose lineage, linked memories, artifact-derived references, and network DTOs for interactive inspection.
 
 ### Fixed
-- **POD Visibility**: Promoted POD signals to typed event-bus events and added worker/tag/confidence summaries for the dashboard.
+- **POD Visibility**: Promoted POD signals to typed event-bus events and added worker, tag, and confidence summaries for the dashboard.
 - **Dashboard Smoke Coverage**: Expanded integration coverage to verify the restored shell, graph data APIs, client visibility, and guarded control-plane actions.
 
-## [3.2.0] - 2026-03-09
+</details>
+
+<details>
+<summary><b>v3.2.0</b> · 2026-03-09 · Workflow runtime and bundled domain packs</summary>
 
 ### Added
 - **Bundled Domain Packs**: Added built-in skill and workflow packs for marketing, product, backend, frontend, sales, finance, workflows, and orchestration, with project-local `.agent` overrides.
 - **Workflow Runtime**: Added first-class workflow artifacts, deployment state, derivation hooks, runtime application, and MCP workflow control surfaces.
-- **Backend Registry**: Added selectable runtime backend registry for temporal/hyperbolic memory, meta-compression, deterministic NXL compilation, and experimental AgentLang/neural compilation.
+- **Backend Registry**: Added selectable runtime backend registry for temporal and hyperbolic memory, meta-compression, deterministic NXL compilation, and experimental AgentLang and neural compilation.
 - **Runtime Control MCP Tools**: Added `nexus_skill_generate`, `nexus_skill_deploy`, `nexus_skill_revoke`, `nexus_workflow_generate`, `nexus_workflow_deploy`, `nexus_workflow_run`, and `nexus_run_status`.
 - **Dashboard APIs and Smoke Coverage**: Added `/api/runs`, `/api/runs/:id`, `/api/skills`, `/api/workflows`, `/api/backends`, `/api/health`, plus a dashboard integration test.
 
@@ -190,13 +242,16 @@ All notable changes to Nexus Prime will be documented in this file.
 ### Fixed
 - **Pages Deployment Workflow**: Fixed GitHub Pages environment URL syntax in `.github/workflows/pages.yml`.
 - **Lint Gate**: Removed the runtime-blocking regex lint errors so `npm run lint` is green again.
-- **Memory Backend Extensibility**: Added `MemoryEngine.snapshot()` so promoted temporal/hyperbolic ranking can operate on real persisted memories.
+- **Memory Backend Extensibility**: Added `MemoryEngine.snapshot()` so promoted temporal and hyperbolic ranking can operate on real persisted memories.
 
-## [3.1.0] - 2026-03-09
+</details>
+
+<details>
+<summary><b>v3.1.0</b> · 2026-03-09 · Real runtime execution kernel</summary>
 
 ### Added
 - **Real Sub-Agent Runtime**: Added a shared worktree-backed execution kernel that powers single-agent execution, swarms, MCP runtime calls, and NXL runs with artifact trails, verifier workers, rollback, and merge decisions.
-- **Runtime Skill Fabric**: Added live runtime skill artifacts, guarded hot deployment, deployment tracking, and promotion/revocation hooks for read/orchestrate/mutate skill classes.
+- **Runtime Skill Fabric**: Added live runtime skill artifacts, guarded hot deployment, deployment tracking, and promotion and revocation hooks for read, orchestrate, and mutate skill classes.
 - **Backend Contracts**: Added explicit memory, compression, consensus, and DSL compiler backend interfaces so research-track implementations can run in shadow or experimental mode behind the same runtime.
 - **CLI Execution Inputs**: `nexus-prime execute` now supports `--actions-file`, `--verify`, `--workers`, and `--nxl-file` for real runtime execution instead of demo-only task strings.
 - **Release Draft Artifact**: Added a release-notes draft for this version under `releases/v3.1.0.md`.
@@ -211,41 +266,64 @@ All notable changes to Nexus Prime will be documented in this file.
 - **Untracked File Diffs**: Worker patch capture now stages untracked files before diffing so newly created files are included in verifier and final merge patches.
 - **Runtime Skill Patch Contamination**: Excluded `.agent` runtime skill overlays from repo patches so verifier worktrees do not fail on duplicate skill files.
 - **Worktree Ref Conflicts**: Switched worker worktrees to detached HEAD mode to avoid branch ref lock failures during repeated or parallel execution.
-- **Configurable State Paths**: Memory DB and POD message storage can now be redirected for sandboxed/headless environments, with tmp fallbacks where needed.
+- **Configurable State Paths**: Memory DB and POD message storage can now be redirected for sandboxed and headless environments, with tmp fallbacks where needed.
 - **Headless Dashboard Startup**: Dashboard startup can now be disabled explicitly for CI and runtime tests.
 
-## [1.4.0] - 2026-03-06
+</details>
+
+<details>
+<summary><b>v1.4.0</b> · 2026-03-06 · Multi-client setup and ecosystem dashboard</summary>
+
 ### Added
-- **Multi-Tool MCP Integration**: Support for Cursor, Claude Code, Opencode, Kilocode, and Codex.
-- **`nexus-prime setup` CLI**: Automated configuration for popular AI coding environments.
-- **Ecosystem Dashboard**: New "Connected Ecosystem" panel to visualize integration status.
+- **Multi-Tool MCP Integration**: Added support for Cursor, Claude Code, Opencode, Kilocode, and Codex.
+- **`nexus-prime setup` CLI**: Added automated configuration for popular AI coding environments.
+- **Ecosystem Dashboard**: Added the Connected Ecosystem panel to visualize integration status.
 - **Refined MCP Adapter**: Enhanced tool metadata and descriptions for better discovery.
 
-### Documentation
-- New `INTEGRATIONS.md` guide with step-by-step instructions.
-- README update with supported clients list and automated setup guide.
-
-## [1.3.0] - 2026-03-05
-
-### Added
-- **Deep-Tech Documentation Overhaul**: Completely rewrote the `README.md` and `docs/index.html` adopting a granular, intellectual, brutalist aesthetic. Shifted from "meta-leader" metaphors to structural, system-level descriptions (Information Architecture, Memory Topology, Swarm Topology).
-- **Five Pillars of Agent Intelligence**: Promoted the **Entanglement Engine (Phase 9A)** to a top-level feature. Agents now share a quantum-state vector in a Hilbert space, collapsing via Born rule sampling for correlated decisions without explicit IPC.
-- **Merge Oracle**: Heavily documented the Oracle's use of Byzantine consensus, Pearson correlation, and AST-level Hierarchical Synthesis.
-- **Advanced CLI UX visualizations**: Added new MCP tools (`nexus_decompose_task` and `nexus_assemble_context`) that output beautiful ASCII data trees directly into the agent's CLI feed.
-- **Executive HITL Checkpoints**: Implemented `nexus_request_affirmation` for blocking dangerous operations behind explicit human approval in the chat.
-- **Auto-Gist Syncing**: `nexus_store_memory` now automatically relays high-priority (>=0.8) findings to a GitHub Gist vault.
-
-## [1.2.0] - 2026-03-04
-
-### Added
-- **Premium Documentation**: Consolidated all `.md` files into a single, comprehensive `README.md` with PM Agent lens value propositions and GitHub alerts.
-- **Matrix-style Dashboard**: Upgraded MCP telemetry output to an ultra-clean, structured matrix format.
-- **Cross-process EventBus**: Dashboard now supports live metrics from MCP instances via file-polling telemetry bridging.
-- **Robust Consensus Engine**: Replaced random stubs with task-aware Jaccard similarity voting, true gossip convergence, and G-Counter CRDTs.
-- **Code-aware CAS Tokenizer**: Attention Stream (CAS) now tokenizes by CamelCase, punctuation, and whitespace for massive compression gains.
-- **Darwin Loop Validation**: Pre-flight build step validation before evolved hypotheses can be applied.
+### Changed
+- **Documentation**: Added a new `INTEGRATIONS.md` guide with step-by-step instructions and updated the README with supported clients and automated setup guidance.
 
 ### Fixed
-- **Dashboard Empty State**: Addressed architecture split by streaming events directly.
-- **Memory Safety**: `MemoryEngine.flush()` is now wrapped in a transaction with deep JSON sanitization, preventing `RangeError` panics on MCP shutdown.
+- No user-facing fixes were recorded for this release.
+
+</details>
+
+<details>
+<summary><b>v1.3.0</b> · 2026-03-05 · Deep-tech documentation wave</summary>
+
+### Added
+- **Documentation Overhaul**: Completely rewrote `README.md` and `docs/index.html` with a granular, system-level presentation focused on information architecture, memory topology, and swarm topology.
+- **Five Pillars of Agent Intelligence**: Promoted the Entanglement Engine (Phase 9A) as a top-level feature and documented quantum-state style coordination.
+- **Merge Oracle**: Documented the Oracle's use of Byzantine consensus, Pearson correlation, and AST-level hierarchical synthesis.
+- **Advanced CLI UX Visualizations**: Added `nexus_decompose_task` and `nexus_assemble_context` so MCP output could render structured ASCII trees in the CLI.
+- **Executive HITL Checkpoints**: Implemented `nexus_request_affirmation` for blocking dangerous operations behind explicit human approval in chat.
+- **Auto-Gist Syncing**: `nexus_store_memory` now automatically relays high-priority findings to a GitHub Gist vault.
+
+### Changed
+- No separate changed section was recorded for this release.
+
+### Fixed
+- No user-facing fixes were recorded for this release.
+
+</details>
+
+<details>
+<summary><b>v1.2.0</b> · 2026-03-04 · Documentation consolidation and runtime truth fixes</summary>
+
+### Added
+- **Premium Documentation**: Consolidated all `.md` files into a single, comprehensive `README.md` with a PM-agent lens and GitHub alerts.
+- **Matrix-Style Dashboard**: Upgraded MCP telemetry output to a structured matrix format.
+- **Cross-Process EventBus**: Added live dashboard metrics from MCP instances via file-polling telemetry bridging.
+- **Robust Consensus Engine**: Replaced random stubs with task-aware Jaccard similarity voting, true gossip convergence, and G-Counter CRDTs.
+- **Code-Aware CAS Tokenizer**: Attention Stream now tokenizes by camel case, punctuation, and whitespace for stronger compression gains.
+- **Darwin Loop Validation**: Added pre-flight build validation before evolved hypotheses can be applied.
+
+### Changed
+- No separate changed section was recorded for this release.
+
+### Fixed
+- **Dashboard Empty State**: Addressed the architecture split by streaming events directly.
+- **Memory Safety**: Wrapped `MemoryEngine.flush()` in a transaction with deep JSON sanitization, preventing `RangeError` panics on MCP shutdown.
 - **NPM Provenance Failing**: Normalized `package.json` bins and repositories using `npm pkg fix` to enable automated GitHub Actions CI.
+
+</details>

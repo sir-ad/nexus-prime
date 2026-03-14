@@ -109,6 +109,8 @@ function generateCatalogBlock(): string {
     '',
     'Generated from bundled runtime catalogs plus repo-local overrides via `npm run generate:readme-catalog`.',
     '',
+    `Inventory Snapshot: ${skillRuntime.listArtifacts().length} skills · ${workflowRuntime.listArtifacts().length} workflows · ${hookRuntime.listArtifacts().length} hooks · ${automationRuntime.listArtifacts().length} automations · ${crews.length} crews`,
+    '',
     renderSection('Skills', skillRuntime.listArtifacts().length, skillsTable),
     '',
     renderSection('Workflows', workflowRuntime.listArtifacts().length, workflowsTable),

@@ -12,9 +12,7 @@
     <meta property="og:description" content="Operator and integrator reference for Nexus Prime runtime behavior, MCP usage, session-first RAG, token telemetry, and runtime truth." />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://sir-ad.github.io/nexus-prime/knowledge-base.html" />
-    <meta property="og:image" content="https://sir-ad.github.io/nexus-prime/assets/screenshots/dashboard_runtime_overview.png" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:image" content="https://sir-ad.github.io/nexus-prime/assets/screenshots/dashboard_runtime_overview.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link
         href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Inter:wght@300;400;500;600;700;900&display=swap"
@@ -358,6 +356,23 @@
             color: #e2f5ff;
         }
 
+        .console-proof {
+            background: rgba(0, 0, 0, 0.62);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 14px;
+            padding: 18px 20px;
+            margin: 24px 0;
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+        }
+
+        .console-proof-label {
+            display: block;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+        }
+
         code {
             font-family: 'JetBrains Mono', monospace;
             font-size: 13px;
@@ -550,6 +565,17 @@
 &lt;/state&gt;</pre>
                 <p>Operators do not need to parse this by hand. The dashboard and runtime snapshot persist the same
                     state so you can inspect lifetime totals and per-run details even after restart.</p>
+
+                <div class="console-proof">
+                    <span class="console-proof-label">Operator transcript example</span>
+                    <pre>Called Nexus Session Bootstrap tool from Nexus Prime MCP
+
+Session bootstrap ready.
+- Client: Codex (primaryActive)
+- Recommended next step: nexus_orchestrate
+- Token optimization: required
+- Knowledge fabric: repo</pre>
+                </div>
             </section>
 
             <!-- MCP API REFERENCE -->

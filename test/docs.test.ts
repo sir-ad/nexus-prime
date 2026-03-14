@@ -49,8 +49,9 @@ function test() {
   expectIncludes(readme, '<!-- runtime-catalog:start -->', 'README should expose stable runtime catalog markers');
   expectIncludes(readme, '🧭 Platform Feature Registry', 'README should include the generated feature registry section');
   expectIncludes(readme, '🗂 Runtime Catalog', 'README should include the runtime catalog section');
-  expectIncludes(readme, 'dashboard_runtime_overview.png', 'README should reference the updated overview screenshot');
-  expectIncludes(readme, 'dashboard_knowledge_focus.png', 'README should reference the updated knowledge screenshot');
+  expectIncludes(readme, 'dashboard_cockpit_hero.png', 'README should reference the hero cockpit screenshot');
+  expectIncludes(readme, 'dashboard_knowledge_trace.png', 'README should reference the updated knowledge screenshot');
+  expectIncludes(readme, '## 📜 Release History', 'README should expose the release history section');
   expectIncludes(agents, 'nexus_orchestrate', 'AGENTS should document the orchestrator-first entrypoint');
   expectIncludes(agents, 'nexus_session_bootstrap', 'AGENTS should document the bootstrap-first entrypoint');
   expectIncludes(agents, 'nexus_list_skills', 'AGENTS should document skill discovery');
@@ -82,8 +83,10 @@ function test() {
   expectIncludes(indexHtml, 'rel="canonical"', 'landing page should declare a canonical URL');
   expectIncludes(catalogHtml, 'rel="canonical"', 'catalog page should declare a canonical URL');
   expectIncludes(indexHtml, 'property="og:image"', 'landing page should declare a social preview image');
-  expectIncludes(indexHtml, 'dashboard_runtime_overview.png', 'landing page should reference the updated overview screenshot');
-  expectIncludes(indexHtml, 'dashboard_knowledge_focus.png', 'landing page should reference the updated knowledge screenshot');
+  expectIncludes(indexHtml, 'dashboard_cockpit_hero.png', 'landing page should reference the cockpit hero screenshot');
+  expectIncludes(indexHtml, 'dashboard_runtime_sequence.png', 'landing page should reference the runtime sequence screenshot');
+  expectIncludes(indexHtml, 'dashboard_knowledge_trace.png', 'landing page should reference the knowledge trace screenshot');
+  expectIncludes(indexHtml, 'v3.12.0', 'landing page should advertise the current release in its changelog block');
   expectIncludes(indexHtml, 'nexus-prime setup codex', 'landing page should document Codex setup');
   expectIncludes(indexHtml, 'auto-establish bootstrap artifacts', 'landing page should explain automatic bootstrap behavior');
   expectIncludes(knowledgeBaseHtml, 'rel="canonical"', 'knowledge base should declare a canonical URL');
