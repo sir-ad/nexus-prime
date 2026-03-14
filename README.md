@@ -573,6 +573,16 @@ Inventory Snapshot: 109 skills · 64 workflows · 5 hooks · 3 automations · 7 
 ## 📜 Release History
 
 <details open>
+<summary><b>v3.12.1</b> · 2026-03-14 · Dashboard focus mode, graph recall wiring, and bootstrap recovery</summary>
+
+- Added dashboard maximize/restore focus mode across the main operational panels so graph, memory snapshots, runtime events, and operator actions are usable without the cramped default layout.
+- Wired graph memory into the main recall path, auto-seeded first-run RAG collections from bounded project context, and rehydrated dashboard event history from persisted logs.
+- Tightened the cockpit density, clarified the RAG injection path, rotated persisted events, and seeded visible local hook/automation starters for fresh workspaces.
+
+Full notes: [releases/v3.12.1.md](./releases/v3.12.1.md) · Full history: [CHANGELOG.md](./CHANGELOG.md)
+</details>
+
+<details>
 <summary><b>v3.12.0</b> · 2026-03-14 · Public surface, proof screenshots, and release visibility</summary>
 
 - Rebuilt the README hierarchy around what Nexus Prime is, why it is different, the bootstrap-orchestrate path, and proof-backed capabilities.

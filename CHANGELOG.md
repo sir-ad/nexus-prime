@@ -2,9 +2,32 @@
 
 All notable changes to Nexus Prime are documented here.
 
-Release Index: [v3.12.0 release note](./releases/v3.12.0.md)
+Release Index: [v3.12.1 release note](./releases/v3.12.1.md)
 
 <details open>
+<summary><b>v3.12.1</b> · 2026-03-14 · Dashboard focus mode and audit recovery</summary>
+
+### Added
+- **Dashboard focus overlay**: Added a shared maximize/restore overlay so graph, memory snapshots, runtime events, operator actions, and major analysis panels can expand into a full workspace without losing state.
+- **Project bootstrap RAG seeding**: Added first-run project collection seeding from bounded local repo context so session-first RAG is no longer empty by default.
+- **Local operating-layer starters**: Added starter workspace hook and automation files so fresh `.agent/hooks` and `.agent/automations` scaffolds are visible and usable on first run.
+- **Graph mirror bootstrap**: Added automatic graph-memory initialization and backfill beside the primary memory store so graph recall and stats are no longer dead on a fresh install.
+
+### Changed
+- **Dashboard density**: Tightened rail widths, interior typography, panel spacing, and token-card sizing so the graph-first cockpit fits more usable information without flattening the layout.
+- **Knowledge clarity**: Knowledge mode now shows an explicit RAG injection path with attached, retrieved, selected, planner, packet, and runtime usage stages.
+- **Memory recall path**: Primary memory recall now blends the working memory engine with graph-mirror matches instead of leaving graph memory disconnected from production reads.
+- **Event continuity**: Dashboard event history now rehydrates from persisted JSONL history and rotates archives instead of acting like a fresh-only buffer after restart.
+
+### Fixed
+- **Stale token perception**: Token surfaces now refresh on runtime and knowledge activity, making lifetime telemetry feel live without abandoning persisted truth.
+- **Dead graph engine**: `graph.db` is created and populated during real production startup rather than only through dormant code paths.
+- **Empty first-run knowledge fabric**: Bootstrap/orchestrate now auto-attaches a bounded project context collection when no RAG corpus exists yet.
+- **Unbounded event log growth**: Event storage now rotates at 10 MB with retained archives instead of growing forever in one file.
+
+</details>
+
+<details>
 <summary><b>v3.12.0</b> · 2026-03-14 · Public surface, proof screens, and release visibility</summary>
 
 ### Added

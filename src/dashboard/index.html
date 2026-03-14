@@ -30,6 +30,12 @@
             --radius-panel: 24px;
             --radius-card: 18px;
             --shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+            --rail-left: 284px;
+            --rail-right: 344px;
+            --panel-pad: 0.66rem;
+            --panel-pad-compact: 0.56rem;
+            --card-pad: 0.62rem;
+            --token-dial-size: 136px;
         }
 
         * {
@@ -120,7 +126,7 @@
         .subtitle {
             margin-top: 0.15rem;
             color: var(--muted);
-            font-size: 0.74rem;
+            font-size: 0.72rem;
         }
 
         .banner {
@@ -165,7 +171,7 @@
             border: 1px solid var(--line);
             background: rgba(255, 255, 255, 0.03);
             color: var(--muted);
-            font-size: 0.76rem;
+            font-size: 0.72rem;
         }
 
         .runtime-pill select {
@@ -195,7 +201,7 @@
 
         .surface-note {
             color: var(--muted);
-            font-size: 0.68rem;
+            font-size: 0.64rem;
             text-align: right;
             max-width: 36rem;
             line-height: 1.45;
@@ -236,7 +242,7 @@
             flex: 1;
             min-height: 0;
             display: grid;
-            grid-template-columns: 300px minmax(0, 1fr) 360px;
+            grid-template-columns: var(--rail-left) minmax(0, 1fr) var(--rail-right);
             gap: 1rem;
             padding: 0.9rem 1rem 1rem;
             overflow: hidden;
@@ -259,7 +265,7 @@
             align-items: center;
             justify-content: space-between;
             gap: 0.8rem;
-            padding: 0.85rem 1rem;
+            padding: 0.76rem 0.88rem;
             border-bottom: 1px solid var(--line);
             background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01));
         }
@@ -267,23 +273,31 @@
         .panel-header h2,
         .panel-header h3 {
             margin: 0;
-            font-size: 0.7rem;
+            font-size: 0.68rem;
             letter-spacing: 0.12em;
             text-transform: uppercase;
             color: var(--muted);
+        }
+
+        .panel-actions,
+        .widget-actions {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.42rem;
+            flex-wrap: nowrap;
         }
 
         .panel-body {
             flex: 1;
             min-height: 0;
             overflow: auto;
-            padding: 0.72rem;
+            padding: var(--panel-pad);
             scrollbar-width: thin;
             scrollbar-color: rgba(188, 204, 255, 0.22) transparent;
         }
 
         .panel-body.compact {
-            padding: 0.62rem;
+            padding: var(--panel-pad-compact);
         }
 
         .rail {
@@ -351,7 +365,7 @@
             border: 1px solid var(--line);
             background: var(--panel-soft);
             border-radius: var(--radius-card);
-            padding: 0.68rem;
+            padding: var(--card-pad);
         }
 
         .card.interactive {
@@ -375,7 +389,7 @@
         }
 
         .card-title strong {
-            font-size: 0.82rem;
+            font-size: 0.78rem;
             font-weight: 600;
         }
 
@@ -391,12 +405,12 @@
 
         .meta {
             color: var(--muted);
-            font-size: 0.64rem;
+            font-size: 0.62rem;
             line-height: 1.5;
         }
 
         .hero-metric {
-            padding: 0.75rem;
+            padding: 0.66rem;
             border-radius: var(--radius-card);
             border: 1px solid var(--line);
             background: linear-gradient(160deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01));
@@ -404,7 +418,7 @@
 
         .hero-metric label {
             display: block;
-            font-size: 0.64rem;
+            font-size: 0.62rem;
             color: var(--muted);
             text-transform: uppercase;
             letter-spacing: 0.12em;
@@ -413,7 +427,7 @@
 
         .hero-metric strong {
             display: block;
-            font-size: 1.48rem;
+            font-size: 1.34rem;
             letter-spacing: -0.05em;
             margin-bottom: 0.2rem;
         }
@@ -480,7 +494,7 @@
 
         .client-name {
             font-weight: 600;
-            font-size: 0.86rem;
+            font-size: 0.8rem;
         }
 
         .state-chip,
@@ -490,7 +504,7 @@
             justify-content: center;
             border-radius: 999px;
             padding: 0.16rem 0.44rem;
-            font-size: 0.62rem;
+            font-size: 0.6rem;
             border: 1px solid var(--line);
             background: rgba(255, 255, 255, 0.05);
             text-transform: uppercase;
@@ -526,13 +540,13 @@
 
         .token-dial {
             position: relative;
-            width: 150px;
-            height: 150px;
+            width: var(--token-dial-size);
+            height: var(--token-dial-size);
         }
 
         .token-dial svg {
-            width: 150px;
-            height: 150px;
+            width: var(--token-dial-size);
+            height: var(--token-dial-size);
             transform: rotate(-90deg);
         }
 
@@ -570,13 +584,13 @@
         }
 
         .dial-value {
-            font-size: 1.54rem;
+            font-size: 1.4rem;
             font-weight: 700;
             letter-spacing: -0.06em;
         }
 
         .dial-caption {
-            font-size: 0.66rem;
+            font-size: 0.62rem;
             color: var(--muted);
             text-transform: uppercase;
             letter-spacing: 0.12em;
@@ -584,12 +598,12 @@
 
         .token-summary-stack {
             display: grid;
-            gap: 0.75rem;
+            gap: 0.68rem;
         }
 
         .token-telemetry-note {
             color: var(--muted);
-            font-size: 0.7rem;
+            font-size: 0.66rem;
             line-height: 1.5;
             text-align: center;
         }
@@ -911,7 +925,7 @@
 
         .graph-note {
             color: var(--muted);
-            font-size: 0.68rem;
+            font-size: 0.64rem;
         }
 
         .graph-footer {
@@ -948,7 +962,7 @@
 
         .entity-header h3 {
             margin: 0;
-            font-size: 0.72rem;
+            font-size: 0.68rem;
             letter-spacing: 0.08em;
             text-transform: uppercase;
             color: var(--muted);
@@ -986,7 +1000,7 @@
             border: 1px solid var(--line);
             background: rgba(255, 255, 255, 0.04);
             font-family: var(--mono);
-            font-size: 0.62rem;
+            font-size: 0.6rem;
             line-height: 1.2;
         }
 
@@ -1085,7 +1099,7 @@
         }
 
         .event-summary {
-            font-size: 0.64rem;
+            font-size: 0.62rem;
             line-height: 1.45;
         }
 
@@ -1103,11 +1117,11 @@
 
         pre {
             overflow: auto;
-            padding: 0.68rem;
+            padding: 0.62rem;
             border-radius: 14px;
             background: rgba(0, 0, 0, 0.3);
             border: 1px solid var(--line);
-            font-size: 0.7rem;
+            font-size: 0.66rem;
             line-height: 1.5;
             margin: 0.55rem 0 0;
             white-space: pre-wrap;
@@ -1125,7 +1139,7 @@
         }
 
         .field label {
-            font-size: 0.68rem;
+            font-size: 0.64rem;
             color: var(--muted);
             text-transform: uppercase;
             letter-spacing: 0.08em;
@@ -1135,7 +1149,7 @@
         .field select,
         .field textarea {
             width: 100%;
-            padding: 0.56rem 0.64rem;
+            padding: 0.5rem 0.6rem;
             border-radius: 14px;
             border: 1px solid var(--line);
             background: rgba(255, 255, 255, 0.03);
@@ -1219,7 +1233,7 @@
 
         .drawer-section h4 {
             margin: 0 0 0.55rem;
-            font-size: 0.74rem;
+            font-size: 0.68rem;
             color: var(--muted);
             text-transform: uppercase;
             letter-spacing: 0.08em;
@@ -1231,6 +1245,138 @@
             border: 1px dashed var(--line);
             color: var(--muted);
             text-align: center;
+        }
+
+        .widget-action {
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.03);
+            color: var(--muted);
+            padding: 0.18rem 0.44rem;
+            font-size: 0.58rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+
+        .widget-action:hover,
+        .widget-action.active {
+            color: var(--text);
+            border-color: var(--line-strong);
+            background: rgba(84, 255, 135, 0.1);
+        }
+
+        .focusable-shell {
+            display: grid;
+            gap: 0.85rem;
+            min-height: 0;
+        }
+
+        .focus-placeholder {
+            border-radius: var(--radius-card);
+            border: 1px dashed rgba(188, 204, 255, 0.1);
+            background: rgba(255, 255, 255, 0.01);
+        }
+
+        .focus-backdrop {
+            position: fixed;
+            inset: 0;
+            z-index: 16;
+            background: rgba(0, 0, 0, 0.55);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 180ms ease;
+        }
+
+        .focus-backdrop.open {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .focus-overlay {
+            position: fixed;
+            inset: 0.8rem;
+            z-index: 18;
+            display: none;
+            align-items: stretch;
+            justify-content: center;
+            pointer-events: none;
+        }
+
+        .focus-overlay.open {
+            display: flex;
+        }
+
+        .focus-frame {
+            width: min(1480px, calc(100vw - 1.6rem));
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            border-radius: 26px;
+            border: 1px solid var(--line-strong);
+            background: rgba(6, 8, 13, 0.94);
+            box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
+            backdrop-filter: blur(26px);
+            pointer-events: auto;
+            overflow: hidden;
+        }
+
+        .focus-header {
+            display: flex;
+            justify-content: space-between;
+            gap: 0.9rem;
+            align-items: flex-start;
+            padding: 0.82rem 0.94rem;
+            border-bottom: 1px solid var(--line);
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .focus-header h2 {
+            margin: 0;
+            font-size: 0.82rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--muted);
+        }
+
+        .focus-body {
+            flex: 1;
+            min-height: 0;
+            overflow: auto;
+            padding: 0.86rem;
+        }
+
+        .focus-content {
+            min-height: 0;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .focus-content > * {
+            width: 100%;
+        }
+
+        .focus-content > .panel,
+        .focus-content > .focusable-shell {
+            min-height: calc(100vh - 10rem);
+        }
+
+        .focus-content [data-widget-id="memory-graph"] {
+            min-height: calc(100vh - 10rem);
+        }
+
+        .focus-content [data-widget-id="memory-graph"] #graph-stage {
+            height: min(74vh, calc(100vh - 15rem));
+        }
+
+        .focus-content [data-widget-id="memory-snapshots"] .panel-body,
+        .focus-content [data-widget-id="events-panel"] .panel-body,
+        .focus-content [data-widget-id="actions-panel"] .panel-body {
+            overflow: auto;
+        }
+
+        .focus-content [data-widget-id="events-panel"] .event-list {
+            gap: 0.5rem;
         }
 
         .list-inline {
@@ -1277,17 +1423,17 @@
 
         @media (max-width: 1440px) {
             .layout {
-                grid-template-columns: 270px minmax(0, 1fr) 320px;
+                grid-template-columns: 258px minmax(0, 1fr) 312px;
             }
 
             .token-dial {
-                width: 132px;
-                height: 132px;
+                width: 124px;
+                height: 124px;
             }
 
             .token-dial svg {
-                width: 132px;
-                height: 132px;
+                width: 124px;
+                height: 124px;
             }
 
             .metrics-grid {
@@ -1436,10 +1582,13 @@
     <main class="layout" style="position:relative;">
         <div id="refresh-bar" class="refresh-bar"></div>
         <aside class="rail left">
-            <section class="panel">
+            <section class="panel" data-widget-id="ecosystem-panel" data-widget-title="Connected Ecosystem" data-widget-subtitle="Client telemetry, primary-client selection, and ecosystem evidence for the active runtime.">
                 <div class="panel-header">
                     <h2>Connected Ecosystem</h2>
-                    <span class="badge" id="clients-summary">0 visible</span>
+                    <div class="panel-actions">
+                        <button type="button" class="widget-action" data-focus-toggle="ecosystem-panel" aria-pressed="false">Expand</button>
+                        <span class="badge" id="clients-summary">0 visible</span>
+                    </div>
                 </div>
                 <div class="panel-body compact">
                     <div id="clients-list" class="ecosystem-list">
@@ -1448,10 +1597,13 @@
                 </div>
             </section>
 
-            <section class="panel">
+            <section class="panel" data-widget-id="token-panel" data-widget-title="Token Telemetry" data-widget-subtitle="Persisted lifetime token telemetry with by-source and by-phase breakdowns for the selected runtime.">
                 <div class="panel-header">
                     <h2>Token Telemetry</h2>
-                    <span class="badge" id="token-summary">0 events</span>
+                    <div class="panel-actions">
+                        <button type="button" class="widget-action" data-focus-toggle="token-panel" aria-pressed="false">Expand</button>
+                        <span class="badge" id="token-summary">0 events</span>
+                    </div>
                 </div>
                 <div class="panel-body">
                     <div class="token-summary-stack">
@@ -1490,17 +1642,23 @@
                                 <div class="meta" id="latest-token-meta">No token-producing run recorded yet.</div>
                             </div>
                         </div>
-                        <div class="card">
+                        <div class="card" data-widget-id="token-source-card" data-widget-title="Token Allocation By Source" data-widget-subtitle="Source-class allocation derived from persisted runtime token telemetry.">
                             <div class="card-title">
                                 <strong>By Source</strong>
-                                <span class="state-chip info" id="token-by-source-count">0</span>
+                                <div class="widget-actions">
+                                    <button type="button" class="widget-action" data-focus-toggle="token-source-card" aria-pressed="false">Expand</button>
+                                    <span class="state-chip info" id="token-by-source-count">0</span>
+                                </div>
                             </div>
                             <div id="token-source-chips" class="list-inline token-breakdown"></div>
                         </div>
-                        <div class="card">
+                        <div class="card" data-widget-id="token-phase-card" data-widget-title="Token Allocation By Phase" data-widget-subtitle="Phase-level token allocation from persisted runtime telemetry.">
                             <div class="card-title">
                                 <strong>By Phase</strong>
-                                <span class="state-chip info" id="token-by-phase-count">0</span>
+                                <div class="widget-actions">
+                                    <button type="button" class="widget-action" data-focus-toggle="token-phase-card" aria-pressed="false">Expand</button>
+                                    <span class="state-chip info" id="token-by-phase-count">0</span>
+                                </div>
                             </div>
                             <div id="token-phase-chips" class="list-inline token-breakdown"></div>
                         </div>
@@ -1508,10 +1666,13 @@
                 </div>
             </section>
 
-            <section class="panel">
+            <section class="panel" data-widget-id="signals-panel" data-widget-title="System Signals" data-widget-subtitle="Runtime counts, catalog availability, and release-health summaries in one compact surface.">
                 <div class="panel-header">
                     <h2>System Signals</h2>
-                    <span class="badge" id="memory-tier-summary">0 cortex</span>
+                    <div class="panel-actions">
+                        <button type="button" class="widget-action" data-focus-toggle="signals-panel" aria-pressed="false">Expand</button>
+                        <span class="badge" id="memory-tier-summary">0 cortex</span>
+                    </div>
                 </div>
                 <div class="panel-body">
                     <div class="stack">
@@ -1534,10 +1695,13 @@
                 </div>
             </section>
 
-            <section class="panel">
+            <section class="panel" data-widget-id="pod-panel" data-widget-title="POD Network" data-widget-subtitle="Live worker activity and confidence across the pod mesh.">
                 <div class="panel-header">
                     <h2>POD Network</h2>
-                    <span class="badge" id="pod-summary">0 workers</span>
+                    <div class="panel-actions">
+                        <button type="button" class="widget-action" data-focus-toggle="pod-panel" aria-pressed="false">Expand</button>
+                        <span class="badge" id="pod-summary">0 workers</span>
+                    </div>
                 </div>
                 <div class="panel-body compact">
                     <div id="pod-highlights" class="stack">
@@ -1565,23 +1729,29 @@
                         <button data-memory-view-mode="lineage">Lineage</button>
                         <button data-memory-view-mode="timeline">Timeline</button>
                     </div>
+                    <button type="button" class="widget-action" data-focus-toggle="memory-graph" aria-pressed="false">Expand</button>
                 </div>
             </div>
             <div class="panel-body">
-                <div id="graph-stage">
-                    <svg id="graph-canvas" viewBox="0 0 980 620" preserveAspectRatio="xMidYMid meet"></svg>
-                    <div id="graph-memory-explorer" class="hidden"></div>
-                    <div id="graph-empty" class="graph-empty hidden">No topology data yet.</div>
+                <div class="focusable-shell" data-widget-id="memory-graph" data-widget-title="Memory Graph" data-widget-subtitle="Graph-first topology view with runtime stats and direct inspection links.">
+                    <div id="graph-stage">
+                        <svg id="graph-canvas" viewBox="0 0 980 620" preserveAspectRatio="xMidYMid meet"></svg>
+                        <div id="graph-memory-explorer" class="hidden"></div>
+                        <div id="graph-empty" class="graph-empty hidden">No topology data yet.</div>
+                    </div>
+                    <div class="graph-footer">
+                        <div id="graph-stats" class="graph-stats"></div>
+                        <div class="graph-note" id="graph-note">Select a node to update Memory Snapshots and the inspector without leaving the graph.</div>
+                    </div>
                 </div>
-                <div class="graph-footer">
-                    <div id="graph-stats" class="graph-stats"></div>
-                    <div class="graph-note" id="graph-note">Select a node to update Memory Snapshots and the inspector without leaving the graph.</div>
-                </div>
-                <div class="panel" style="margin-top: 1rem; min-height: 16rem;">
+                <div class="panel" data-widget-id="memory-snapshots" data-widget-title="Memory Snapshots" data-widget-subtitle="Selected runtime context, memory snapshots, and library surfaces in one focused view." style="margin-top: 1rem; min-height: 16rem;">
                     <div class="panel-header">
                         <div class="entity-header library-header" style="margin:0;">
                             <div class="library-heading">
-                                <h3 id="library-title">Memory Snapshots</h3>
+                                <div class="panel-actions">
+                                    <h3 id="library-title">Memory Snapshots</h3>
+                                    <button type="button" class="widget-action" data-focus-toggle="memory-snapshots" aria-pressed="false">Expand</button>
+                                </div>
                                 <div id="library-subtitle" class="meta library-subtitle">Select a memory to see why it matters, what it connects to, and which run surfaced it.</div>
                             </div>
                             <div id="runtime-usage-summary" class="runtime-summary meta">Loading runtime usage.</div>
@@ -1613,26 +1783,29 @@
         </section>
 
         <aside class="rail right">
-            <section class="panel">
+            <section class="panel" data-widget-id="events-panel" data-widget-title="Runtime Events" data-widget-subtitle="Live event stream with category filters and payload inspection.">
                 <div class="panel-header">
                     <div>
                         <h2>Runtime Events</h2>
                         <div class="meta" id="events-summary">0 signals</div>
                     </div>
-                    <div id="event-filters-wrap" class="compact-chip-wrap">
-                        <div id="event-filters" class="compact-chip-rail">
-                            <button data-event-filter="all" class="active">All</button>
-                            <button data-event-filter="memory">Memory</button>
-                            <button data-event-filter="tokens">Tokens</button>
-                            <button data-event-filter="runtime">Runtime</button>
-                            <button data-event-filter="pod">POD</button>
-                            <button data-event-filter="skills">Skills</button>
-                            <button data-event-filter="workflows">Flows</button>
-                            <button data-event-filter="hooks">Hooks</button>
-                            <button data-event-filter="automations">Autos</button>
-                            <button data-event-filter="shield">Shield</button>
-                            <button data-event-filter="federation">Net</button>
-                            <button data-event-filter="clients">Clients</button>
+                    <div class="panel-actions">
+                        <button type="button" class="widget-action" data-focus-toggle="events-panel" aria-pressed="false">Expand</button>
+                        <div id="event-filters-wrap" class="compact-chip-wrap">
+                            <div id="event-filters" class="compact-chip-rail">
+                                <button data-event-filter="all" class="active">All</button>
+                                <button data-event-filter="memory">Memory</button>
+                                <button data-event-filter="tokens">Tokens</button>
+                                <button data-event-filter="runtime">Runtime</button>
+                                <button data-event-filter="pod">POD</button>
+                                <button data-event-filter="skills">Skills</button>
+                                <button data-event-filter="workflows">Flows</button>
+                                <button data-event-filter="hooks">Hooks</button>
+                                <button data-event-filter="automations">Autos</button>
+                                <button data-event-filter="shield">Shield</button>
+                                <button data-event-filter="federation">Net</button>
+                                <button data-event-filter="clients">Clients</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1643,10 +1816,13 @@
                 </div>
             </section>
 
-            <section class="panel">
+            <section class="panel" data-widget-id="actions-panel" data-widget-title="Operator Actions" data-widget-subtitle="Local dashboard controls for planning, execution, and runtime-specific overrides.">
                 <div class="panel-header">
                     <h2>Operator Actions</h2>
-                    <span class="badge">Guarded</span>
+                    <div class="panel-actions">
+                        <button type="button" class="widget-action" data-focus-toggle="actions-panel" aria-pressed="false">Expand</button>
+                        <span class="badge">Guarded</span>
+                    </div>
                 </div>
                 <div class="panel-body">
                     <form id="execute-form" class="control-grid">
@@ -1710,6 +1886,22 @@
             </section>
         </aside>
     </main>
+
+    <div id="focus-backdrop" class="focus-backdrop"></div>
+    <aside id="focus-overlay" class="focus-overlay" aria-live="polite" aria-hidden="true">
+        <div class="focus-frame">
+            <div class="focus-header">
+                <div>
+                    <h2 id="focus-title">Focused Widget</h2>
+                    <div id="focus-subtitle" class="meta">Expanded dashboard view.</div>
+                </div>
+                <button id="focus-close" class="ghost-button" type="button">Restore</button>
+            </div>
+            <div class="focus-body">
+                <div id="focus-content" class="focus-content"></div>
+            </div>
+        </div>
+    </aside>
 
     <aside id="drawer" class="drawer" aria-live="polite">
         <div class="drawer-header">
@@ -1820,6 +2012,8 @@
                 memoryNetwork: createResourceState(),
             },
         };
+
+        let _focusState = null;
 
         const RESOURCE_LOADERS = {
             runs: {
@@ -2057,13 +2251,13 @@
         const CATEGORY_RESOURCE_MAP = {
             memory: ['memory', 'memoryHealth', 'memoryAudit', 'memoryQuarantine', 'memoryShared'],
             tokens: ['tokensSummary', 'tokensTimeline', 'tokensBySource', 'events'],
-            runtime: ['runs', 'pod'],
+            runtime: ['runs', 'pod', 'usage', 'orchestrationSession', 'orchestrationLedger', 'instructionPacket', 'tokensSummary', 'tokensTimeline', 'tokensBySource'],
             pod: ['pod'],
             skills: ['skills'],
             specialists: ['specialists'],
             crews: ['crews'],
             workflows: ['workflows'],
-            knowledge: ['knowledgeFabricSession', 'knowledgeProvenance', 'ragCollections', 'patterns', 'tokensBySource', 'modelTiers', 'memoryShared'],
+            knowledge: ['knowledgeFabricSession', 'knowledgeProvenance', 'ragCollections', 'patterns', 'tokensSummary', 'tokensTimeline', 'tokensBySource', 'modelTiers', 'memoryShared', 'usage'],
             clients: ['clients', 'primaryClient'],
             hooks: ['hooks'],
             automations: ['automations'],
@@ -2169,6 +2363,78 @@
             if (['ready', 'standby', 'rolled_back', 'inferred', 'staged', 'idle', 'installed'].includes(status)) return 'warn';
             if (['revoked', 'failed', 'rejected', 'offline'].includes(status)) return 'bad';
             return 'info';
+        }
+
+        function getWidgetRoot(widgetId) {
+            return document.querySelector(`[data-widget-id="${widgetId}"]`);
+        }
+
+        function updateFocusChrome() {
+            const overlay = $('focus-overlay');
+            const backdrop = $('focus-backdrop');
+            if (!_focusState?.widget) {
+                overlay.classList.remove('open');
+                overlay.setAttribute('aria-hidden', 'true');
+                backdrop.classList.remove('open');
+                $('focus-title').textContent = 'Focused Widget';
+                $('focus-subtitle').textContent = 'Expanded dashboard view.';
+                return;
+            }
+
+            $('focus-title').textContent = _focusState.widget.dataset.widgetTitle || 'Focused Widget';
+            $('focus-subtitle').textContent = _focusState.widget.dataset.widgetSubtitle || 'Expanded dashboard view.';
+            overlay.classList.add('open');
+            overlay.setAttribute('aria-hidden', 'false');
+            backdrop.classList.add('open');
+        }
+
+        function syncFocusButtons() {
+            document.querySelectorAll('[data-focus-toggle]').forEach((button) => {
+                const active = _focusState?.widgetId === button.getAttribute('data-focus-toggle');
+                button.classList.toggle('active', Boolean(active));
+                button.setAttribute('aria-pressed', active ? 'true' : 'false');
+                button.textContent = active ? 'Restore' : 'Expand';
+            });
+        }
+
+        function closeFocusWidget() {
+            if (!_focusState?.widget) {
+                updateFocusChrome();
+                syncFocusButtons();
+                return;
+            }
+
+            const { widget, placeholder } = _focusState;
+            const focusContent = $('focus-content');
+            if (placeholder?.parentNode) {
+                placeholder.parentNode.replaceChild(widget, placeholder);
+            }
+            focusContent.innerHTML = '';
+            _focusState = null;
+            updateFocusChrome();
+            syncFocusButtons();
+        }
+
+        function openFocusWidget(widgetId) {
+            if (!widgetId) return;
+            if (_focusState?.widgetId === widgetId) {
+                closeFocusWidget();
+                return;
+            }
+
+            closeFocusWidget();
+            const widget = getWidgetRoot(widgetId);
+            if (!widget || !widget.parentNode) return;
+
+            const placeholder = document.createElement('div');
+            placeholder.className = 'focus-placeholder';
+            placeholder.style.height = `${Math.max(widget.getBoundingClientRect().height, 160)}px`;
+            widget.parentNode.insertBefore(placeholder, widget);
+
+            $('focus-content').appendChild(widget);
+            _focusState = { widgetId, widget, placeholder };
+            updateFocusChrome();
+            syncFocusButtons();
         }
 
         function parseList(value) {
@@ -2764,6 +3030,8 @@
             renderLibrary();
             renderEvents();
             renderDrawer();
+            updateFocusChrome();
+            syncFocusButtons();
             restoreScrollPositions(scrollPositions);
         }
 
@@ -2981,7 +3249,7 @@
                         await fetchJson(`/api/rag/collections/${encodeURIComponent(created.collectionId)}/attach`, postJson({}));
                         status.textContent = `Collection ${created.name} created, ingested, and attached to the active runtime.`;
                         form.reset();
-                        await refreshAll(['ragCollections', 'knowledgeFabricSession', 'knowledgeProvenance']);
+                        await refreshAll(['ragCollections', 'knowledgeFabricSession', 'knowledgeProvenance', 'usage', 'tokensSummary', 'tokensTimeline', 'tokensBySource', 'orchestrationSession', 'orchestrationLedger']);
                     } catch (error) {
                         status.textContent = `Collection create failed: ${error.message || 'unknown error'}`;
                     }
@@ -3002,7 +3270,7 @@
                             await fetchJson(`/api/rag/collections/${encodeURIComponent(collectionId)}`, { method: 'DELETE' });
                         }
                         $('control-status').textContent = `RAG action ${action} completed.`;
-                        await refreshAll(['ragCollections', 'knowledgeFabricSession', 'knowledgeProvenance']);
+                        await refreshAll(['ragCollections', 'knowledgeFabricSession', 'knowledgeProvenance', 'usage', 'tokensSummary', 'tokensTimeline', 'tokensBySource', 'orchestrationSession', 'orchestrationLedger']);
                     } catch (error) {
                         $('control-status').textContent = `RAG action ${action} failed: ${error.message || 'unknown error'}`;
                     }
@@ -3726,6 +3994,15 @@
                 const bootstrapStatus = state.usage?.bootstrapManifestStatus || {};
                 const ragUsage = state.usage?.ragUsageSummary || {};
                 const sharedMemory = Array.isArray(state.memoryShared) ? state.memoryShared : [];
+                const ragStageChips = [
+                    summaryChip('Attached', `${formatNumber(ragUsage?.attachedCollections || 0)}`, (ragUsage?.attachedCollections || 0) > 0 ? 'good' : 'warn'),
+                    summaryChip('Retrieved', `${formatNumber(ragUsage?.retrievedChunks || 0)}`, (ragUsage?.retrievedChunks || 0) > 0 ? 'good' : 'info'),
+                    summaryChip('Selected', `${formatNumber(ragUsage?.selectedChunks || 0)}`, (ragUsage?.selectedChunks || 0) > 0 ? 'good' : 'warn'),
+                    summaryChip('Used in Planner', ragUsage?.usedInPlanner ? 'yes' : 'no', ragUsage?.usedInPlanner ? 'good' : 'warn'),
+                    summaryChip('Used in Packet', ragUsage?.usedInPacket ? 'yes' : 'no', ragUsage?.usedInPacket ? 'good' : 'warn'),
+                    summaryChip('Used in Runtime', ragUsage?.usedInRuntime ? 'yes' : 'no', ragUsage?.usedInRuntime ? 'good' : 'warn'),
+                ].join('');
+                const dropSummary = (tokenBudget?.dropped || []).slice(0, 4).map((entry) => `${entry.sourceClass}:${entry.reason}`).join(' · ');
                 const bySourceRows = Object.entries(state.tokensBySource || {})
                     .sort((left, right) => Number(right[1]) - Number(left[1]))
                     .map(([name, value]) => ({ label: name, meta: `${formatNumber(value)} tokens` }));
@@ -3793,8 +4070,45 @@
                             </div>
                         </div>
                     </div>
+                    <div class="card">
+                        <div class="card-title">
+                            <strong>RAG Injection Path</strong>
+                            <span class="state-chip ${stateClass((ragUsage?.selectedChunks || 0) > 0 ? 'active' : (ragUsage?.attachedCollections || 0) > 0 ? 'ready' : 'warn')}">${escapeHtml((ragUsage?.selectedChunks || 0) > 0 ? 'active' : (ragUsage?.attachedCollections || 0) > 0 ? 'attached' : 'idle')}</span>
+                        </div>
+                        <div class="runtime-summary">${ragStageChips}</div>
+                        <div class="meta" style="margin-top:0.55rem;">Collections attach to the runtime, but only top matching chunks are pulled into orchestration.</div>
+                        <div class="meta" style="margin-top:0.4rem;">${escapeHtml(retrievedLabels.length ? `Top retrieved labels: ${retrievedLabels.join(' · ')}` : 'No retrieved labels yet for the selected runtime.')}</div>
+                        <div class="meta" style="margin-top:0.4rem;">${escapeHtml(dropSummary || 'No token-budget drops recorded for the latest knowledge bundle.')}</div>
+                    </div>
+                    <div class="metrics-grid">
+                        <div class="hero-metric">
+                            <label>Dominant Source</label>
+                            <strong>${escapeHtml(fabric?.sourceMix?.dominantSource || 'n/a')}</strong>
+                            <div class="meta">${escapeHtml(fabric?.summary || 'Awaiting bundle data')}</div>
+                        </div>
+                        <div class="hero-metric">
+                            <label>Attached Collections</label>
+                            <strong>${formatNumber((fabric?.rag?.attachedCollections || []).length || collections.filter((item) => (item.attachedRuntimeIds || []).includes(runtimeId)).length)}</strong>
+                            <div class="meta">Attached to runtime/session</div>
+                        </div>
+                        <div class="hero-metric">
+                            <label>Retrieved Chunks</label>
+                            <strong>${formatNumber(ragHits.length)}</strong>
+                            <div class="meta">Used during latest orchestrate</div>
+                        </div>
+                        <div class="hero-metric">
+                            <label>Top Retrieved Labels</label>
+                            <strong>${formatNumber(retrievedLabels.length)}</strong>
+                            <div class="meta">${escapeHtml(retrievedLabels.join(' · ') || 'No retrieved sources yet')}</div>
+                        </div>
+                        <div class="hero-metric">
+                            <label>Planner / Packet / Provenance</label>
+                            <strong>${formatNumber(selectedEntries.length)}</strong>
+                            <div class="meta">Selected by budgeting and carried into planner, packet, and runtime context.</div>
+                        </div>
+                    </div>
                     <details class="card" style="border-color: rgba(84,255,135,0.18); background: rgba(84,255,135,0.04);">
-                        <summary style="cursor:pointer; font-size:0.82rem; font-weight:600; color:var(--accent);">1. Create collection and ingest source</summary>
+                        <summary style="cursor:pointer; font-size:0.78rem; font-weight:600; color:var(--accent);">1. Create collection and ingest source</summary>
                         <form id="rag-create-form" class="control-grid" style="margin-top:0.6rem;">
                             <div class="field">
                                 <label for="rag-name-input">Collection Name</label>
@@ -3823,37 +4137,10 @@
                             <div class="action-bar">
                                 <button type="submit" class="primary-button">Create, ingest, and attach</button>
                             </div>
-                            <div class="meta">Collections are not sent wholesale. Nexus retrieves only top matching chunks during bootstrap/orchestrate.</div>
+                            <div class="meta">Collections stay session-first. Nexus retrieves only top matching chunks during bootstrap and orchestrate.</div>
                             <div id="rag-create-status" class="meta"></div>
                         </form>
                     </details>
-                    <div class="metrics-grid">
-                        <div class="hero-metric">
-                            <label>Dominant Source</label>
-                            <strong>${escapeHtml(fabric?.sourceMix?.dominantSource || 'n/a')}</strong>
-                            <div class="meta">${escapeHtml(fabric?.summary || 'Awaiting bundle data')}</div>
-                        </div>
-                        <div class="hero-metric">
-                            <label>Attached Collections</label>
-                            <strong>${formatNumber((fabric?.rag?.attachedCollections || []).length || collections.filter((item) => (item.attachedRuntimeIds || []).includes(runtimeId)).length)}</strong>
-                            <div class="meta">Attached to runtime/session</div>
-                        </div>
-                        <div class="hero-metric">
-                            <label>Retrieved Chunks</label>
-                            <strong>${formatNumber(ragHits.length)}</strong>
-                            <div class="meta">Used during latest orchestrate</div>
-                        </div>
-                        <div class="hero-metric">
-                            <label>Top Retrieved Labels</label>
-                            <strong>${formatNumber(retrievedLabels.length)}</strong>
-                            <div class="meta">${escapeHtml(retrievedLabels.join(' · ') || 'No retrieved sources yet')}</div>
-                        </div>
-                        <div class="hero-metric">
-                            <label>Planner / Packet / Provenance</label>
-                            <strong>${formatNumber(selectedEntries.length)}</strong>
-                            <div class="meta">Selected by token budgeting and fed into runtime context</div>
-                        </div>
-                    </div>
                     <div class="stack" style="margin-top:0.8rem;">
                         <div class="card">
                             <div class="card-title">
@@ -3871,7 +4158,7 @@
                                 <span class="state-chip info">${formatNumber(bySourceRows.length)}</span>
                             </div>
                             ${bySourceRows.length ? renderSmallList(bySourceRows) : emptyState('No by-source token telemetry yet for this runtime.')}
-                            <div class="meta">${escapeHtml((tokenBudget?.dropped || []).length ? `Dropped: ${(tokenBudget.dropped || []).slice(0, 4).map((entry) => `${entry.sourceClass}:${entry.reason}`).join(' · ')}` : 'No budget drops recorded for the latest knowledge bundle.')}</div>
+                            <div class="meta">${escapeHtml(dropSummary ? `Dropped: ${dropSummary}` : 'No budget drops recorded for the latest knowledge bundle.')}</div>
                         </div>
                         ${sharedMemory.length ? `
                             <div class="card">
@@ -5082,6 +5369,14 @@
         }
 
         function attachStaticHandlers() {
+            document.addEventListener('click', (event) => {
+                const focusButton = event.target.closest('[data-focus-toggle]');
+                if (focusButton) {
+                    event.preventDefault();
+                    openFocusWidget(focusButton.getAttribute('data-focus-toggle'));
+                }
+            });
+
             document.querySelector('.token-dial-wrap')?.addEventListener('click', () => {
                 state.selected = {
                     kind: 'token-summary',
@@ -5157,10 +5452,19 @@
                     state.plannerPreview = await fetchJson('/api/runtime/plan', postJson(payload));
                     state.libraryMode = 'planning';
                     render();
+                    await refreshAll(['usage', 'orchestrationSession', 'orchestrationLedger', 'instructionPacket', 'tokensSummary', 'tokensTimeline', 'tokensBySource', 'knowledgeFabricSession', 'knowledgeProvenance']);
                     $('control-status').textContent = `Planner ready: ${state.plannerPreview.selectedCrew?.name || 'baseline path'}.`;
                 } catch (error) {
                     $('control-status').textContent = `Planning failed: ${error.message}`;
                 }
+            });
+
+            $('focus-close').addEventListener('click', () => {
+                closeFocusWidget();
+            });
+
+            $('focus-backdrop').addEventListener('click', () => {
+                closeFocusWidget();
             });
 
             $('drawer-close').addEventListener('click', () => {
@@ -5174,9 +5478,15 @@
             });
 
             document.addEventListener('keydown', (e) => {
-                if (e.key === 'Escape' && state.selected) {
-                    state.selected = null;
-                    render();
+                if (e.key === 'Escape') {
+                    if (state.selected) {
+                        state.selected = null;
+                        render();
+                        return;
+                    }
+                    if (_focusState) {
+                        closeFocusWidget();
+                    }
                 }
             });
 

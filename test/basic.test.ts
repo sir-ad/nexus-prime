@@ -64,18 +64,36 @@ async function test() {
     const { createNexusPrime } = await import('../dist/index.js');
     const { createAdapter } = await import('../dist/agents/adapters.js');
     const { MCPAdapter } = await import('../dist/agents/adapters/mcp.js');
+    const { GraphMemoryEngine } = await import('../dist/engines/graph-memory.js');
     const nexus = createNexusPrime({ adapters: [] });
     await nexus.start();
     console.log('✅ Started\n');
 
     const runtime = nexus.getRuntime();
     const orchestrator = nexus.getOrchestrator();
+    const graphDbPath = path.join(path.dirname(process.env.NEXUS_MEMORY_DB_PATH || repoRoot), 'graph.db');
+    assert.ok(fs.existsSync(graphDbPath), 'graph memory db should initialize alongside the primary memory db');
+    assert.ok(fs.existsSync(path.join(repoRoot, '.agent', 'hooks', 'before-mutate-guard.md')), 'workspace bootstrap should seed local hook files');
+    assert.ok(fs.existsSync(path.join(repoRoot, '.agent', 'automations', 'session-close-followup.md')), 'workspace bootstrap should seed local automation files');
     assert.ok(runtime.listSkills().some((skill) => skill.name === 'django-builder'), 'expanded bundled skills should include django-builder');
     assert.ok(runtime.listWorkflows().some((workflow) => workflow.name === 'gtm-approval-loop'), 'expanded bundled workflows should include gtm-approval-loop');
     assert.ok(runtime.listHooks().some((hook) => hook.name === 'run-created-brief'), 'bundled hooks should be available');
     assert.ok(runtime.listAutomations().some((automation) => automation.name === 'verified-followup-automation'), 'bundled automations should be available');
     assert.ok(runtime.listSpecialists().length > 20, 'native specialist roster should be available');
     assert.ok(runtime.listCrews().length > 0, 'crew catalog should be available');
+
+    const bootstrap = await orchestrator.bootstrapSession('Bootstrap the fixture repo for graph and RAG validation', {
+      files: ['README.md', 'package.json', 'src/app.ts'],
+    });
+    assert.ok(bootstrap.ragCandidateStatus.attachedCollections > 0, 'bootstrap should auto-attach a seeded project RAG collection when none exists');
+    assert.ok(orchestrator.listRagCollections().some((collection) => collection.tags.includes('bootstrap-seeded')), 'bootstrap should seed a project-scoped RAG collection');
+
+    nexus.storeMemory('Fixture graph mirror memory about runtime bootstrap and validation.', 0.84, ['#graph', '#fixture']);
+    const graph = new GraphMemoryEngine(graphDbPath);
+    assert.ok(graph.getGraphStats().facts > 0, 'graph mirror should capture stored memories');
+    const graphResults = await graph.recall('runtime bootstrap validation', 3);
+    assert.ok(graphResults.some((entry: string) => entry.includes('Fixture graph mirror memory')), 'graph mirror recall should surface mirrored memory content');
+    graph.close();
 
     const planner = await runtime.planExecution({
       goal: 'Plan a bounded implementation task with release review',

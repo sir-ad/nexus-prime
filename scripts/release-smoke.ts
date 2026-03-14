@@ -7,6 +7,7 @@ interface SmokeExpectation {
   timeoutMs?: number;
   expectAny?: string[];
   allowTimeout?: boolean;
+  stopOnMatch?: boolean;
 }
 
 interface SmokeResult {
@@ -27,6 +28,7 @@ function runStep(step: SmokeExpectation): Promise<SmokeResult> {
     let settled = false;
     let timedOut = false;
     const timeoutMs = step.timeoutMs ?? 0;
+    const shouldStopOnMatch = Boolean(step.stopOnMatch && step.expectAny?.length);
 
     const finalize = (exitCode: number | null, error?: Error) => {
       if (settled) return;
@@ -39,11 +41,21 @@ function runStep(step: SmokeExpectation): Promise<SmokeResult> {
       resolve({ output, exitCode, timedOut });
     };
 
+    const checkForEarlySuccess = () => {
+      if (!shouldStopOnMatch || settled) return;
+      const matched = step.expectAny?.some((snippet) => output.includes(snippet));
+      if (!matched) return;
+      finalize(0);
+      child.kill('SIGTERM');
+    };
+
     child.stdout.on('data', (chunk) => {
       output += String(chunk);
+      checkForEarlySuccess();
     });
     child.stderr.on('data', (chunk) => {
       output += String(chunk);
+      checkForEarlySuccess();
     });
     child.on('error', (error) => finalize(null, error));
     child.on('close', (code) => finalize(code));
@@ -94,6 +106,7 @@ async function main(): Promise<void> {
       timeoutMs: 12000,
       allowTimeout: true,
       expectAny: ['MCP Server running on stdio'],
+      stopOnMatch: true,
     },
     {
       label: 'Dashboard boot smoke',
@@ -102,6 +115,7 @@ async function main(): Promise<void> {
       timeoutMs: 12000,
       allowTimeout: true,
       expectAny: ['Topology console listening', 'Reusing compatible dashboard', 'New dashboard started at'],
+      stopOnMatch: true,
     },
   ];
 

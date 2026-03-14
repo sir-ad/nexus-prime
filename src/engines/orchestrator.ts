@@ -263,6 +263,11 @@ export class OrchestratorEngine {
     const candidateFiles = options.files?.length
       ? options.files
       : this.discoverCandidateFiles(task);
+    await this.knowledgeFabric.ensureBootstrapCollection({
+      runtimeId: this.runtime.getRuntimeId(),
+      sessionId: this.sessionState.sessionId,
+      candidateFiles,
+    });
     const knowledgeFabric = this.composeKnowledgeFabric(task, candidateFiles, memoryMatches, intent);
     const plannedFiles = options.files?.length
       ? options.files
@@ -427,6 +432,11 @@ export class OrchestratorEngine {
     const candidateFiles = options.files?.length
       ? options.files
       : this.discoverCandidateFiles(task);
+    await this.knowledgeFabric.ensureBootstrapCollection({
+      runtimeId: this.runtime.getRuntimeId(),
+      sessionId: this.sessionState.sessionId,
+      candidateFiles,
+    });
     markExecutionLedgerStep(ledger, 'candidate-file-discovery', 'completed', {
       summary: `${candidateFiles.length} candidate file(s) discovered.`,
       details: { files: candidateFiles.slice(0, 24) },

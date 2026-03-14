@@ -284,7 +284,7 @@ export class GraphMemoryEngine implements IMemoryStore {
     /** Store: creates entity + fact, extracts sub-entities */
     store(content: string, priority: number = 1.0, tags: string[] = []): string {
         const entity = this.upsertEntity(
-            `memory-${Date.now()}`,
+            `memory-${Date.now()}-${randomUUID().slice(0, 8)}`,
             'concept',
             { priority, tags, source: 'memory_store' }
         );

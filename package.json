@@ -1,6 +1,6 @@
 {
   "name": "nexus-prime",
-  "version": "3.12.0",
+  "version": "3.12.1",
   "description": "Local-first MCP control plane for coding agents with bootstrap-orchestrate execution, memory fabric, token budgeting, and worktree-backed swarms",
   "type": "module",
   "main": "dist/index.js",

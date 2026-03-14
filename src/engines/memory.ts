@@ -15,6 +15,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { randomUUID } from 'crypto';
 import { Embedder, HyperbolicMath } from './embedder.js';
+import { GraphMemoryEngine } from './graph-memory.js';
 import { podNetwork } from './pod-network.js';
 import {
   createEmptyReconciliationSummary,
@@ -209,6 +210,7 @@ export interface MemoryExportBundle {
 
 export class MemoryEngine {
   private db: Database.Database;
+  private graphMirror?: GraphMemoryEngine;
   private sessionId: string;
   private vaultDir: string;
   private vaultItemsDir: string;
@@ -237,6 +239,11 @@ export class MemoryEngine {
 
     const resolvedPath = dbPath ?? path.join(dbDir, 'memory.db');
     this.db = new Database(resolvedPath);
+    try {
+      this.graphMirror = new GraphMemoryEngine(path.join(path.dirname(resolvedPath), 'graph.db'));
+    } catch {
+      this.graphMirror = undefined;
+    }
     this.sessionId = randomUUID();
     this.embedder = new Embedder();
     this.vaultDir = path.join(dbDir, 'memory-vault');
@@ -393,6 +400,7 @@ export class MemoryEngine {
       this.indexMemory(item.id, item.content);
     }
 
+    this.primeGraphMirror(rows);
     this.syncVault();
   }
 
@@ -579,6 +587,7 @@ export class MemoryEngine {
     }
 
     this.syncVault();
+    this.mirrorIntoGraph(item);
 
     return id;
   }
@@ -711,8 +720,15 @@ export class MemoryEngine {
       .filter(f => f.content.toLowerCase().includes(queryLower))
       .map(f => ({ content: f.content, score: 0.95 }));
 
-    const top = [...scored, ...podMatches]
+    const graphMatches = this.graphMirror ? await this.graphMirror.recall(query, k) : [];
+    const graphScored = graphMatches.map((content, index) => ({
+      content,
+      score: 0.35 - index * 0.01,
+    }));
+
+    const top = [...scored, ...podMatches, ...graphScored]
       .sort((a, b) => (b.score as number) - (a.score as number))
+      .filter((entry, index, all) => all.findIndex((candidate) => candidate.content === entry.content) === index)
       .slice(0, k);
 
     // Increment access count for recalled items
@@ -1898,10 +1914,48 @@ export class MemoryEngine {
   close(): void {
     this.flush();
     this.db.close();
+    this.graphMirror?.close();
+  }
+
+  private mirrorIntoGraph(item: Pick<MemoryItem, 'content' | 'priority' | 'tags'>): void {
+    if (!this.graphMirror) return;
+    try {
+      this.graphMirror.store(item.content, item.priority, item.tags);
+    } catch {
+      // Graph mirroring must not block the primary memory path.
+    }
+  }
+
+  private primeGraphMirror(rows: Array<{ content: string; priority: number; tags: string }> = []): void {
+    if (!this.graphMirror || rows.length === 0) return;
+    try {
+      const stats = this.graphMirror.getGraphStats();
+      if (stats.entities > 0 || stats.facts > 0) {
+        return;
+      }
+      rows.forEach((row) => {
+        this.graphMirror?.store(
+          String(row.content ?? ''),
+          Number(row.priority ?? 0.7),
+          safeParseTags(row.tags),
+        );
+      });
+    } catch {
+      // Ignore graph priming failures and keep the main memory engine available.
+    }
   }
 }
 
 export const createMemoryEngine = (dbPath?: string) => new MemoryEngine(dbPath);
+
+function safeParseTags(raw: string): string[] {
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((value): value is string => typeof value === 'string') : [];
+  } catch {
+    return [];
+  }
+}
 
 function dedupeStrings(values: string[]): string[] {
   return [...new Set(values.filter(Boolean))];

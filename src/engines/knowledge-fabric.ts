@@ -270,6 +270,63 @@ export class KnowledgeFabricEngine {
         return this.ragCollections.deleteCollection(collectionId);
     }
 
+    async ensureBootstrapCollection(input: {
+        runtimeId: string;
+        sessionId: string;
+        candidateFiles: string[];
+    }): Promise<RagCollectionSummary | undefined> {
+        const attached = this.ragCollections.listCollections().filter((collection) =>
+            collection.attachedRuntimeIds.includes(input.runtimeId)
+            || collection.attachedSessionIds.includes(input.sessionId)
+        );
+        if (attached.some((collection) => collection.chunkCount > 0)) {
+            return attached[0];
+        }
+
+        const existing = this.ragCollections.listCollections().find((collection) =>
+            collection.scope === 'project'
+            && collection.tags.includes('bootstrap-seeded')
+        );
+        const collection = existing ?? this.ragCollections.createCollection({
+            name: 'Project bootstrap context',
+            description: 'Auto-seeded project corpus for first-run orchestration grounding.',
+            tags: ['bootstrap-seeded', 'project-context', 'rag'],
+            scope: 'project',
+        });
+
+        const fullCollection = this.ragCollections.getCollection(collection.collectionId);
+        const existingLocations = new Set(
+            (fullCollection?.sources ?? [])
+                .map((source) => source.location)
+                .filter((location): location is string => Boolean(location))
+                .map((location) => path.resolve(location)),
+        );
+
+        const seedPaths = dedupePaths([
+            path.join(this.repoRoot, 'README.md'),
+            path.join(this.repoRoot, 'package.json'),
+            ...input.candidateFiles,
+        ])
+            .filter((target) => fs.existsSync(target))
+            .filter((target) => isReadableBootstrapSeed(target))
+            .slice(0, 6);
+
+        const ingestInputs = seedPaths
+            .filter((target) => !existingLocations.has(path.resolve(target)))
+            .map((target) => ({
+                filePath: target,
+                label: path.relative(this.repoRoot, target) || path.basename(target),
+                tags: ['bootstrap-seeded', 'project-context'],
+            }));
+
+        if (ingestInputs.length > 0) {
+            await this.ragCollections.ingestCollection(collection.collectionId, ingestInputs);
+        }
+
+        const attachedCollection = this.ragCollections.attachCollection(collection.collectionId, input.runtimeId, input.sessionId);
+        return this.ragCollections.listCollections().find((entry) => entry.collectionId === attachedCollection.collectionId);
+    }
+
     listPatterns(): PatternCard[] {
         return this.patternRegistry.list();
     }
@@ -606,10 +663,26 @@ function toFileRef(filePath: string): FileRef | undefined {
     }
 }
 
+function dedupePaths(values: string[]): string[] {
+    return [...new Set(values.map((value) => path.resolve(value)).filter(Boolean))];
+}
+
 function dedupeStrings(values: string[]): string[] {
     return [...new Set(values.filter(Boolean))];
 }
 
 function estimateTokens(value: string): number {
     return Math.max(1, Math.ceil(String(value || '').length / 4));
+}
+
+function isReadableBootstrapSeed(target: string): boolean {
+    try {
+        const stat = fs.statSync(target);
+        if (!stat.isFile() || stat.size > 96_000) {
+            return false;
+        }
+        return /\.(md|txt|json|ya?ml|ts|tsx|js|jsx|mjs|cjs)$/i.test(target);
+    } catch {
+        return false;
+    }
 }

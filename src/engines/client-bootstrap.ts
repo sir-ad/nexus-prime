@@ -52,6 +52,77 @@ export interface EnsureBootstrapOptions {
 const CODEX_MANAGED_START = '<!-- nexus-prime:codex-bootstrap:start -->';
 const CODEX_MANAGED_END = '<!-- nexus-prime:codex-bootstrap:end -->';
 const SUPPORTED_CLIENTS: SetupClientId[] = ['codex', 'cursor', 'claude', 'opencode', 'windsurf', 'antigravity'];
+const WORKSPACE_SEED_FILES: Array<{ relativePath: string; content: string }> = [
+    {
+        relativePath: '.agent/hooks/before-mutate-guard.md',
+        content: `---
+name: before-mutate-guard
+description: Local checkpoint before bounded file mutation.
+trigger: before-mutate
+riskClass: read
+domain: orchestration
+---
+
+Project-local hook seed. Customize this file to document extra mutation rules for this repository.
+`,
+    },
+    {
+        relativePath: '.agent/hooks/failure-summary.md',
+        content: `---
+name: failure-summary
+description: Local failure checkpoint for recovery notes and retry scope.
+trigger: run.failed
+riskClass: read
+domain: workflows
+---
+
+Project-local hook seed. Customize this file to capture repo-specific failure recovery notes.
+`,
+    },
+    {
+        relativePath: '.agent/hooks/memory-stored-review.md',
+        content: `---
+name: memory-stored-review
+description: Local review hook for important stored memories.
+trigger: memory.stored
+riskClass: read
+domain: memory
+---
+
+Project-local hook seed. Customize this file when memory writes need repo-specific review rules.
+`,
+    },
+    {
+        relativePath: '.agent/automations/session-close-followup.md',
+        content: `---
+name: session-close-followup
+description: Queue a bounded approval follow-up after a verified run.
+triggerMode: event
+eventTrigger: run.verified
+domain: workflows
+workflows:
+  - workflows-approval-loop
+---
+
+Project-local automation seed. Customize this file to add repo-specific post-verify follow-up steps.
+`,
+    },
+    {
+        relativePath: '.agent/automations/failure-followup.md',
+        content: `---
+name: failure-followup
+description: Queue a bounded retry follow-up after a failed run.
+triggerMode: event
+eventTrigger: run.failed
+domain: orchestration
+hooks:
+  - retry-narrow-scope
+---
+
+Project-local automation seed. Customize this file to add repo-specific failure recovery behavior.
+`,
+    },
+];
 
 function ensureParentDir(targetPath: string): void {
     mkdirSync(dirname(targetPath), { recursive: true });
@@ -395,6 +466,12 @@ function ensureWorkspaceAgentScaffold(workspaceRoot: string): void {
     directories.forEach((relativeDir) => {
         mkdirSync(join(workspaceRoot, relativeDir), { recursive: true });
     });
+    for (const seed of WORKSPACE_SEED_FILES) {
+        const target = join(workspaceRoot, seed.relativePath);
+        if (!existsSync(target)) {
+            writeFileSync(target, seed.content, 'utf8');
+        }
+    }
 }
 
 function bootstrapManifestPath(stateRoot?: string): string {

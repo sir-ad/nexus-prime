@@ -149,6 +149,18 @@ async function test() {
   fs.mkdirSync(process.env.HOME, { recursive: true });
   process.env.CODEX_HOME = path.join(stateDir, '.codex');
   fs.mkdirSync(process.env.CODEX_HOME, { recursive: true });
+  const eventsDir = path.join(process.env.HOME, '.nexus-prime');
+  const eventsFile = path.join(eventsDir, 'events.jsonl');
+  fs.mkdirSync(eventsDir, { recursive: true });
+  fs.writeFileSync(eventsFile, `${JSON.stringify({
+    id: 'evt_rehydrated_dashboard',
+    type: 'dashboard.action',
+    timestamp: Date.now() - 5_000,
+    data: {
+      action: 'rehydrated-prestart',
+      status: 'ok',
+    },
+  })}\n`, 'utf8');
 
   const { createSubAgentRuntime } = await import('../dist/phantom/index.js');
   const { createMemoryEngine } = await import('../dist/engines/memory.js');
@@ -341,7 +353,7 @@ async function test() {
       fetch(`${primaryAddress}/api/pod`),
       fetch(`${primaryAddress}/api/clients`),
       fetch(`${primaryAddress}/api/federation`),
-      fetch(`${primaryAddress}/api/events?limit=20`),
+      fetch(`${primaryAddress}/api/events?limit=200`),
     ]);
 
     const html = await htmlRes.text();
@@ -392,6 +404,14 @@ async function test() {
     assert.ok(html.includes('data-surface-mode="knowledge"'), 'dashboard HTML should expose a top-level knowledge mode');
     assert.ok(html.includes('data-surface-mode="runs"'), 'dashboard HTML should expose a top-level runs mode');
     assert.ok(html.includes('data-surface-mode="governance"'), 'dashboard HTML should expose a top-level governance mode');
+    assert.ok(html.includes('id="focus-overlay"'), 'dashboard HTML should expose the shared focus overlay shell');
+    assert.ok(html.includes('id="focus-backdrop"'), 'dashboard HTML should expose the focus overlay backdrop');
+    assert.ok(html.includes('data-focus-toggle="memory-graph"'), 'dashboard HTML should expose a graph focus control');
+    assert.ok(html.includes('data-widget-id="memory-snapshots"'), 'dashboard HTML should expose memory snapshots as a focusable widget');
+    assert.ok(html.includes('data-widget-id="events-panel"'), 'dashboard HTML should expose runtime events as a focusable widget');
+    assert.ok(html.includes('data-widget-id="actions-panel"'), 'dashboard HTML should expose operator actions as a focusable widget');
+    assert.ok(html.includes('data-widget-id="token-source-card"'), 'dashboard HTML should expose the by-source token card as a focusable widget');
+    assert.ok(html.includes('data-widget-id="token-phase-card"'), 'dashboard HTML should expose the by-phase token card as a focusable widget');
     assert.ok(html.includes('data-library-mode="hooks"'), 'dashboard HTML should expose hooks library mode');
     assert.ok(html.includes('data-library-mode="automations"'), 'dashboard HTML should expose automations library mode');
     assert.ok(html.includes('data-library-mode="specialists"'), 'dashboard HTML should expose specialist roster mode');
@@ -410,6 +430,10 @@ async function test() {
     assert.ok(html.includes('Runtime Events'), 'dashboard HTML should rename the event stream panel to a more concrete label');
     assert.ok(html.includes('Operator Actions'), 'dashboard HTML should rename the control-plane panel to a more concrete label');
     assert.ok(html.includes('1. Create collection and ingest source'), 'dashboard HTML should expose the explicit RAG collection workflow');
+    assert.ok(html.includes('RAG Injection Path'), 'dashboard HTML should expose the RAG injection-path widget');
+    assert.ok(html.includes('Used in Planner'), 'dashboard HTML should expose planner-stage RAG usage');
+    assert.ok(html.includes('Used in Packet'), 'dashboard HTML should expose packet-stage RAG usage');
+    assert.ok(html.includes('Used in Runtime'), 'dashboard HTML should expose runtime-stage RAG usage');
     assert.ok(html.includes('type="file"'), 'dashboard HTML should support local file ingestion for session RAG');
     assert.ok(html.includes('id="rag-url-input"'), 'dashboard HTML should support URL ingestion for session RAG');
     assert.ok(html.includes('Lifetime compression'), 'dashboard HTML should label the token dial as lifetime compression');
@@ -421,6 +445,9 @@ async function test() {
     assert.ok(html.includes('data-event-filter="automations"'), 'dashboard HTML should expose automations event filter');
     assert.ok(html.includes('data-event-filter="shield"'), 'dashboard HTML should expose shield event filter');
     assert.ok(html.includes('data-event-filter="federation"'), 'dashboard HTML should expose federation event filter');
+    assert.match(html, /runtime:\s*\['runs', 'pod', 'usage', 'orchestrationSession', 'orchestrationLedger', 'instructionPacket', 'tokensSummary', 'tokensTimeline', 'tokensBySource'\]/, 'runtime-category refresh should include token resources');
+    assert.match(html, /knowledge:\s*\['knowledgeFabricSession', 'knowledgeProvenance', 'ragCollections', 'patterns', 'tokensSummary', 'tokensTimeline', 'tokensBySource', 'modelTiers', 'memoryShared', 'usage'\]/, 'knowledge-category refresh should include token resources');
+    assert.match(html, /refreshAll\(\['ragCollections', 'knowledgeFabricSession', 'knowledgeProvenance', 'usage', 'tokensSummary', 'tokensTimeline', 'tokensBySource', 'orchestrationSession', 'orchestrationLedger'\]\)/, 'RAG actions should refresh token telemetry alongside knowledge surfaces');
     assert.ok(html.includes('height: 100vh;'), 'dashboard CSS should bind the shell to the viewport');
     assert.ok(html.includes('height: clamp(280px, 38vh, 420px);'), 'graph stage should have an explicit bounded height');
     assert.ok(!html.includes('Auto-seed skills and workflows on first load'), 'dashboard bootstrap should not mutate runtime state on load');
@@ -499,6 +526,7 @@ async function test() {
     assert.ok(Array.isArray(hooks) && hooks.some((hook: any) => hook.trigger), 'hooks API should expose trigger metadata');
     assert.ok(Array.isArray(automations) && automations.some((automation: any) => automation.triggerMode), 'automations API should expose trigger metadata');
     assert.ok(Array.isArray(events) && events.length > 0, 'events API should return normalized event cards');
+    assert.ok(events.some((event: any) => event.type === 'dashboard.action' && String(event.summary).includes('rehydrated-prestart')), 'events API should rehydrate recent persisted events on dashboard start');
     assert.ok(events.every((event: any) => event.title && event.category && typeof event.time === 'number'), 'events API should normalize event cards');
     assert.ok(streamChunk.includes('retry: 3000') || streamChunk.includes('event: bootstrap'), 'stream endpoint should emit SSE prelude');
 
