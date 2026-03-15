@@ -1,11 +1,11 @@
 <div align="center">
-  <h1>🧬 Nexus Prime</h1>
+  <img src="./docs/assets/nexus-prime-logo.svg" alt="Nexus Prime" width="80" height="80">
+  <h1>Nexus Prime</h1>
   <p><strong>Local-first MCP control plane for coding agents</strong></p>
 
   [![npm version](https://img.shields.io/npm/v/nexus-prime?style=for-the-badge&color=00ff88)](https://www.npmjs.com/package/nexus-prime)
   [![npm downloads](https://img.shields.io/npm/d18m/nexus-prime?style=for-the-badge&color=00d4ff)](https://www.npmjs.com/package/nexus-prime)
   [![License: MIT](https://img.shields.io/badge/License-MIT-00d4ff?style=for-the-badge)](LICENSE)
-  [![Agentic OS](https://img.shields.io/badge/Ecosystem-Agentic_OS-8b5cf6?style=for-the-badge)](https://github.com/topics/agentic-os)
   [![Build Status](https://img.shields.io/badge/build-passing-success?style=for-the-badge)](https://github.com/sir-ad/nexus-prime/actions)
   [![Node.js](https://img.shields.io/badge/node-%3E%3D20.0.0-339933?style=for-the-badge&logo=node.js)](https://nodejs.org)
   <!-- traffic-badges:start -->
@@ -13,11 +13,25 @@
   [![Clones](https://img.shields.io/endpoint?style=for-the-badge&logo=github&url=https%3A%2F%2Fgist.githubusercontent.com%2Fsir-ad%2Fbbf9ebc77ccb2097ccf760bec3825ab7%2Fraw%2Fclones.json)](https://github.com/sir-ad/nexus-prime)
   <!-- traffic-badges:end -->
 
+  [![GitHub Stars](https://img.shields.io/github/stars/sir-ad/nexus-prime?style=for-the-badge&logo=github&color=gold)](https://github.com/sir-ad/nexus-prime/stargazers)
+  [![GitHub Forks](https://img.shields.io/github/forks/sir-ad/nexus-prime?style=for-the-badge&logo=github&color=silver)](https://github.com/sir-ad/nexus-prime/network/members)
+  [![GitHub Issues](https://img.shields.io/github/issues/sir-ad/nexus-prime?style=for-the-badge&color=orange)](https://github.com/sir-ad/nexus-prime/issues)
+  [![GitHub Last Commit](https://img.shields.io/github/last-commit/sir-ad/nexus-prime?style=for-the-badge&color=00ff88)](https://github.com/sir-ad/nexus-prime/commits)
+  [![PRs Welcome](https://img.shields.io/badge/PRs-Welcome-brightgreen?style=for-the-badge)](https://github.com/sir-ad/nexus-prime/pulls)
+
   <!-- AI / Agentic Widgets -->
   [![AI Framework](https://img.shields.io/badge/AI-Framework-FF9900?style=for-the-badge)](https://github.com/topics/ai)
   [![LLM Ready](https://img.shields.io/badge/LLM-Ready-00A67E?style=for-the-badge)](https://github.com/topics/llm)
   [![MCP Protocol](https://img.shields.io/badge/Protocol-MCP-4285F4?style=for-the-badge)](https://modelcontextprotocol.io/)
-  
+  [![Agentic OS](https://img.shields.io/badge/Ecosystem-Agentic_OS-8b5cf6?style=for-the-badge)](https://github.com/topics/agentic-os)
+  [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+  [![Open Source](https://img.shields.io/badge/Open_Source-%E2%9D%A4-red?style=for-the-badge)](https://opensource.org/)
+
+  <!-- Community -->
+  [![Reddit #1 Post](https://img.shields.io/badge/r%2FLLMDevs-%231_Post_of_the_Day-FF4500?style=for-the-badge&logo=reddit&logoColor=white)](https://www.reddit.com/r/LLMDevs/)
+  [![Reddit Community](https://img.shields.io/badge/Reddit-r%2FNexus__Prime-FF4500?style=for-the-badge&logo=reddit&logoColor=white)](https://www.reddit.com/r/Nexus_Prime/)
+  [![Discord](https://img.shields.io/badge/Discord-Join_Server-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/zCPEjPZj)
+
   <p><i>Bootstrap. Orchestrate. Verify. Learn.</i></p>
   <a href="https://www.producthunt.com/products/nexus-prime?embed=true&amp;utm_source=badge-featured&amp;utm_medium=badge&amp;utm_campaign=badge-nexus-prime" target="_blank" rel="noopener noreferrer"><img alt="Nexus-Prime - Semantic memory and parallel execution for AI coding agents | Product Hunt" width="250" height="54" src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1096831&amp;theme=dark&amp;t=1773345508816"></a>
 
@@ -573,6 +587,20 @@ Inventory Snapshot: 109 skills · 64 workflows · 5 hooks · 3 automations · 7 
 ## 📜 Release History
 
 <details open>
+<summary><b>v3.13.0</b> · 2026-03-15 · Workspace surfaces, dashboard layout fixes, and community presence</summary>
+
+- Dashboard workspaces now drive their own graph visibility, library tabs, titles, and subtitles per surface mode (overview, knowledge, runs, catalog, governance).
+- Fixed memory graph overlapping text in non-graph surfaces by collapsing focusable-shell gap when the graph widget is hidden and removing conflicting inline margin.
+- Added graph-note text overflow handling and responsive min-height for hidden-graph surfaces.
+- Library tabs are now rendered dynamically per workspace instead of a single hardcoded rail.
+- Knowledge workspace auto-opens the create form when no collections exist.
+- Plan and execute actions now switch to the runs workspace automatically.
+- Added community badges (Reddit, Discord), engagement badges (stars, forks, issues, PRs), and the r/LLMDevs #1 Post of the Day recognition.
+
+Full notes: [CHANGELOG.md](./CHANGELOG.md)
+</details>
+
+<details>
 <summary><b>v3.12.1</b> · 2026-03-14 · Dashboard focus mode, graph recall wiring, and bootstrap recovery</summary>
 
 - Added dashboard maximize/restore focus mode across the main operational panels so graph, memory snapshots, runtime events, and operator actions are usable without the cramped default layout.

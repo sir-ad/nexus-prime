@@ -856,6 +856,27 @@
             overflow: auto;
         }
 
+        body[data-surface-mode="knowledge"] .graph-panel,
+        body[data-surface-mode="catalog"] .graph-panel,
+        body[data-surface-mode="governance"] .graph-panel {
+            background: var(--panel-strong);
+        }
+
+        body[data-surface-mode="knowledge"] .graph-panel > .panel-body,
+        body[data-surface-mode="catalog"] .graph-panel > .panel-body,
+        body[data-surface-mode="governance"] .graph-panel > .panel-body {
+            gap: 0.72rem;
+        }
+
+        body[data-surface-mode="knowledge"] [data-widget-id="memory-snapshots"],
+        body[data-surface-mode="catalog"] [data-widget-id="memory-snapshots"],
+        body[data-surface-mode="governance"] [data-widget-id="memory-snapshots"] {
+            flex: 1 1 auto;
+            margin-top: 0;
+            background: rgba(16, 21, 31, 0.96);
+            border-color: var(--line-strong);
+        }
+
         #graph-stage {
             position: relative;
             min-height: 280px;
@@ -926,6 +947,10 @@
         .graph-note {
             color: var(--muted);
             font-size: 0.64rem;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         .graph-footer {
@@ -1271,6 +1296,10 @@
             min-height: 0;
         }
 
+        .focusable-shell:has(> .hidden:first-child) {
+            gap: 0;
+        }
+
         .focus-placeholder {
             border-radius: var(--radius-card);
             border: 1px dashed rgba(188, 204, 255, 0.1);
@@ -1460,6 +1489,12 @@
 
             .graph-panel {
                 min-height: 24rem;
+            }
+
+            body[data-surface-mode="knowledge"] .graph-panel,
+            body[data-surface-mode="catalog"] .graph-panel,
+            body[data-surface-mode="governance"] .graph-panel {
+                min-height: auto;
             }
 
             #graph-stage {
@@ -1744,7 +1779,7 @@
                         <div class="graph-note" id="graph-note">Select a node to update Memory Snapshots and the inspector without leaving the graph.</div>
                     </div>
                 </div>
-                <div class="panel" data-widget-id="memory-snapshots" data-widget-title="Memory Snapshots" data-widget-subtitle="Selected runtime context, memory snapshots, and library surfaces in one focused view." style="margin-top: 1rem; min-height: 16rem;">
+                <div class="panel" data-widget-id="memory-snapshots" data-widget-title="Memory Snapshots" data-widget-subtitle="Selected runtime context, memory snapshots, and library surfaces in one focused view." style="min-height: 16rem;">
                     <div class="panel-header">
                         <div class="entity-header library-header" style="margin:0;">
                             <div class="library-heading">
@@ -1756,20 +1791,7 @@
                             </div>
                             <div id="runtime-usage-summary" class="runtime-summary meta">Loading runtime usage.</div>
                             <div id="library-tabs-wrap" class="compact-chip-wrap">
-                                <div id="library-tabs" class="compact-chip-rail">
-                                    <button data-library-mode="memories" class="active">Memories</button>
-                                    <button data-library-mode="platform">Platform</button>
-                                    <button data-library-mode="skills">Skills</button>
-                                    <button data-library-mode="specialists">Roster</button>
-                                    <button data-library-mode="crews">Crews</button>
-                                    <button data-library-mode="knowledge">Knowledge</button>
-                                    <button data-library-mode="planning">Plan</button>
-                                    <button data-library-mode="workflows">Workflows</button>
-                                    <button data-library-mode="hooks">Hooks</button>
-                                    <button data-library-mode="automations">Autos</button>
-                                    <button data-library-mode="governance">Governance</button>
-                                    <button data-library-mode="federation">Federation</button>
-                                </div>
+                                <div id="library-tabs" class="compact-chip-rail"></div>
                             </div>
                         </div>
                     </div>
@@ -1968,6 +1990,13 @@
             graphMode: 'memory',
             memoryViewMode: 'graph',
             libraryMode: 'memories',
+            workspaceViews: {
+                overview: 'memories',
+                knowledge: 'knowledge',
+                runs: 'planning',
+                catalog: 'platform',
+                governance: 'governance',
+            },
             eventFilter: 'all',
             selected: null,
             streamConnected: false,
@@ -2276,38 +2305,95 @@
             overview: {
                 note: 'Overview keeps runtime truth, lifetime token telemetry, and memory context in focus.',
                 graphMode: 'memory',
-                libraryMode: 'memories',
                 eventFilter: 'all',
                 memoryViewMode: 'graph',
+                defaultLibraryMode: 'memories',
+                graphTitle: 'Memory Explorer',
+                graphSubtitle: 'Select a node to inspect context, trace lineage, and keep runtime state in view.',
+                libraryTitle: 'Memory Snapshots',
+                librarySubtitle: 'Select, inspect, and trace why a memory matters across runtime links and session history.',
+                showGraph: true,
+                showGraphModeRail: true,
+                showMemoryViewRail: true,
             },
             knowledge: {
                 note: 'Knowledge centers RAG collections, provenance, by-source budgeting, and attached context.',
                 graphMode: 'memory',
-                libraryMode: 'knowledge',
                 eventFilter: 'tokens',
                 memoryViewMode: 'graph',
+                defaultLibraryMode: 'knowledge',
+                graphTitle: 'Knowledge Fabric',
+                graphSubtitle: 'RAG collections, injection path, provenance, and source mix for the selected runtime.',
+                libraryTitle: 'Knowledge Fabric',
+                librarySubtitle: 'Create, ingest, attach, and inspect session-first RAG without leaving the workspace.',
+                showGraph: false,
+                showGraphModeRail: false,
+                showMemoryViewRail: false,
             },
             runs: {
                 note: 'Runs brings execution topology, verifier traces, and the runtime event stream to the front.',
                 graphMode: 'runs',
-                libraryMode: 'planning',
                 eventFilter: 'runtime',
                 memoryViewMode: 'graph',
+                defaultLibraryMode: 'planning',
+                graphTitle: 'Run Execution Graph',
+                graphSubtitle: 'Run, worker, workflow, and backend topology from recent executions.',
+                libraryTitle: 'Run Control Plane',
+                librarySubtitle: 'Inspect planner decisions, worker lanes, packet usage, and execution evidence.',
+                showGraph: true,
+                showGraphModeRail: false,
+                showMemoryViewRail: false,
             },
             catalog: {
                 note: 'Catalog separates what is available from what the selected runtime actually used.',
                 graphMode: 'pod',
-                libraryMode: 'platform',
                 eventFilter: 'skills',
                 memoryViewMode: 'graph',
+                defaultLibraryMode: 'platform',
+                graphTitle: 'Catalog Inventory',
+                graphSubtitle: 'Skills, workflows, crews, hooks, automations, and generated registry surfaces.',
+                libraryTitle: 'Catalog Inventory',
+                librarySubtitle: 'Review what exists, what is usable, and what the runtime actually selected.',
+                showGraph: false,
+                showGraphModeRail: false,
+                showMemoryViewRail: false,
             },
             governance: {
                 note: 'Governance focuses on guardrails, review gates, quarantine, federation health, and relay status.',
                 graphMode: 'memory',
-                libraryMode: 'governance',
                 eventFilter: 'shield',
                 memoryViewMode: 'timeline',
+                defaultLibraryMode: 'governance',
+                graphTitle: 'Governance Console',
+                graphSubtitle: 'Review guardrails, quarantines, worktree health, and federation state without the graph shell in the way.',
+                libraryTitle: 'Governance Console',
+                librarySubtitle: 'Inspect quarantines, guardrails, federation status, and worktree health for the selected runtime.',
+                showGraph: false,
+                showGraphModeRail: false,
+                showMemoryViewRail: false,
             },
+        };
+
+        const workspaceTabs = {
+            overview: [],
+            knowledge: [],
+            runs: [
+                { mode: 'planning', label: 'Plan' },
+                { mode: 'workflows', label: 'Workflows' },
+            ],
+            catalog: [
+                { mode: 'platform', label: 'Platform' },
+                { mode: 'skills', label: 'Skills' },
+                { mode: 'specialists', label: 'Roster' },
+                { mode: 'crews', label: 'Crews' },
+                { mode: 'workflows', label: 'Workflows' },
+                { mode: 'hooks', label: 'Hooks' },
+                { mode: 'automations', label: 'Autos' },
+            ],
+            governance: [
+                { mode: 'governance', label: 'Governance' },
+                { mode: 'federation', label: 'Federation' },
+            ],
         };
 
         function $(id) {
@@ -2363,6 +2449,23 @@
             if (['ready', 'standby', 'rolled_back', 'inferred', 'staged', 'idle', 'installed'].includes(status)) return 'warn';
             if (['revoked', 'failed', 'rejected', 'offline'].includes(status)) return 'bad';
             return 'info';
+        }
+
+        function getSurfaceConfig(mode = state.surfaceMode) {
+            return surfaceModes[mode] || surfaceModes.overview;
+        }
+
+        function getWorkspaceTabs(mode = state.surfaceMode) {
+            return workspaceTabs[mode] || [];
+        }
+
+        function getWorkspaceMode(mode = state.surfaceMode) {
+            const config = getSurfaceConfig(mode);
+            const tabs = getWorkspaceTabs(mode);
+            const savedMode = state.workspaceViews?.[mode] || config.defaultLibraryMode;
+            return tabs.length && !tabs.some((tab) => tab.mode === savedMode)
+                ? config.defaultLibraryMode
+                : savedMode;
         }
 
         function getWidgetRoot(widgetId) {
@@ -2945,13 +3048,15 @@
         function applySurfaceMode(mode) {
             const next = surfaceModes[mode];
             if (!next) return;
+            if (!next.showGraph && _focusState?.widgetId === 'memory-graph') {
+                closeFocusWidget();
+            }
             state.surfaceMode = mode;
             state.graphMode = next.graphMode;
-            state.libraryMode = next.libraryMode;
             state.eventFilter = next.eventFilter;
-            if (state.graphMode === 'memory') {
-                state.memoryViewMode = next.memoryViewMode;
-            }
+            state.memoryViewMode = next.memoryViewMode;
+            state.workspaceViews[mode] = getWorkspaceMode(mode);
+            state.libraryMode = state.workspaceViews[mode] || next.defaultLibraryMode;
             render();
         }
 
@@ -3433,24 +3538,60 @@
         }
 
         function renderGraph() {
-            if (_memoryNetworkLoading && state.graphMode === 'memory') return;
+            const surface = getSurfaceConfig();
+            if (_memoryNetworkLoading && surface.showGraph && state.graphMode === 'memory') return;
 
-            const config = graphModes[state.graphMode];
+            state.graphMode = surface.showGraphModeRail ? state.graphMode || surface.graphMode : surface.graphMode;
+            if (!graphModes[state.graphMode]) {
+                state.graphMode = surface.graphMode;
+            }
+            if (state.graphMode === 'memory') {
+                state.memoryViewMode = surface.showMemoryViewRail
+                    ? (state.memoryViewMode || surface.memoryViewMode || 'graph')
+                    : (surface.memoryViewMode || 'graph');
+            } else {
+                state.memoryViewMode = 'graph';
+            }
+
+            const config = {
+                title: surface.graphTitle || graphModes[state.graphMode].title,
+                subtitle: surface.graphSubtitle || graphModes[state.graphMode].subtitle,
+            };
             const memoryToolbar = $('memory-view-modes');
+            const graphModesRail = $('graph-modes');
+            const graphWidget = getWidgetRoot('memory-graph');
+            const graphExpandButton = document.querySelector('[data-focus-toggle="memory-graph"]');
             const svg = $('graph-canvas');
             const explorer = $('graph-memory-explorer');
             const empty = $('graph-empty');
             $('graph-title').textContent = config.title;
             $('graph-subtitle').textContent = config.subtitle;
-            document.querySelectorAll('#graph-modes button').forEach((button) => {
-                button.classList.toggle('active', button.dataset.graphMode === state.graphMode);
-            });
+            if (graphModesRail) {
+                graphModesRail.classList.toggle('hidden', !surface.showGraphModeRail);
+                graphModesRail.querySelectorAll('button').forEach((button) => {
+                    button.classList.toggle('active', button.dataset.graphMode === state.graphMode);
+                });
+            }
             if (memoryToolbar) {
-                memoryToolbar.classList.toggle('hidden', state.graphMode !== 'memory');
+                memoryToolbar.classList.toggle('hidden', !surface.showMemoryViewRail || state.graphMode !== 'memory');
                 memoryToolbar.querySelectorAll('button').forEach((button) => {
                     button.classList.toggle('active', button.dataset.memoryViewMode === state.memoryViewMode);
                 });
             }
+            if (graphExpandButton) {
+                graphExpandButton.classList.toggle('hidden', !surface.showGraph);
+            }
+
+            if (!surface.showGraph) {
+                graphWidget?.classList.add('hidden');
+                svg.innerHTML = '';
+                explorer.innerHTML = '';
+                $('graph-stats').innerHTML = '';
+                $('graph-note').textContent = config.subtitle;
+                return;
+            }
+
+            graphWidget?.classList.remove('hidden');
 
             let model = buildGraphModel();
 
@@ -3731,9 +3872,21 @@
 
         function renderLibrary() {
             renderRuntimeSelection();
-            document.querySelectorAll('#library-tabs button').forEach((button) => {
-                button.classList.toggle('active', button.dataset.libraryMode === state.libraryMode);
-            });
+            const surface = getSurfaceConfig();
+            const tabs = getWorkspaceTabs();
+            const tabsWrap = $('library-tabs-wrap');
+            const tabsRail = $('library-tabs');
+            const widget = getWidgetRoot('memory-snapshots');
+            state.libraryMode = getWorkspaceMode();
+            if (tabs.length > 1) {
+                tabsWrap.classList.remove('hidden');
+                tabsRail.innerHTML = tabs.map((tab) => `
+                    <button data-library-mode="${escapeHtml(tab.mode)}" class="${tab.mode === state.libraryMode ? 'active' : ''}">${escapeHtml(tab.label)}</button>
+                `).join('');
+            } else {
+                tabsWrap.classList.add('hidden');
+                tabsRail.innerHTML = '';
+            }
             const titles = {
                 memories: 'Memory Snapshots',
                 platform: 'Platform Registry',
@@ -3762,8 +3915,12 @@
                 governance: 'Inspect quarantines, guardrails, and the reasons a memory or run path is blocked.',
                 federation: 'See peer inventory, relay status, and what the selected runtime exchanged with the mesh.',
             };
-            $('library-title').textContent = titles[state.libraryMode];
-            $('library-subtitle').textContent = subtitles[state.libraryMode];
+            $('library-title').textContent = surface.libraryTitle || titles[state.libraryMode];
+            $('library-subtitle').textContent = surface.librarySubtitle || subtitles[state.libraryMode];
+            if (widget) {
+                widget.dataset.widgetTitle = surface.libraryTitle || titles[state.libraryMode];
+                widget.dataset.widgetSubtitle = surface.librarySubtitle || subtitles[state.libraryMode];
+            }
             const container = $('library-list');
 
             if (state.libraryMode === 'memories') {
@@ -4107,8 +4264,8 @@
                             <div class="meta">Selected by budgeting and carried into planner, packet, and runtime context.</div>
                         </div>
                     </div>
-                    <details class="card" style="border-color: rgba(84,255,135,0.18); background: rgba(84,255,135,0.04);">
-                        <summary style="cursor:pointer; font-size:0.78rem; font-weight:600; color:var(--accent);">1. Create collection and ingest source</summary>
+                    <details class="card" ${collections.length ? '' : 'open'} style="border-color: rgba(84,255,135,0.18); background: rgba(84,255,135,0.04);">
+                        <summary style="cursor:pointer; font-size:0.78rem; font-weight:600; color:var(--accent);">Create / Ingest / Attach</summary>
                         <form id="rag-create-form" class="control-grid" style="margin-top:0.6rem;">
                             <div class="field">
                                 <label for="rag-name-input">Collection Name</label>
@@ -4137,7 +4294,7 @@
                             <div class="action-bar">
                                 <button type="submit" class="primary-button">Create, ingest, and attach</button>
                             </div>
-                            <div class="meta">Collections stay session-first. Nexus retrieves only top matching chunks during bootstrap and orchestrate.</div>
+                            <div class="meta">Collections attach to the runtime, but only top matching chunks are pulled into orchestration.</div>
                             <div id="rag-create-status" class="meta"></div>
                         </form>
                     </details>
@@ -5427,13 +5584,19 @@
                 try {
                     $('control-status').textContent = 'Planning runtime task...';
                     state.plannerPreview = await fetchJson('/api/runtime/plan', postJson(payload));
+                    state.workspaceViews.runs = 'planning';
                     state.libraryMode = 'planning';
+                    state.surfaceMode = 'runs';
+                    state.eventFilter = surfaceModes.runs.eventFilter;
                     render();
                     $('control-status').textContent = 'Executing runtime task...';
                     const run = await fetchJson('/api/runtime/execute', postJson(payload));
                     $('control-status').textContent = `Run ${run.runId} created with state ${run.state}.`;
                     state.selected = { kind: 'run', id: run.runId, data: run };
+                    state.workspaceViews.runs = 'planning';
                     state.libraryMode = 'planning';
+                    state.surfaceMode = 'runs';
+                    state.eventFilter = surfaceModes.runs.eventFilter;
                     await refreshAll();
                 } catch (error) {
                     $('control-status').textContent = `Execution failed: ${error.message}`;
@@ -5450,7 +5613,10 @@
                 try {
                     $('control-status').textContent = 'Building planner ledger...';
                     state.plannerPreview = await fetchJson('/api/runtime/plan', postJson(payload));
+                    state.workspaceViews.runs = 'planning';
                     state.libraryMode = 'planning';
+                    state.surfaceMode = 'runs';
+                    state.eventFilter = surfaceModes.runs.eventFilter;
                     render();
                     await refreshAll(['usage', 'orchestrationSession', 'orchestrationLedger', 'instructionPacket', 'tokensSummary', 'tokensTimeline', 'tokensBySource', 'knowledgeFabricSession', 'knowledgeProvenance']);
                     $('control-status').textContent = `Planner ready: ${state.plannerPreview.selectedCrew?.name || 'baseline path'}.`;
@@ -5506,11 +5672,12 @@
                 });
             });
 
-            document.querySelectorAll('#library-tabs button').forEach((button) => {
-                button.addEventListener('click', () => {
-                    state.libraryMode = button.dataset.libraryMode;
-                    render();
-                });
+            $('library-tabs').addEventListener('click', (event) => {
+                const button = event.target.closest('[data-library-mode]');
+                if (!button) return;
+                state.workspaceViews[state.surfaceMode] = button.dataset.libraryMode;
+                state.libraryMode = button.dataset.libraryMode;
+                render();
             });
 
             document.querySelectorAll('#surface-tabs button').forEach((button) => {

@@ -2,7 +2,27 @@
 
 All notable changes to Nexus Prime are documented here.
 
-Release Index: [v3.12.1 release note](./releases/v3.12.1.md)
+Release Index: [v3.13.0](#v3130--2026-03-15) · [v3.12.1 release note](./releases/v3.12.1.md)
+
+<details open>
+<summary><b>v3.13.0</b> · 2026-03-15 · Workspace surfaces, dashboard layout fixes, and community presence</summary>
+
+### Added
+- **Workspace-driven surfaces**: Each dashboard workspace (overview, knowledge, runs, catalog, governance) now controls its own graph visibility, library tabs, panel titles, and subtitles.
+- **Dynamic library tabs**: Library tabs are rendered per workspace instead of a static hardcoded rail; workspace view state is tracked independently.
+- **Community badges**: Added Reddit (#1 Post of the Day on r/LLMDevs), Reddit community (r/Nexus_Prime), Discord invite, GitHub stars/forks/issues/last-commit, PRs Welcome, TypeScript, and Open Source badges.
+- **Project logo**: Replaced the DNA emoji header with the Nexus Prime hexagon logo.
+
+### Fixed
+- **Memory graph overlapping text**: Collapsed focusable-shell gap when the graph widget is hidden in non-graph surfaces, removed conflicting inline `margin-top`, and dropped the `!important` override.
+- **Graph note text overflow**: Added `text-overflow: ellipsis` and `white-space: nowrap` to prevent the graph footer note from overflowing into stats on narrow viewports.
+- **Responsive hidden-graph surfaces**: Added `min-height: auto` for knowledge, catalog, and governance surfaces at narrow breakpoints so they don't force a tall empty graph panel.
+
+### Changed
+- **Knowledge create form**: Auto-opens the RAG create/ingest form when no collections exist.
+- **Plan and execute navigation**: Plan and execute actions now switch to the runs workspace and event filter automatically.
+
+</details>
 
 <details open>
 <summary><b>v3.12.1</b> · 2026-03-14 · Dashboard focus mode and audit recovery</summary>
